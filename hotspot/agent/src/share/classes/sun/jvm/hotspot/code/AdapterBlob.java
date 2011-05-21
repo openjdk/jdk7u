@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,26 +19,40 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-package sun.io;
+package sun.jvm.hotspot.code;
 
-import sun.nio.cs.ext.IBM833;
+import java.util.*;
+import sun.jvm.hotspot.debugger.*;
+import sun.jvm.hotspot.runtime.*;
+import sun.jvm.hotspot.types.*;
 
-public class CharToByteCp833 extends CharToByteSingleByte {
+public class AdapterBlob extends CodeBlob {
+  static {
+    VM.registerVMInitializedObserver(new Observer() {
+        public void update(Observable o, Object data) {
+          initialize(VM.getVM().getTypeDataBase());
+        }
+      });
+  }
 
-    private final static IBM833 nioCoder = new IBM833();
+  private static void initialize(TypeDataBase db) {
+    // Type type = db.lookupType("AdapterBlob");
 
-    public String getCharacterEncoding() {
-        return "Cp833";
-    }
+    // // FIXME: add any needed fields
+  }
 
-    public CharToByteCp833() {
-        super.mask1 = 0xFF00;
-        super.mask2 = 0x00FF;
-        super.shift = 8;
-        super.index1 = nioCoder.getEncoderIndex1();
-        super.index2 = nioCoder.getEncoderIndex2();
-    }
+  public AdapterBlob(Address addr) {
+    super(addr);
+  }
+
+  public boolean isAdapterBlob() {
+    return true;
+  }
+
+  public String getName() {
+    return "AdapterBlob: " + super.getName();
+  }
 }
-
