@@ -174,6 +174,10 @@ public class Credentials {
                 cname, sname, key, flags, authtime, starttime, endtime, renewTill, caddr);
     }
 
+    public KerberosTime getStartTime() {
+        return starttime;
+    }
+
     public KerberosTime getAuthTime() {
         return authtime;
     }
@@ -182,11 +186,19 @@ public class Credentials {
         return endtime;
     }
 
+    public KerberosTime getRenewTill() {
+        return renewTill;
+    }
+
     public TicketFlags getTicketFlags() {
         return flags;
     }
 
     public int getEType() {
         return key.getEType();
+    }
+
+    public int getTktEType() {
+        return ticket.encPart.getEType();
     }
 }
