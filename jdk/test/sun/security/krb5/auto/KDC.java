@@ -1061,7 +1061,6 @@ public class KDC {
                 }
                 cache.update(credentials);
                 cache.save();
-                new File(ccache).deleteOnExit();
             }
 
             return result;
