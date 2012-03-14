@@ -187,6 +187,8 @@ class MethodHandles: AllStatic {
     _adapter_opt_fold_FIRST = _adapter_opt_fold_ref,
     _adapter_opt_fold_LAST  = _adapter_opt_fold_5_ref,
 
+    _adapter_opt_profiling,
+
     _EK_LIMIT,
     _EK_FIRST = 0
   };
@@ -266,6 +268,8 @@ class MethodHandles: AllStatic {
       return _adapter_fold_args;
     if (ek >= _adapter_opt_return_FIRST && ek <= _adapter_opt_return_LAST)
       return _adapter_opt_return_any;
+    if (ek == _adapter_opt_profiling)
+      return _adapter_retype_only;
     assert(false, "oob");
     return _EK_LIMIT;
   }
@@ -511,11 +515,12 @@ class MethodHandles: AllStatic {
   }
   // Here is the transformation the i2i adapter must perform:
   static int truncate_subword_from_vminfo(jint value, int vminfo) {
-    jint tem = value << vminfo;
+    int shift = vminfo & ~CONV_VMINFO_SIGN_FLAG;
+    jint tem = value << shift;
     if ((vminfo & CONV_VMINFO_SIGN_FLAG) != 0) {
-      return (jint)tem >> vminfo;
+      return (jint)tem >> shift;
     } else {
-      return (juint)tem >> vminfo;
+      return (juint)tem >> shift;
     }
   }
 
@@ -582,6 +587,7 @@ class MethodHandles: AllStatic {
     GC_JVM_STACK_MOVE_UNIT = 1,
     GC_CONV_OP_IMPLEMENTED_MASK = 2,
     GC_OP_ROT_ARGS_DOWN_LIMIT_BIAS = 3,
+    GC_COUNT_GWT = 4,
 
     // format of result from getTarget / encode_target:
     ETF_HANDLE_OR_METHOD_NAME = 0, // all available data (immediate MH or method)
@@ -732,46 +738,6 @@ public:
 #ifdef TARGET_ARCH_ppc
 # include "methodHandles_ppc.hpp"
 #endif
-
-#ifdef TARGET_ARCH_NYI_6939861
-  // Here are some backward compatible declarations until the 6939861 ports are updated.
-  #define _adapter_flyby    (_EK_LIMIT + 10)
-  #define _adapter_ricochet (_EK_LIMIT + 11)
-  #define _adapter_opt_spread_1    _adapter_opt_spread_1_ref
-  #define _adapter_opt_spread_more _adapter_opt_spread_ref
-  enum {
-    _INSERT_NO_MASK   = -1,
-    _INSERT_REF_MASK  = 0,
-    _INSERT_INT_MASK  = 1,
-    _INSERT_LONG_MASK = 3
-  };
-  static void get_ek_bound_mh_info(EntryKind ek, BasicType& arg_type, int& arg_mask, int& arg_slots) {
-    arg_type = ek_bound_mh_arg_type(ek);
-    arg_mask = 0;
-    arg_slots = type2size[arg_type];;
-  }
-  static void get_ek_adapter_opt_swap_rot_info(EntryKind ek, int& swap_bytes, int& rotate) {
-    int swap_slots = ek_adapter_opt_swap_slots(ek);
-    rotate = ek_adapter_opt_swap_mode(ek);
-    swap_bytes = swap_slots * Interpreter::stackElementSize;
-  }
-  static int get_ek_adapter_opt_spread_info(EntryKind ek) {
-    return ek_adapter_opt_spread_count(ek);
-  }
-
-  static void insert_arg_slots(MacroAssembler* _masm,
-                               RegisterOrConstant arg_slots,
-                               int arg_mask,
-                               Register argslot_reg,
-                               Register temp_reg, Register temp2_reg, Register temp3_reg = noreg);
-
-  static void remove_arg_slots(MacroAssembler* _masm,
-                               RegisterOrConstant arg_slots,
-                               Register argslot_reg,
-                               Register temp_reg, Register temp2_reg, Register temp3_reg = noreg);
-
-  static void trace_method_handle(MacroAssembler* _masm, const char* adaptername) PRODUCT_RETURN;
-#endif //TARGET_ARCH_NYI_6939861
 };
 
 
