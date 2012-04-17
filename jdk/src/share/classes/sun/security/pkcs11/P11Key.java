@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@ import sun.security.pkcs11.wrapper.*;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
 import sun.security.util.DerValue;
+import sun.security.util.Length;
 
 /**
  * Key implementation classes.
@@ -61,7 +62,7 @@ import sun.security.util.DerValue;
  * @author  Andreas Sterbenz
  * @since   1.5
  */
-abstract class P11Key implements Key {
+abstract class P11Key implements Key, Length {
 
     private final static String PUBLIC = "public";
     private final static String PRIVATE = "private";
@@ -212,7 +213,11 @@ abstract class P11Key implements Key {
         return s1;
     }
 
-    int keyLength() {
+    /**
+     * Return bit length of the key.
+     */
+    @Override
+    public int length() {
         return keyLength;
     }
 
@@ -1003,28 +1008,21 @@ abstract class P11Key implements Key {
             try {
                 params = P11ECKeyFactory.decodeParameters
                             (attributes[1].getByteArray());
-
-                /*
-                 * An uncompressed EC point may be in either of two formats.
-                 * First try the OCTET STRING encoding:
-                 *   04 <length> 04 <X-coordinate> <Y-coordinate>
-                 *
-                 * Otherwise try the raw encoding:
-                 *   04 <X-coordinate> <Y-coordinate>
-                 */
                 byte[] ecKey = attributes[0].getByteArray();
 
-                try {
+                // Check whether the X9.63 encoding of an EC point is wrapped
+                // in an ASN.1 OCTET STRING
+                if (!token.config.getUseEcX963Encoding()) {
                     DerValue wECPoint = new DerValue(ecKey);
-                    if (wECPoint.getTag() != DerValue.tag_OctetString)
-                        throw new IOException("Unexpected tag: " +
-                            wECPoint.getTag());
 
+                    if (wECPoint.getTag() != DerValue.tag_OctetString) {
+                        throw new IOException("Could not DER decode EC point." +
+                            " Unexpected tag: " + wECPoint.getTag());
+                    }
                     w = P11ECKeyFactory.decodePoint
                         (wECPoint.getDataBytes(), params.getCurve());
 
-                } catch (IOException e) {
-                    // Failover
+                } else {
                     w = P11ECKeyFactory.decodePoint(ecKey, params.getCurve());
                 }
 
