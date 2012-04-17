@@ -58,7 +58,6 @@ SharedHeap::SharedHeap(CollectorPolicy* policy_) :
   _perm_gen(NULL), _rem_set(NULL),
   _strong_roots_parity(0),
   _process_strong_tasks(new SubTasksDone(SH_PS_NumElements)),
-  _n_par_threads(0),
   _workers(NULL)
 {
   if (_process_strong_tasks == NULL || !_process_strong_tasks->valid()) {
@@ -80,6 +79,14 @@ SharedHeap::SharedHeap(CollectorPolicy* policy_) :
   }
 }
 
+int SharedHeap::n_termination() {
+  return _process_strong_tasks->n_threads();
+}
+
+void SharedHeap::set_n_termination(int t) {
+  _process_strong_tasks->set_n_threads(t);
+}
+
 bool SharedHeap::heap_lock_held_for_gc() {
   Thread* t = Thread::current();
   return    Heap_lock->owned_by_self()
@@ -87,7 +94,7 @@ bool SharedHeap::heap_lock_held_for_gc() {
              && _thread_holds_heap_lock_for_gc);
 }
 
-void SharedHeap::set_par_threads(int t) {
+void SharedHeap::set_par_threads(uint t) {
   assert(t == 0 || !UseSerialGC, "Cannot have parallel threads");
   _n_par_threads = t;
   _process_strong_tasks->set_n_threads(t);
@@ -144,9 +151,12 @@ void SharedHeap::process_strong_roots(bool activate_scope,
   StrongRootsScope srs(this, activate_scope);
   // General strong roots.
   assert(_strong_roots_parity != 0, "must have called prologue code");
+  // _n_termination for _process_strong_tasks should be set up stream
+  // in a method not running in a GC worker.  Otherwise the GC worker
+  // could be trying to change the termination condition while the task
+  // is executing in another GC worker.
   if (!_process_strong_tasks->is_task_claimed(SH_PS_Universe_oops_do)) {
     Universe::oops_do(roots);
-    ReferenceProcessor::oops_do(roots);
     // Consider perm-gen discovered lists to be strong.
     perm_gen()->ref_processor()->weak_oops_do(roots);
   }
