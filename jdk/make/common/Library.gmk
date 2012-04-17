@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1995, 2012, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,17 @@ library:: $(ACTUAL_LIBRARY)
 FILES_o   = $(patsubst %.c,   %.$(OBJECT_SUFFIX), $(addprefix $(OBJDIR)/, $(notdir $(FILES_c))))
 FILES_o  += $(patsubst %.s,   %.$(OBJECT_SUFFIX), $(addprefix $(OBJDIR)/, $(notdir $(FILES_s))))
 FILES_o  += $(patsubst %.cpp, %.$(OBJECT_SUFFIX), $(addprefix $(OBJDIR)/, $(notdir $(FILES_cpp))))
+
+ifeq ($(PLATFORM), macosx)
+FILES_o  += $(patsubst %.m,   %.$(OBJECT_SUFFIX), $(addprefix $(OBJDIR)/, $(notdir $(FILES_objc))))
+FILES_o  += $(patsubst %.mm,  %.$(OBJECT_SUFFIX), $(addprefix $(OBJDIR)/, $(notdir $(FILES_objcpp))))
+
+# MMM: why?
+INCREMENTAL_BUILD=false
+
+endif # PLATFORM
+
+
 
 ifeq ($(INCREMENTAL_BUILD),true)
 FILES_d   = $(patsubst %.c,   %.$(DEPEND_SUFFIX), $(addprefix $(OBJDIR)/, $(notdir $(FILES_c))))
@@ -159,17 +170,23 @@ else # LIBRARY
 # build it into $(OBJDIR) so that the other generated files get put 
 # there, then copy just the DLL (and MAP file) to the requested directory.
 #
+ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
+  MAP_OPTION="-map:$(OBJDIR)/$(LIBRARY).map"
+endif
+
 $(ACTUAL_LIBRARY):: $(OBJDIR)/$(LIBRARY).lcf
 	@$(prep-target)
 	@$(MKDIR) -p $(OBJDIR)
 	$(LINK) -dll -out:$(OBJDIR)/$(@F) \
-	  -map:$(OBJDIR)/$(LIBRARY).map \
+	  $(MAP_OPTION) \
 	  $(LFLAGS) @$(OBJDIR)/$(LIBRARY).lcf \
 	  $(OTHER_LCF) $(JAVALIB) $(LDLIBS)
 	$(CP) $(OBJDIR)/$(@F) $@
 	@$(call binary_file_verification,$@)
+ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
 	$(CP) $(OBJDIR)/$(LIBRARY).map $(@D)
 	$(CP) $(OBJDIR)/$(LIBRARY).pdb $(@D)
+endif
 
 endif # LIBRARY
 
@@ -217,12 +234,17 @@ else # PLATFORM
 # the shared library.  On other platforms set this to false at the
 # make command line.
 #
+
+ifneq ($(PLATFORM), macosx)
+  ARFLAGS = -r
+endif
+
 $(ACTUAL_LIBRARY):: $(COMPILE_FILES_o) $(FILES_m) $(FILES_reorder)
 	@$(prep-target)
 	@$(ECHO) "STATS: LIBRARY=$(LIBRARY), PRODUCT=$(PRODUCT), OPTIMIZATION_LEVEL=$(OPTIMIZATION_LEVEL)"
 	@$(ECHO) "Rebuilding $@ because of $?"
 ifeq ($(LIBRARY), fdlibm)
-	$(AR) -r $@ $(FILES_o)
+	$(AR) $(ARFLAGS) $@ $(FILES_o)
 else # LIBRARY
 	$(LINKER) $(SHARED_LIBRARY_FLAG) -o $@ $(FILES_o) $(LDLIBS)
 	@$(call binary_file_verification,$@)

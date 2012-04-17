@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package sun.net.httpserver;
 
-import com.sun.net.httpserver.*;
-import com.sun.net.httpserver.spi.*;
 import java.util.logging.Logger;
 import java.security.PrivilegedAction;
 
@@ -48,59 +46,62 @@ class ServerConfig {
     static final long DEFAULT_MAX_REQ_TIME = -1; // default: forever
     static final long DEFAULT_MAX_RSP_TIME = -1; // default: forever
     static final long DEFAULT_TIMER_MILLIS = 1000;
-
+    static final int  DEFAULT_MAX_REQ_HEADERS = 200;
     static final long DEFAULT_DRAIN_AMOUNT = 64 * 1024;
 
     static long idleInterval;
     static long drainAmount;    // max # of bytes to drain from an inputstream
     static int maxIdleConnections;
-
+    // The maximum number of request headers allowable
+    private static int maxReqHeaders;
     // max time a request or response is allowed to take
     static long maxReqTime;
     static long maxRspTime;
     static long timerMillis;
-    static boolean debug = false;
+    static boolean debug;
+
+    // the value of the TCP_NODELAY socket-level option
+    static boolean noDelay;
 
     static {
+        java.security.AccessController.doPrivileged(
+            new PrivilegedAction<Void>() {
+                @Override
+                public Void run () {
+                    idleInterval = Long.getLong("sun.net.httpserver.idleInterval",
+                            DEFAULT_IDLE_INTERVAL) * 1000;
 
-        idleInterval = ((Long)java.security.AccessController.doPrivileged(
-                new sun.security.action.GetLongAction(
-                "sun.net.httpserver.idleInterval",
-                DEFAULT_IDLE_INTERVAL))).longValue() * 1000;
+                    clockTick = Integer.getInteger("sun.net.httpserver.clockTick",
+                            DEFAULT_CLOCK_TICK);
 
-        clockTick = ((Integer)java.security.AccessController.doPrivileged(
-                new sun.security.action.GetIntegerAction(
-                "sun.net.httpserver.clockTick",
-                DEFAULT_CLOCK_TICK))).intValue();
+                    maxIdleConnections = Integer.getInteger(
+                            "sun.net.httpserver.maxIdleConnections",
+                            DEFAULT_MAX_IDLE_CONNECTIONS);
 
-        maxIdleConnections = ((Integer)java.security.AccessController.doPrivileged(
-                new sun.security.action.GetIntegerAction(
-                "sun.net.httpserver.maxIdleConnections",
-                DEFAULT_MAX_IDLE_CONNECTIONS))).intValue();
+                    drainAmount = Long.getLong("sun.net.httpserver.drainAmount",
+                            DEFAULT_DRAIN_AMOUNT);
 
-        drainAmount = ((Long)java.security.AccessController.doPrivileged(
-                new sun.security.action.GetLongAction(
-                "sun.net.httpserver.drainAmount",
-                DEFAULT_DRAIN_AMOUNT))).longValue();
+                    maxReqHeaders = Integer.getInteger(
+                            "sun.net.httpserver.maxReqHeaders",
+                            DEFAULT_MAX_REQ_HEADERS);
 
-        maxReqTime = ((Long)java.security.AccessController.doPrivileged(
-                new sun.security.action.GetLongAction(
-                "sun.net.httpserver.maxReqTime",
-                DEFAULT_MAX_REQ_TIME))).longValue();
+                    maxReqTime = Long.getLong("sun.net.httpserver.maxReqTime",
+                            DEFAULT_MAX_REQ_TIME);
 
-        maxRspTime = ((Long)java.security.AccessController.doPrivileged(
-                new sun.security.action.GetLongAction(
-                "sun.net.httpserver.maxRspTime",
-                DEFAULT_MAX_RSP_TIME))).longValue();
+                    maxRspTime = Long.getLong("sun.net.httpserver.maxRspTime",
+                            DEFAULT_MAX_RSP_TIME);
 
-        timerMillis = ((Long)java.security.AccessController.doPrivileged(
-                new sun.security.action.GetLongAction(
-                "sun.net.httpserver.timerMillis",
-                DEFAULT_TIMER_MILLIS))).longValue();
+                    timerMillis = Long.getLong("sun.net.httpserver.timerMillis",
+                            DEFAULT_TIMER_MILLIS);
 
-        debug = ((Boolean)java.security.AccessController.doPrivileged(
-                new sun.security.action.GetBooleanAction(
-                "sun.net.httpserver.debug"))).booleanValue();
+                    debug = Boolean.getBoolean("sun.net.httpserver.debug");
+
+                    noDelay = Boolean.getBoolean("sun.net.httpserver.nodelay");
+
+                    return null;
+                }
+            });
+
     }
 
 
@@ -161,6 +162,10 @@ class ServerConfig {
         return drainAmount;
     }
 
+    static int getMaxReqHeaders() {
+        return maxReqHeaders;
+    }
+
     static long getMaxReqTime () {
         return maxReqTime;
     }
@@ -171,5 +176,9 @@ class ServerConfig {
 
     static long getTimerMillis () {
         return timerMillis;
+    }
+
+    static boolean noDelay() {
+        return noDelay;
     }
 }
