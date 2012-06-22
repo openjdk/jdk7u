@@ -1738,10 +1738,14 @@ void ClassVerifier::verify_switch(
   int target = bci + default_offset;
   stackmap_table->check_jump_target(current_frame, target, CHECK_VERIFY(this));
   for (int i = 0; i < keys; i++) {
+    // Because check_jump_target() may safepoint, the bytecode could have
+    // moved, which means 'aligned_bcp' is no good and needs to be recalculated.
+    aligned_bcp = (address)round_to((intptr_t)(bcs->bcp() + 1), jintSize);
     target = bci + (jint)Bytes::get_Java_u4(aligned_bcp+(3+i*delta)*jintSize);
     stackmap_table->check_jump_target(
       current_frame, target, CHECK_VERIFY(this));
   }
+  NOT_PRODUCT(aligned_bcp = NULL);  // no longer valid at this point
 }
 
 bool ClassVerifier::name_in_supers(
@@ -1880,10 +1884,10 @@ void ClassVerifier::verify_invoke_init(
   VerificationType type = current_frame->pop_stack(
     VerificationType::reference_check(), CHECK_VERIFY(this));
   if (type == VerificationType::uninitialized_this_type()) {
-    // The method must be an <init> method of either this class, or one of its
-    // superclasses
+    // The method must be an <init> method of this class or its superclass
+    klassOop superk = current_class()->super();
     if (ref_class_type.name() != current_class()->name() &&
-        !name_in_supers(ref_class_type.name(), current_class())) {
+        ref_class_type.name() != superk->klass_part()->name()) {
       verify_error(bci, "Bad <init> method call");
       return;
     }
