@@ -40,6 +40,7 @@
 //  - symbolTableEntrys are allocated in blocks to reduce the space overhead.
 
 class BoolObjectClosure;
+class outputStream;
 
 
 // Class to hold a newly created or referenced Symbol* temporarily in scope.
@@ -78,12 +79,14 @@ private:
   // The symbol table
   static SymbolTable* _the_table;
 
+  // Set if one bucket is out of balance due to hash algorithm deficiency
+  static bool _needs_rehashing;
+
   // For statistics
   static int symbols_removed;
   static int symbols_counted;
 
   Symbol* allocate_symbol(const u1* name, int len, TRAPS);   // Assumes no characters larger than 0x7F
-  bool allocate_symbols(int names_count, const u1** names, int* lengths, Symbol** syms, TRAPS);
 
   // Adding elements
   Symbol* basic_add(int index, u1* name, int len,
@@ -114,7 +117,6 @@ private:
     : Hashtable<Symbol*>(symbol_table_size, sizeof (HashtableEntry<Symbol*>), t,
                 number_of_entries) {}
 
-
 public:
   enum {
     symbol_alloc_batch_size = 8
@@ -135,6 +137,8 @@ public:
            "bad shared symbol size.");
     _the_table = new SymbolTable(t, number_of_entries);
   }
+
+  static unsigned int hash_symbol(const char* s, int len);
 
   static Symbol* lookup(const char* name, int len, TRAPS);
   // lookup only, won't add. Also calculate hash.
@@ -195,6 +199,7 @@ public:
 
   // Debugging
   static void verify();
+  static void dump(outputStream* st);
 
   // Sharing
   static void copy_buckets(char** top, char*end) {
@@ -206,7 +211,12 @@ public:
   static void reverse(void* boundary = NULL) {
     the_table()->Hashtable<Symbol*>::reverse(boundary);
   }
+
+  // Rehash the symbol table if it gets out of balance
+  static void rehash_table();
+  static bool needs_rehashing()         { return _needs_rehashing; }
 };
+
 
 class StringTable : public Hashtable<oop> {
   friend class VMStructs;
@@ -214,6 +224,9 @@ class StringTable : public Hashtable<oop> {
 private:
   // The string table
   static StringTable* _the_table;
+
+  // Set if one bucket is out of balance due to hash algorithm deficiency
+  static bool _needs_rehashing;
 
   static oop intern(Handle string_or_null, jchar* chars, int length, TRAPS);
   oop basic_add(int index, Handle string_or_null, jchar* name, int len,
@@ -227,7 +240,6 @@ private:
   StringTable(HashtableBucket* t, int number_of_entries)
     : Hashtable<oop>((int)StringTableSize, sizeof (HashtableEntry<oop>), t,
                      number_of_entries) {}
-
 public:
   // The string table
   static StringTable* the_table() { return _the_table; }
@@ -252,6 +264,14 @@ public:
   // Invoke "f->do_oop" on the locations of all oops in the table.
   static void oops_do(OopClosure* f);
 
+  // Hashing algorithm, used as the hash value used by the
+  //     StringTable for bucket selection and comparison (stored in the
+  //     HashtableEntry structures).  This is used in the String.intern() method.
+  static unsigned int hash_string(const jchar* s, int len);
+
+  // Internal test.
+  static void test_alt_hash() PRODUCT_RETURN;
+
   // Probing
   static oop lookup(Symbol* symbol);
 
@@ -262,6 +282,7 @@ public:
 
   // Debugging
   static void verify();
+  static void dump(outputStream* st);
 
   // Sharing
   static void copy_buckets(char** top, char*end) {
@@ -273,6 +294,9 @@ public:
   static void reverse() {
     the_table()->Hashtable<oop>::reverse();
   }
-};
 
+  // Rehash the symbol table if it gets out of balance
+  static void rehash_table();
+  static bool needs_rehashing() { return _needs_rehashing; }
+};
 #endif // SHARE_VM_CLASSFILE_SYMBOLTABLE_HPP
