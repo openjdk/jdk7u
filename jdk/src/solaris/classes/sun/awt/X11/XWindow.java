@@ -1104,7 +1104,10 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
         //  (1) either XIM could not handle it or
         //  (2) it was Latin 1:1 mapping.
         //
-        XKeysym.Keysym2JavaKeycode jkc = XKeysym.getJavaKeycode(ev);
+        // Preserve modifiers to get Java key code for dead keys
+        boolean isDeadKey = isDeadKey(keysym[0]);
+        XKeysym.Keysym2JavaKeycode jkc = isDeadKey ? XKeysym.getJavaKeycode(keysym[0])
+                : XKeysym.getJavaKeycode(ev);
         if( jkc == null ) {
             jkc = new XKeysym.Keysym2JavaKeycode(java.awt.event.KeyEvent.VK_UNDEFINED, java.awt.event.KeyEvent.KEY_LOCATION_UNKNOWN);
         }
@@ -1130,7 +1133,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
                              jkc.getJavaKeycode();
         postKeyEvent( java.awt.event.KeyEvent.KEY_PRESSED,
                           ev.get_time(),
-                          jkeyToReturn,
+                          isDeadKey ? jkeyExtended : jkeyToReturn,
                           (unicodeKey == 0 ? java.awt.event.KeyEvent.CHAR_UNDEFINED : unicodeKey),
                           jkc.getKeyLocation(),
                           ev.get_state(),ev.getPData(), XKeyEvent.getSize(), (long)(ev.get_keycode()),
@@ -1138,7 +1141,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
                           jkeyExtended);
 
 
-        if( unicodeKey > 0 ) {
+        if (unicodeKey > 0 && !isDeadKey) {
                 keyEventLog.fine("fire _TYPED on "+unicodeKey);
                 postKeyEvent( java.awt.event.KeyEvent.KEY_TYPED,
                               ev.get_time(),
@@ -1165,9 +1168,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
     }
     // un-private it if you need to call it from elsewhere
     private void handleKeyRelease(XKeyEvent ev) {
-        long keysym[] = new long[2];
         int unicodeKey = 0;
-        keysym[0] = XConstants.NoSymbol;
 
         if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
             logIncomingKeyEvent( ev );
@@ -1176,7 +1177,11 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
         // and Java KeyEvent keycode should be calculated.
         // For release we should post released event.
         //
-        XKeysym.Keysym2JavaKeycode jkc = XKeysym.getJavaKeycode(ev);
+        // Preserve modifiers to get Java key code for dead keys
+        long keysym = xkeycodeToKeysym(ev);
+        boolean isDeadKey = isDeadKey(keysym);
+        XKeysym.Keysym2JavaKeycode jkc = isDeadKey ? XKeysym.getJavaKeycode(keysym)
+                : XKeysym.getJavaKeycode(ev);
         if( jkc == null ) {
             jkc = new XKeysym.Keysym2JavaKeycode(java.awt.event.KeyEvent.VK_UNDEFINED, java.awt.event.KeyEvent.KEY_LOCATION_UNKNOWN);
         }
@@ -1208,7 +1213,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
                              jkc.getJavaKeycode();
         postKeyEvent(  java.awt.event.KeyEvent.KEY_RELEASED,
                           ev.get_time(),
-                          jkeyToReturn,
+                          isDeadKey ? jkeyExtended : jkeyToReturn,
                           (unicodeKey == 0 ? java.awt.event.KeyEvent.CHAR_UNDEFINED : unicodeKey),
                           jkc.getKeyLocation(),
                           ev.get_state(),ev.getPData(), XKeyEvent.getSize(), (long)(ev.get_keycode()),
@@ -1216,6 +1221,11 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
                           jkeyExtended);
 
 
+    }
+
+
+    private boolean isDeadKey(long keysym){
+        return XKeySymConstants.XK_dead_grave <= keysym && keysym <= XKeySymConstants.XK_dead_semivoiced_sound;
     }
 
     /*
