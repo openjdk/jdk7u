@@ -19,40 +19,49 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-/**
+/*
  * @test
- * @bug 7184394
- * @summary add intrinsics to use AES instructions
- *
- * @run main/othervm/timeout=600 -Xbatch -DcheckOutput=true -Dmode=CBC TestAESMain
- * @run main/othervm/timeout=600 -Xbatch -DcheckOutput=true -Dmode=ECB TestAESMain
- *
- * @author Tom Deneau
+ * @bug 8005277
+ * @summary verify that Bidi.getRunLevel() returns a corect level.
  */
+import java.text.Bidi;
 
-public class TestAESMain {
-  public static void main(String[] args) {
-    int iters = (args.length > 0 ? Integer.valueOf(args[0]) : 1000000);
-    System.out.println(iters + " iterations");
-    TestAESEncode etest = new TestAESEncode();
-    etest.prepare();
-    long start = System.nanoTime();
-    for (int i=0; i<iters; i++) {
-      etest.run();
-    }
-    long end = System.nanoTime();
-    System.out.println("TestAESEncode runtime was " + (double)((end - start)/1000000000.0) + " ms");
+public class Bug8005277 {
 
-    TestAESDecode dtest = new TestAESDecode();
-    dtest.prepare();
-    start = System.nanoTime();
-    for (int i=0; i<iters; i++) {
-      dtest.run();
+    public static void main(String[] args) {
+        boolean err = false;
+        String string = "\u05D0\u05D1\u05D2";
+        Bidi bidi = new Bidi(string, Bidi.DIRECTION_LEFT_TO_RIGHT);
+
+        int result = bidi.getRunCount();
+        if (result != 1) {
+            System.err.println("Incorrect run count: " + result);
+            err = true;
+        }
+
+        result = bidi.getRunStart(0);
+        if (result != 0) {
+            System.err.println("Incorrect run start: " + result);
+            err = true;
+        }
+
+        result = bidi.getRunLimit(0);
+        if (result != 3) {
+            System.err.println("Incorrect run limit: " + result);
+            err = true;
+        }
+
+        result = bidi.getRunLevel(0);
+        if (result != 1) {
+            System.err.println("Incorrect run level: " + result);
+            err = true;
+        }
+
+        if (err) {
+            throw new RuntimeException("Failed.");
+        }
     }
-    end = System.nanoTime();
-    System.out.println("TestAESDecode runtime was " + (double)((end - start)/1000000000.0) + " ms");
-  }
+
 }
