@@ -379,7 +379,8 @@ public class DecimalFormat extends NumberFormat {
 
     /**
      * Creates a DecimalFormat using the default pattern and symbols
-     * for the default locale. This is a convenient way to obtain a
+     * for the default {@link java.util.Locale.Category#FORMAT FORMAT} locale.
+     * This is a convenient way to obtain a
      * DecimalFormat when internationalization is not the main concern.
      * <p>
      * To obtain standard formats for a given locale, use the factory methods
@@ -413,7 +414,8 @@ public class DecimalFormat extends NumberFormat {
 
     /**
      * Creates a DecimalFormat using the given pattern and the symbols
-     * for the default locale. This is a convenient way to obtain a
+     * for the default {@link java.util.Locale.Category#FORMAT FORMAT} locale.
+     * This is a convenient way to obtain a
      * DecimalFormat when internationalization is not the main concern.
      * <p>
      * To obtain standard formats for a given locale, use the factory methods
