@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2001, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,32 +21,41 @@
  * questions.
  */
 
-/*
- */
-package com.sun.corba.se.impl.orbutil;
+package jdk.testlibrary;
 
-import java.io.*;
-import java.util.Hashtable;
+public class OutputBuffer {
+    private final String stdout;
+    private final String stderr;
 
-/**
- * Implements legacy behavior from Ladybird to maintain
- * backwards compatibility.
- */
-public class IIOPInputStream_1_3_1 extends com.sun.corba.se.impl.io.IIOPInputStream
-{
-    public IIOPInputStream_1_3_1()
-        throws java.io.IOException {
-        super();
+    /**
+     * Create an OutputBuffer, a class for storing and managing stdout and
+     * stderr results separately
+     *
+     * @param stdout
+     *            stdout result
+     * @param stderr
+     *            stderr result
+     */
+    public OutputBuffer(String stdout, String stderr) {
+        this.stdout = stdout;
+        this.stderr = stderr;
     }
 
     /**
-     * Before JDK 1.3.1_01, the PutField/GetField implementation
-     * actually sent a Hashtable.
+     * Returns the stdout result
+     *
+     * @return stdout result
      */
-    public ObjectInputStream.GetField readFields()
-        throws IOException, ClassNotFoundException, NotActiveException {
+    public String getStdout() {
+        return stdout;
+    }
 
-        Hashtable fields = (Hashtable)readObject();
-        return new LegacyHookGetFields(fields);
+    /**
+     * Returns the stderr result
+     *
+     * @return stderr result
+     */
+    public String getStderr() {
+        return stderr;
     }
 }
