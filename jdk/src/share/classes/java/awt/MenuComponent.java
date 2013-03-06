@@ -294,7 +294,7 @@ public abstract class MenuComponent implements java.io.Serializable {
     public void setFont(Font f) {
         font = f;
         //Fixed 6312943: NullPointerException in method MenuComponent.setFont(Font)
-        MenuComponentPeer peer = (MenuComponentPeer)this.peer;
+        MenuComponentPeer peer = this.peer;
         if (peer != null) {
             peer.setFont(f);
         }
@@ -307,7 +307,7 @@ public abstract class MenuComponent implements java.io.Serializable {
      */
     public void removeNotify() {
         synchronized (getTreeLock()) {
-            MenuComponentPeer p = (MenuComponentPeer)this.peer;
+            MenuComponentPeer p = this.peer;
             if (p != null) {
                 Toolkit.getEventQueue().removeSourceEvents(this, true);
                 this.peer = null;

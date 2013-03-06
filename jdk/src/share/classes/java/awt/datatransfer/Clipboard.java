@@ -72,7 +72,7 @@ public class Clipboard {
      *
      * @since 1.5
      */
-    private Set currentDataFlavors;
+    private Set<DataFlavor> currentDataFlavors;
 
     /**
      * Creates a clipboard object.
@@ -314,7 +314,7 @@ public class Clipboard {
         if (flavorListeners == null) {
             return;
         }
-        Set prevDataFlavors = currentDataFlavors;
+        Set<DataFlavor> prevDataFlavors = currentDataFlavors;
         currentDataFlavors = getAvailableDataFlavorSet();
         if (prevDataFlavors.equals(currentDataFlavors)) {
             return;
@@ -340,8 +340,8 @@ public class Clipboard {
      *
      * @since 1.5
      */
-    private Set getAvailableDataFlavorSet() {
-        Set set = new HashSet();
+    private Set<DataFlavor> getAvailableDataFlavorSet() {
+        Set<DataFlavor> set = new HashSet<>();
         Transferable contents = getContents(null);
         if (contents != null) {
             DataFlavor[] flavors = contents.getTransferDataFlavors();
