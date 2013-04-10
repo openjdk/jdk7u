@@ -1166,66 +1166,84 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
     if (progress_state == PROCESS_INPUTS) {
       // After following inputs, continue to outputs
       _stack.set_index(PROCESS_OUTPUTS);
-      // Remove from iterative worklist
-      _worklist.remove(dead);
       if (!dead->is_Con()) { // Don't kill cons but uses
         bool recurse = false;
         // Remove from hash table
         _table.hash_delete( dead );
         // Smash all inputs to 'dead', isolating him completely
-        for( uint i = 0; i < dead->req(); i++ ) {
+        for (uint i = 0; i < dead->req(); i++) {
           Node *in = dead->in(i);
-          if( in ) {                 // Points to something?
-            dead->set_req(i,NULL);  // Kill the edge
-            if (in->outcnt() == 0 && in != C->top()) {// Made input go dead?
+          if (in != NULL && in != C->top()) {  // Points to something?
+            int nrep = dead->replace_edge(in, NULL);  // Kill edges
+            assert((nrep > 0), "sanity");
+            if (in->outcnt() == 0) { // Made input go dead?
               _stack.push(in, PROCESS_INPUTS); // Recursively remove
               recurse = true;
             } else if (in->outcnt() == 1 &&
                        in->has_special_unique_user()) {
               _worklist.push(in->unique_out());
             } else if (in->outcnt() <= 2 && dead->is_Phi()) {
-              if( in->Opcode() == Op_Region )
+              if (in->Opcode() == Op_Region) {
                 _worklist.push(in);
-              else if( in->is_Store() ) {
+              } else if (in->is_Store()) {
                 DUIterator_Fast imax, i = in->fast_outs(imax);
                 _worklist.push(in->fast_out(i));
                 i++;
-                if(in->outcnt() == 2) {
+                if (in->outcnt() == 2) {
                   _worklist.push(in->fast_out(i));
                   i++;
                 }
                 assert(!(i < imax), "sanity");
               }
             }
-          }
-        }
-        C->record_dead_node(dead->_idx);
-        if (dead->is_macro()) {
-          C->remove_macro_node(dead);
-        }
-
+            if (ReduceFieldZeroing && dead->is_Load() && i == MemNode::Memory &&
+                in->is_Proj() && in->in(0) != NULL && in->in(0)->is_Initialize()) {
+              // A Load that directly follows an InitializeNode is
+              // going away. The Stores that follow are candidates
+              // again to be captured by the InitializeNode.
+              for (DUIterator_Fast jmax, j = in->fast_outs(jmax); j < jmax; j++) {
+                Node *n = in->fast_out(j);
+                if (n->is_Store()) {
+                  _worklist.push(n);
+                }
+              }
+            }
+          } // if (in != NULL && in != C->top())
+        } // for (uint i = 0; i < dead->req(); i++)
         if (recurse) {
           continue;
         }
-      }
-      // Constant node that has no out-edges and has only one in-edge from
-      // root is usually dead. However, sometimes reshaping walk makes
-      // it reachable by adding use edges. So, we will NOT count Con nodes
-      // as dead to be conservative about the dead node count at any
-      // given time.
-    }
+      } // if (!dead->is_Con())
+    } // if (progress_state == PROCESS_INPUTS)
 
     // Aggressively kill globally dead uses
     // (Rather than pushing all the outs at once, we push one at a time,
     // plus the parent to resume later, because of the indefinite number
     // of edge deletions per loop trip.)
     if (dead->outcnt() > 0) {
-      // Recursively remove
+      // Recursively remove output edges
       _stack.push(dead->raw_out(0), PROCESS_INPUTS);
     } else {
+      // Finished disconnecting all input and output edges.
       _stack.pop();
+      // Remove dead node from iterative worklist
+      _worklist.remove(dead);
+      // Constant node that has no out-edges and has only one in-edge from
+      // root is usually dead. However, sometimes reshaping walk makes
+      // it reachable by adding use edges. So, we will NOT count Con nodes
+      // as dead to be conservative about the dead node count at any
+      // given time.
+      if (!dead->is_Con()) {
+        C->record_dead_node(dead->_idx);
+      }
+      if (dead->is_macro()) {
+        C->remove_macro_node(dead);
+      }
+      if (dead->is_expensive()) {
+        C->remove_expensive_node(dead);
+      }
     }
-  }
+  } // while (_stack.is_nonempty())
 }
 
 //------------------------------subsume_node-----------------------------------

@@ -680,6 +680,7 @@ void DefNewGeneration::collect(bool   full,
   update_time_of_last_gc(now);
 
   gch->trace_heap_after_gc(&gc_tracer);
+  gc_tracer.report_tenuring_threshold(tenuring_threshold());
 
   _gc_timer->register_gc_end(os::elapsed_counter());
 
@@ -735,7 +736,7 @@ void DefNewGeneration::handle_promotion_failure(oop old) {
                         old->size());
   }
   _promotion_failed = true;
-  _promotion_failed_info.register_promotion_failed(old->size());
+  _promotion_failed_info.register_copy_failure(old->size());
   preserve_mark_if_necessary(old, old->mark());
   // forward to self
   old->forward_to(old);
