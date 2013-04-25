@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,12 @@
 #include "runtime/os.hpp"
 
 class TraceBackend {
- public:
-  static bool enabled(TraceEventId id) {
+public:
+  static bool enabled(void) {
     return EnableTracing;
+  }
+  static bool is_event_enabled(TraceEventId id) {
+    return enabled();
   }
 
   static TracingTime time() {
@@ -44,9 +47,16 @@ class TraceBackend {
   static TracingTime time_adjustment(jlong time) {
     return time;
   }
+
+  static void on_unloading_classes(BoolObjectClosure* is_alive, int no_of_classes_unloading) {
+  }
 };
 
 typedef TraceBackend Tracing;
+
+#else /* INCLUDE_TRACE */
+
+#include "trace/noTraceBackend.hpp"
 
 #endif /* INCLUDE_TRACE */
 #endif /* SHARE_VM_TRACE_TRACEBACKEND_HPP */
