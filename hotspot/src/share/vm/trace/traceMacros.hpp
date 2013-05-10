@@ -28,12 +28,11 @@
 #define EVENT_THREAD_EXIT(thread)
 
 #define TRACE_INIT_ID(k)
-#define TRACE_BUFFER void*
+#define TRACE_DATA TraceThreadData
 
 #define TRACE_START() JNI_OK
 #define TRACE_INITIALIZE() JNI_OK
 
-#define TRACE_SET_KLASS_TRACE_ID(x1, x2) do { } while (0)
 #define TRACE_DEFINE_KLASS_METHODS typedef int ___IGNORED_hs_trace_type1
 #define TRACE_DEFINE_KLASS_TRACE_ID typedef int ___IGNORED_hs_trace_type2
 #define TRACE_DEFINE_OFFSET typedef int ___IGNORED_hs_trace_type3
