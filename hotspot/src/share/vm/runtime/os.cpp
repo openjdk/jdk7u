@@ -1403,6 +1403,18 @@ char* os::reserve_memory(size_t bytes, char* addr, size_t alignment_hint) {
 
   return result;
 }
+
+char* os::reserve_memory(size_t bytes, char* addr, size_t alignment_hint,
+   MEMFLAGS flags) {
+  char* result = pd_reserve_memory(bytes, addr, alignment_hint);
+  if (result != NULL) {
+    MemTracker::record_virtual_memory_reserve((address)result, bytes, CALLER_PC);
+    MemTracker::record_virtual_memory_type((address)result, flags);
+  }
+
+  return result;
+}
+
 char* os::attempt_reserve_memory_at(size_t bytes, char* addr) {
   char* result = pd_attempt_reserve_memory_at(bytes, addr);
   if (result != NULL) {
@@ -1449,6 +1461,12 @@ bool os::release_memory(char* addr, size_t bytes) {
   return res;
 }
 
+bool os::release_or_uncommit_partial_region(char * addr, size_t bytes) {
+  if (can_release_partial_region()) {
+    return release_memory(addr, bytes);
+  }
+  return uncommit_memory(addr, bytes);
+}
 
 char* os::map_memory(int fd, const char* file_name, size_t file_offset,
                            char *addr, size_t bytes, bool read_only,

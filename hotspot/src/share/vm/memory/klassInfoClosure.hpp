@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,39 +22,15 @@
  *
  */
 
-/*
- * @test
- * @bug 6795161
- * @summary Escape analysis leads to data corruption
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xcomp -XX:CompileOnly=Test -XX:+DoEscapeAnalysis Test
- */
+#ifndef SHARE_VM_MEMORY_KLASSINFOCLOSURE_HPP
+#define SHARE_VM_MEMORY_KLASSINFOCLOSURE_HPP
 
-class Test_Class_1 {
-    static String var_1;
+class KlassInfoEntry;
 
-    static void badFunc(int size)
-    {
-        try {
-          for (int i = 0; i < 1; (new byte[size-i])[0] = 0, i++) {}
-        } catch (Exception e) {
-          // don't comment it out, it will lead to correct results ;)
-          //System.out.println("Got exception: " + e);
-        }
-    }
-}
+class KlassInfoClosure : public StackObj {
+ public:
+  // Called for each KlassInfoEntry.
+  virtual void do_cinfo(KlassInfoEntry* cie) = 0;
+};
 
-public class Test {
-    static String var_1_copy = Test_Class_1.var_1;
-
-    static byte var_check;
-
-    public static void main(String[] args)
-    {
-        var_check = 1;
-
-        Test_Class_1.badFunc(-1);
-
-        System.out.println("EATester.var_check = " + Test.var_check + " (expected 1)\n");
-    }
-}
-
+#endif // SHARE_VM_MEMORY_KLASSINFOCLOSURE_HPP
