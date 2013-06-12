@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,24 +21,25 @@
  * questions.
  */
 
-/*
-@test
-@bug 4067964
-@clean AccessConstants
-@build AccessConstants
-@summary Verify that ObjectStreamConstants is public accessible.
-         This test will not compile pre-JDK 1.2.
-*/
+/* @test TestVerifyBeforeGCDuringStartup.java
+ * @key gc
+ * @bug 8010463
+ * @summary Simple test run with -XX:+VerifyBeforeGC -XX:-UseTLAB to verify 8010463
+ * @library /testlibrary
+ */
 
-import java.io.ObjectStreamConstants;
+import com.oracle.java.testlibrary.OutputAnalyzer;
+import com.oracle.java.testlibrary.ProcessTools;
 
-public class AccessConstants {
-    public static void main(String[] args) {
-        byte[] ref = new byte[4];
-        ref[0] = ObjectStreamConstants.TC_BASE;
-        ref[1] = ObjectStreamConstants.TC_NULL;
-        ref[2] = ObjectStreamConstants.TC_REFERENCE;
-        ref[3] = ObjectStreamConstants.TC_CLASSDESC;
-        int version = ObjectStreamConstants.PROTOCOL_VERSION_1;
-    }
+public class TestVerifyBeforeGCDuringStartup {
+  public static void main(String args[]) throws Exception {
+    ProcessBuilder pb =
+      ProcessTools.createJavaProcessBuilder(System.getProperty("test.vm.opts"),
+                                            "-XX:-UseTLAB",
+                                            "-XX:+UnlockDiagnosticVMOptions",
+                                            "-XX:+VerifyBeforeGC", "-version");
+    OutputAnalyzer output = new OutputAnalyzer(pb.start());
+    output.shouldContain("[Verifying");
+    output.shouldHaveExitValue(0);
+  }
 }
