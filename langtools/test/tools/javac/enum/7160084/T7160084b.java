@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,23 +22,47 @@
  */
 
 /*
-@test
-@bug 4067964
-@clean AccessConstants
-@build AccessConstants
-@summary Verify that ObjectStreamConstants is public accessible.
-         This test will not compile pre-JDK 1.2.
-*/
+ * @test
+ * @bug     7160084
+ * @summary javac fails to compile an apparently valid class/interface combination
+ */
+public class T7160084b {
 
-import java.io.ObjectStreamConstants;
+    static int assertionCount = 0;
 
-public class AccessConstants {
+    static void assertTrue(boolean cond) {
+        assertionCount++;
+        if (!cond) {
+            throw new AssertionError();
+        }
+    }
+
+    interface Extras {
+        static class Enums {
+            static class Component {
+                Component() { throw new RuntimeException("oops!"); }
+            }
+        }
+    }
+
+    interface Test {
+        public class Enums {
+            interface Widget {
+                enum Component { X, Y };
+            }
+
+            enum Component implements Widget, Extras {
+                Z;
+            };
+
+            public static void test() {
+               assertTrue(Component.values().length == 1);
+            }
+        }
+    }
+
     public static void main(String[] args) {
-        byte[] ref = new byte[4];
-        ref[0] = ObjectStreamConstants.TC_BASE;
-        ref[1] = ObjectStreamConstants.TC_NULL;
-        ref[2] = ObjectStreamConstants.TC_REFERENCE;
-        ref[3] = ObjectStreamConstants.TC_CLASSDESC;
-        int version = ObjectStreamConstants.PROTOCOL_VERSION_1;
+        Test.Enums.test();
+        assertTrue(assertionCount == 1);
     }
 }
