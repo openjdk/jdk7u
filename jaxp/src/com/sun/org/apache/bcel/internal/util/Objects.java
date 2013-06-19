@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,26 +22,24 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package com.sun.corba.se.impl.orbutil;
+package com.sun.org.apache.bcel.internal.util;
 
 /**
- * Based on feedback from bug report 4452016, all class loading
- * in the ORB is isolated here.  It is acceptable to use
- * Class.forName only when one is certain that the desired class
- * should come from the core JDK.
- */
-public class ORBClassLoader
-{
-    public static Class loadClass(String className)
-        throws ClassNotFoundException
-    {
-        return ORBClassLoader.getClassLoader().loadClass(className);
+ * Emulate two methods of java.util.Objects. We can't use JDK 7 new APIs in
+ * JAXP because the jaxp repository is built before the jdk repository. This
+ * is a temporary solution to simplify backports from JDK 8 to JDK 7.
+ **/
+public final class Objects {
+    private Objects() {
+        throw new IllegalAccessError();
     }
 
-    public static ClassLoader getClassLoader() {
-        if (Thread.currentThread().getContextClassLoader() != null)
-            return Thread.currentThread().getContextClassLoader();
-        else
-            return ClassLoader.getSystemClassLoader();
+    public static int hashCode(final Object o) {
+        return o == null ? 0 : o.hashCode();
     }
+
+    public static boolean equals(Object one, Object two) {
+        return one == two || one != null && one.equals(two);
+    }
+
 }

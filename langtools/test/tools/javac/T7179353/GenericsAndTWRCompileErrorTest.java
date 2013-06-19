@@ -19,18 +19,24 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_VM_MEMORY_KLASSINFOCLOSURE_HPP
-#define SHARE_VM_MEMORY_KLASSINFOCLOSURE_HPP
+/*
+ * @test
+ * @bug 7179353
+ * @summary try-with-resources fails to compile with generic exception parameters
+ * @compile GenericsAndTWRCompileErrorTest.java
+ */
 
-class KlassInfoEntry;
+public class GenericsAndTWRCompileErrorTest {
 
-class KlassInfoClosure : public StackObj {
- public:
-  // Called for each KlassInfoEntry.
-  virtual void do_cinfo(KlassInfoEntry* cie) = 0;
-};
+    public static class Resource<E extends Exception> implements AutoCloseable {
+        public void close() throws E { }
+    }
 
-#endif // SHARE_VM_MEMORY_KLASSINFOCLOSURE_HPP
+    public <E extends Exception> void test() throws E {
+        try (Resource<E> r = new Resource<E>()) {
+
+        }
+    }
+}
