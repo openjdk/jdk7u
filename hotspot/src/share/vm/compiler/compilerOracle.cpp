@@ -34,7 +34,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.hpp"
 
-class MethodMatcher : public CHeapObj {
+class MethodMatcher : public CHeapObj<mtCompiler> {
  public:
   enum Mode {
     Exact,
@@ -538,6 +538,7 @@ void CompilerOracle::parse_from_line(char* line) {
 
   if (match != NULL) {
     if (!_quiet) {
+      ResourceMark rm;
       tty->print("CompilerOracle: %s ", command_names[command]);
       match->print();
     }
@@ -554,9 +555,8 @@ static const char* default_cc_file = ".hotspot_compiler";
 
 static const char* cc_file() {
 #ifdef ASSERT
-  if (CompileCommandFile == NULL) {
+  if (CompileCommandFile == NULL)
     return default_cc_file;
-  }
 #endif
   return CompileCommandFile;
 }
@@ -575,7 +575,7 @@ void CompilerOracle::parse_from_file() {
   char token[1024];
   int  pos = 0;
   int  c = getc(stream);
-  while(c != EOF) {
+  while(c != EOF && pos < (int)(sizeof(token)-1)) {
     if (c == '\n') {
       token[pos++] = '\0';
       parse_from_line(token);
@@ -596,7 +596,7 @@ void CompilerOracle::parse_from_string(const char* str, void (*parse_line)(char*
   int  pos = 0;
   const char* sp = str;
   int  c = *sp++;
-  while (c != '\0') {
+  while (c != '\0' && pos < (int)(sizeof(token)-1)) {
     if (c == '\n') {
       token[pos++] = '\0';
       parse_line(token);

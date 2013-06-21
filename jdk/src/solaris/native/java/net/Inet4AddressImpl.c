@@ -102,9 +102,6 @@ Java_java_net_Inet4AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
 static jclass ni_iacls;
 static jclass ni_ia4cls;
 static jmethodID ni_ia4ctrID;
-static jfieldID ni_iaaddressID;
-static jfieldID ni_iahostID;
-static jfieldID ni_iafamilyID;
 static int initialized = 0;
 
 /*
@@ -135,9 +132,6 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
       ni_ia4cls = (*env)->FindClass(env, "java/net/Inet4Address");
       ni_ia4cls = (*env)->NewGlobalRef(env, ni_ia4cls);
       ni_ia4ctrID = (*env)->GetMethodID(env, ni_ia4cls, "<init>", "()V");
-      ni_iaaddressID = (*env)->GetFieldID(env, ni_iacls, "address", "I");
-      ni_iafamilyID = (*env)->GetFieldID(env, ni_iacls, "family", "I");
-      ni_iahostID = (*env)->GetFieldID(env, ni_iacls, "hostName", "Ljava/lang/String;");
       initialized = 1;
     }
 
@@ -196,7 +190,7 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
                 struct addrinfo *next
                     = (struct addrinfo*) malloc(sizeof(struct addrinfo));
                 if (!next) {
-                    JNU_ThrowOutOfMemoryError(env, "heap allocation failed");
+                    JNU_ThrowOutOfMemoryError(env, "Native heap allocation failed");
                     ret = NULL;
                     goto cleanupAndReturn;
                 }
@@ -238,9 +232,8 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
                 ret = NULL;
                 goto cleanupAndReturn;
             }
-            (*env)->SetIntField(env, iaObj, ni_iaaddressID,
-                                ntohl(((struct sockaddr_in*)(iterator->ai_addr))->sin_addr.s_addr));
-            (*env)->SetObjectField(env, iaObj, ni_iahostID, name);
+            setInetAddress_addr(env, iaObj, ntohl(((struct sockaddr_in*)(iterator->ai_addr))->sin_addr.s_addr));
+            setInetAddress_hostName(env, iaObj, name);
             (*env)->SetObjectArrayElement(env, ret, retLen - i -1, iaObj);
             i++;
             iterator = iterator->ai_next;
@@ -395,9 +388,6 @@ Java_java_net_Inet4AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
 static jclass ni_iacls;
 static jclass ni_ia4cls;
 static jmethodID ni_ia4ctrID;
-static jfieldID ni_iaaddressID;
-static jfieldID ni_iahostID;
-static jfieldID ni_iafamilyID;
 static int initialized = 0;
 
 /*
@@ -431,9 +421,6 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
       ni_ia4cls = (*env)->FindClass(env, "java/net/Inet4Address");
       ni_ia4cls = (*env)->NewGlobalRef(env, ni_ia4cls);
       ni_ia4ctrID = (*env)->GetMethodID(env, ni_ia4cls, "<init>", "()V");
-      ni_iaaddressID = (*env)->GetFieldID(env, ni_iacls, "address", "I");
-      ni_iafamilyID = (*env)->GetFieldID(env, ni_iacls, "family", "I");
-      ni_iahostID = (*env)->GetFieldID(env, ni_iacls, "hostName", "Ljava/lang/String;");
       initialized = 1;
     }
 
@@ -502,9 +489,8 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
             ret = NULL;
             goto cleanupAndReturn;
           }
-          (*env)->SetIntField(env, iaObj, ni_iaaddressID,
-                              ntohl((*addrp)->s_addr));
-          (*env)->SetObjectField(env, iaObj, ni_iahostID, host);
+          setInetAddress_addr(env, iaObj, ntohl((*addrp)->s_addr));
+          setInetAddress_hostName(env, iaObj, host);
           (*env)->SetObjectArrayElement(env, ret, i, iaObj);
           addrp++;
           i++;
@@ -669,11 +655,11 @@ ping4(JNIEnv *env, jint fd, struct sockaddr_in* him, jint timeout,
                  sizeof(struct sockaddr));
       if (n < 0 && errno != EINPROGRESS ) {
 #ifdef __linux__
-        if (errno != EINVAL)
+        if (errno != EINVAL && errno != EHOSTUNREACH)
           /*
            * On some Linuxes, when bound to the loopback interface, sendto
-           * will fail and errno will be set to EINVAL. When that happens,
-           * don't throw an exception, just return false.
+           * will fail and errno will be set to EINVAL or EHOSTUNREACH.
+           * When that happens, don't throw an exception, just return false.
            */
 #endif /*__linux__ */
           NET_ThrowNew(env, errno, "Can't send ICMP packet");
@@ -695,12 +681,19 @@ ping4(JNIEnv *env, jint fd, struct sockaddr_in* him, jint timeout,
            * We did receive something, but is it what we were expecting?
            * I.E.: A ICMP_ECHOREPLY packet with the proper PID.
            */
-          if (icmplen >= 8 && icmp->icmp_type == ICMP_ECHOREPLY &&
-               (ntohs(icmp->icmp_id) == pid) &&
-               (him->sin_addr.s_addr == sa_recv.sin_addr.s_addr)) {
-            close(fd);
-            return JNI_TRUE;
-          }
+          if (icmplen >= 8 && icmp->icmp_type == ICMP_ECHOREPLY
+               && (ntohs(icmp->icmp_id) == pid)) {
+            if ((him->sin_addr.s_addr == sa_recv.sin_addr.s_addr)) {
+              close(fd);
+              return JNI_TRUE;
+            }
+
+            if (him->sin_addr.s_addr == 0) {
+              close(fd);
+              return JNI_TRUE;
+            }
+         }
+
         }
       } while (tmout2 > 0);
       timeout -= 1000;
@@ -828,10 +821,11 @@ Java_java_net_Inet4AddressImpl_isReachable0(JNIEnv *env, jobject this,
         case EADDRNOTAVAIL: /* address is not available on  the  remote machine */
 #ifdef __linux__
         case EINVAL:
+        case EHOSTUNREACH:
           /*
            * On some Linuxes, when bound to the loopback interface, connect
-           * will fail and errno will be set to EINVAL. When that happens,
-           * don't throw an exception, just return false.
+           * will fail and errno will be set to EINVAL or EHOSTUNREACH.
+           * When that happens, don't throw an exception, just return false.
            */
 #endif /* __linux__ */
           close(fd);

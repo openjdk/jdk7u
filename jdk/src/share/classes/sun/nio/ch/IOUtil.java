@@ -36,14 +36,19 @@ import java.nio.ByteBuffer;
 
 class IOUtil {
 
+    /**
+     * Max number of iovec structures that readv/writev supports
+     */
+    static final int IOV_MAX;
+
     private IOUtil() { }                // No instantiation
 
     static int write(FileDescriptor fd, ByteBuffer src, long position,
-                     NativeDispatcher nd, Object lock)
+                     NativeDispatcher nd)
         throws IOException
     {
         if (src instanceof DirectBuffer)
-            return writeFromNativeBuffer(fd, src, position, nd, lock);
+            return writeFromNativeBuffer(fd, src, position, nd);
 
         // Substitute a native buffer
         int pos = src.position();
@@ -57,7 +62,7 @@ class IOUtil {
             // Do not update src until we see how many bytes were written
             src.position(pos);
 
-            int n = writeFromNativeBuffer(fd, bb, position, nd, lock);
+            int n = writeFromNativeBuffer(fd, bb, position, nd);
             if (n > 0) {
                 // now update src
                 src.position(pos + n);
@@ -69,8 +74,7 @@ class IOUtil {
     }
 
     private static int writeFromNativeBuffer(FileDescriptor fd, ByteBuffer bb,
-                                           long position, NativeDispatcher nd,
-                                             Object lock)
+                                             long position, NativeDispatcher nd)
         throws IOException
     {
         int pos = bb.position();
@@ -84,7 +88,7 @@ class IOUtil {
         if (position != -1) {
             written = nd.pwrite(fd,
                                 ((DirectBuffer)bb).address() + pos,
-                                rem, position, lock);
+                                rem, position);
         } else {
             written = nd.write(fd, ((DirectBuffer)bb).address() + pos, rem);
         }
@@ -111,7 +115,8 @@ class IOUtil {
 
             // Iterate over buffers to populate native iovec array.
             int count = offset + length;
-            for (int i=offset; i<count; i++) {
+            int i = offset;
+            while (i < count && iov_len < IOV_MAX) {
                 ByteBuffer buf = bufs[i];
                 int pos = buf.position();
                 int lim = buf.limit();
@@ -135,6 +140,7 @@ class IOUtil {
                     vec.putLen(iov_len, rem);
                     iov_len++;
                 }
+                i++;
             }
             if (iov_len == 0)
                 return 0L;
@@ -177,18 +183,18 @@ class IOUtil {
     }
 
     static int read(FileDescriptor fd, ByteBuffer dst, long position,
-                    NativeDispatcher nd, Object lock)
+                    NativeDispatcher nd)
         throws IOException
     {
         if (dst.isReadOnly())
             throw new IllegalArgumentException("Read-only buffer");
         if (dst instanceof DirectBuffer)
-            return readIntoNativeBuffer(fd, dst, position, nd, lock);
+            return readIntoNativeBuffer(fd, dst, position, nd);
 
         // Substitute a native buffer
         ByteBuffer bb = Util.getTemporaryDirectBuffer(dst.remaining());
         try {
-            int n = readIntoNativeBuffer(fd, bb, position, nd, lock);
+            int n = readIntoNativeBuffer(fd, bb, position, nd);
             bb.flip();
             if (n > 0)
                 dst.put(bb);
@@ -199,8 +205,7 @@ class IOUtil {
     }
 
     private static int readIntoNativeBuffer(FileDescriptor fd, ByteBuffer bb,
-                                            long position, NativeDispatcher nd,
-                                            Object lock)
+                                            long position, NativeDispatcher nd)
         throws IOException
     {
         int pos = bb.position();
@@ -213,7 +218,7 @@ class IOUtil {
         int n = 0;
         if (position != -1) {
             n = nd.pread(fd, ((DirectBuffer)bb).address() + pos,
-                         rem, position, lock);
+                         rem, position);
         } else {
             n = nd.read(fd, ((DirectBuffer)bb).address() + pos, rem);
         }
@@ -240,7 +245,8 @@ class IOUtil {
 
             // Iterate over buffers to populate native iovec array.
             int count = offset + length;
-            for (int i=offset; i<count; i++) {
+            int i = offset;
+            while (i < count && iov_len < IOV_MAX) {
                 ByteBuffer buf = bufs[i];
                 if (buf.isReadOnly())
                     throw new IllegalArgumentException("Read-only buffer");
@@ -264,6 +270,7 @@ class IOUtil {
                     vec.putLen(iov_len, rem);
                     iov_len++;
                 }
+                i++;
             }
             if (iov_len == 0)
                 return 0L;
@@ -333,11 +340,16 @@ class IOUtil {
 
     static native void setfdVal(FileDescriptor fd, int value);
 
+    static native int iovMax();
+
+    static native int fdLimit();
+
     static native void initIDs();
 
     static {
         // Note that IOUtil.initIDs is called from within Util.load.
         Util.load();
+        IOV_MAX = iovMax();
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import sun.misc.HexDumpEncoder;
+import sun.security.action.GetIntegerAction;
 import sun.security.x509.*;
 import sun.security.util.*;
 
@@ -148,9 +149,31 @@ public final class OCSPResponse {
     private final ResponseStatus responseStatus;
     private final Map<CertId, SingleResponse> singleResponseMap;
 
-    // Maximum clock skew in milliseconds (15 minutes) allowed when checking
-    // validity of OCSP responses
-    private static final long MAX_CLOCK_SKEW = 900000;
+    // Default maximum clock skew in milliseconds (15 minutes)
+    // allowed when checking validity of OCSP responses
+    private static final int DEFAULT_MAX_CLOCK_SKEW = 900000;
+
+    /**
+     * Integer value indicating the maximum allowable clock skew, in seconds,
+     * to be used for the OCSP check.
+     */
+    private static final int MAX_CLOCK_SKEW = initializeClockSkew();
+
+    /**
+     * Initialize the maximum allowable clock skew by getting the OCSP
+     * clock skew system property. If the property has not been set, or if its
+     * value is negative, set the skew to the default.
+     */
+    private static int initializeClockSkew() {
+        Integer tmp = java.security.AccessController.doPrivileged(
+                new GetIntegerAction("com.sun.security.ocsp.clockSkew"));
+        if (tmp == null || tmp < 0) {
+            return DEFAULT_MAX_CLOCK_SKEW;
+        }
+        // Convert to milliseconds, as the system property will be
+        // specified in seconds
+        return tmp * 1000;
+    }
 
     // an array of all of the CRLReasons (used in SingleResponse)
     private static CRLReason[] values = CRLReason.values();
@@ -264,6 +287,7 @@ public final class OCSPResponse {
                 DEBUG.println("OCSP Responder name: " + responderName);
             }
         } else if (tag == KEY_TAG) {
+            seq = seq.data.getDerValue(); // consume tag and length
             if (DEBUG != null) {
                 byte[] responderKeyId = seq.getOctetString();
                 DEBUG.println("OCSP Responder key ID: " +
@@ -293,7 +317,7 @@ public final class OCSPResponse {
         }
         for (int i = 0; i < singleResponseDer.length; i++) {
             SingleResponse singleResponse
-                = new SingleResponse(singleResponseDer[i]);
+                = new SingleResponse(singleResponseDer[i], dateCheckedAgainst);
             singleResponseMap.put(singleResponse.getCertId(), singleResponse);
         }
 
@@ -392,21 +416,29 @@ public final class OCSPResponse {
                     // Retrieve the issuer's key identifier
                     if (certIssuerKeyId == null) {
                         certIssuerKeyId = signerCert.getIssuerKeyIdentifier();
+                        if (certIssuerKeyId == null) {
+                            if (DEBUG != null) {
+                                DEBUG.println("No issuer key identifier (AKID) "
+                                    + "in the signer certificate");
+                            }
+                        }
                     }
 
-                    // Check that the key identifiers match
-                    if (certIssuerKeyId == null ||
-                        !Arrays.equals(certIssuerKeyId,
-                            OCSPChecker.getKeyId(responderCert))) {
+                    // Check that the key identifiers match, if both are present
+                    byte[] responderKeyId = null;
+                    if (certIssuerKeyId != null &&
+                        (responderKeyId =
+                            OCSPChecker.getKeyId(responderCert)) != null) {
+                        if (!Arrays.equals(certIssuerKeyId, responderKeyId)) {
+                            continue; // try next cert
+                        }
 
-                        continue; // try next cert
-                    }
-
-                    if (DEBUG != null) {
-                        DEBUG.println("Issuer certificate key ID: " +
-                            String.format("0x%0" +
-                                (certIssuerKeyId.length * 2) + "x",
-                                    new BigInteger(1, certIssuerKeyId)));
+                        if (DEBUG != null) {
+                            DEBUG.println("Issuer certificate key ID: " +
+                                String.format("0x%0" +
+                                    (certIssuerKeyId.length * 2) + "x",
+                                        new BigInteger(1, certIssuerKeyId)));
+                        }
                     }
 
                     // Check for the OCSPSigning key purpose
@@ -441,7 +473,7 @@ public final class OCSPResponse {
                     } catch (GeneralSecurityException e) {
                         if (DEBUG != null) {
                             DEBUG.println("Responder's certificate not within" +
-                            " the validity period" + e);
+                            " the validity period " + e);
                         }
                         continue; // try next cert
                     }
@@ -521,7 +553,7 @@ public final class OCSPResponse {
 
         try {
             Signature respSignature = Signature.getInstance(sigAlgId.getName());
-            respSignature.initVerify(cert);
+            respSignature.initVerify(cert.getPublicKey());
             respSignature.update(responseData);
 
             if (respSignature.verify(signBytes)) {
@@ -567,6 +599,11 @@ public final class OCSPResponse {
         private final Map<String, java.security.cert.Extension> singleExtensions;
 
         private SingleResponse(DerValue der) throws IOException {
+            this(der, null);
+        }
+
+        private SingleResponse(DerValue der, Date dateCheckedAgainst)
+            throws IOException {
             if (der.tag != DerValue.tag_Sequence) {
                 throw new IOException("Bad ASN.1 encoding in SingleResponse");
             }
@@ -664,7 +701,8 @@ public final class OCSPResponse {
                 singleExtensions = Collections.emptyMap();
             }
 
-            long now = System.currentTimeMillis();
+            long now = (dateCheckedAgainst == null) ?
+                System.currentTimeMillis() : dateCheckedAgainst.getTime();
             Date nowPlusSkew = new Date(now + MAX_CLOCK_SKEW);
             Date nowMinusSkew = new Date(now - MAX_CLOCK_SKEW);
             if (DEBUG != null) {

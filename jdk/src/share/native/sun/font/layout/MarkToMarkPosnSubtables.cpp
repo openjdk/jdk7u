@@ -51,10 +51,14 @@ LEGlyphID MarkToMarkPositioningSubtable::findMark2Glyph(GlyphIterator *glyphIter
     return 0xFFFF;
 }
 
-le_int32 MarkToMarkPositioningSubtable::process(GlyphIterator *glyphIterator, const LEFontInstance *fontInstance) const
+le_int32 MarkToMarkPositioningSubtable::process(const LETableReference &base, GlyphIterator *glyphIterator, const LEFontInstance *fontInstance, LEErrorCode &success) const
 {
     LEGlyphID markGlyph = glyphIterator->getCurrGlyphID();
-    le_int32 markCoverage = getGlyphCoverage((LEGlyphID) markGlyph);
+    le_int32 markCoverage = getGlyphCoverage(base, (LEGlyphID) markGlyph, success);
+
+    if (LE_FAILURE(success)) {
+        return 0;
+    }
 
     if (markCoverage < 0) {
         // markGlyph isn't a covered mark glyph
@@ -74,7 +78,7 @@ le_int32 MarkToMarkPositioningSubtable::process(GlyphIterator *glyphIterator, co
 
     GlyphIterator mark2Iterator(*glyphIterator);
     LEGlyphID mark2Glyph = findMark2Glyph(&mark2Iterator);
-    le_int32 mark2Coverage = getBaseCoverage((LEGlyphID) mark2Glyph);
+    le_int32 mark2Coverage = getBaseCoverage(base, (LEGlyphID) mark2Glyph, success);
     const Mark2Array *mark2Array = (const Mark2Array *) ((char *) this + SWAPW(baseArrayOffset));
     le_uint16 mark2Count = SWAPW(mark2Array->mark2RecordCount);
 

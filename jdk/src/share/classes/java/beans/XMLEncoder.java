@@ -487,6 +487,12 @@ public class XMLEncoder extends Encoder implements AutoCloseable {
         }
         indentation--;
 
+        Statement statement = getMissedStatement();
+        while (statement != null) {
+            outputStatement(statement, this, false);
+            statement = getMissedStatement();
+        }
+
         try {
             out.flush();
         }
@@ -501,6 +507,17 @@ public class XMLEncoder extends Encoder implements AutoCloseable {
         nameGenerator.clear();
         valueToExpression.clear();
         targetToStatementList.clear();
+    }
+
+    Statement getMissedStatement() {
+        for (List<Statement> statements : this.targetToStatementList.values()) {
+            for (int i = 0; i < statements.size(); i++) {
+                if (Statement.class == statements.get(i).getClass()) {
+                    return statements.remove(i);
+                }
+            }
+        }
+        return null;
     }
 
 
@@ -597,14 +614,14 @@ public class XMLEncoder extends Encoder implements AutoCloseable {
                                                 "methodName") + " should not be null");
             }
 
-            if (target instanceof Field && methodName.equals("get")) {
+            if (isArgument && target instanceof Field && methodName.equals("get")) {
                 Field f = (Field)target;
                 writeln("<object class=" + quote(f.getDeclaringClass().getName()) +
                         " field=" + quote(f.getName()) + "/>");
                 return;
             }
 
-            Class primitiveType = ReflectionUtils.primitiveTypeFor(value.getClass());
+            Class primitiveType = primitiveTypeFor(value.getClass());
             if (primitiveType != null && target == value.getClass() &&
                 methodName.equals("new")) {
                 String primitiveTypeName = primitiveType.getName();
@@ -631,7 +648,12 @@ public class XMLEncoder extends Encoder implements AutoCloseable {
         }
 
         if (d.name != null) {
-            outputXML(isArgument ? "object" : "void", " idref=" + quote(d.name), value);
+            if (isArgument) {
+                writeln("<object idref=" + quote(d.name) + "/>");
+            }
+            else {
+                outputXML("void", " idref=" + quote(d.name), value);
+            }
         }
         else if (d.exp != null) {
             outputStatement(d.exp, outer, isArgument);
@@ -710,12 +732,14 @@ public class XMLEncoder extends Encoder implements AutoCloseable {
         }
         else {
             d.refs = 2;
-            getValueData(target).refs++;
-            List<Statement> statements = statementList(target);
-            if (!statements.contains(exp)) {
-                statements.add(exp);
+            if (d.name == null) {
+                getValueData(target).refs++;
+                List<Statement> statements = statementList(target);
+                if (!statements.contains(exp)) {
+                    statements.add(exp);
+                }
+                outputValue(target, outer, false);
             }
-            outputValue(target, outer, false);
             if (expression) {
                 outputValue(value, outer, isArgument);
             }
@@ -770,5 +794,19 @@ public class XMLEncoder extends Encoder implements AutoCloseable {
 
         indentation--;
         writeln("</" + tag + ">");
+    }
+
+    @SuppressWarnings("rawtypes")
+    static Class primitiveTypeFor(Class wrapper) {
+        if (wrapper == Boolean.class) return Boolean.TYPE;
+        if (wrapper == Byte.class) return Byte.TYPE;
+        if (wrapper == Character.class) return Character.TYPE;
+        if (wrapper == Short.class) return Short.TYPE;
+        if (wrapper == Integer.class) return Integer.TYPE;
+        if (wrapper == Long.class) return Long.TYPE;
+        if (wrapper == Float.class) return Float.TYPE;
+        if (wrapper == Double.class) return Double.TYPE;
+        if (wrapper == Void.class) return Void.TYPE;
+        return null;
     }
 }

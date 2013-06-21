@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,8 @@ import com.sun.beans.WeakCache;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
+
+import static sun.reflect.misc.ReflectUtil.isPackageAccessible;
 
 /**
  * This utility class provides {@code static} methods
@@ -61,7 +63,7 @@ public final class ConstructorFinder extends AbstractFinder<Constructor<?>> {
         if (Modifier.isAbstract(type.getModifiers())) {
             throw new NoSuchMethodException("Abstract class cannot be instantiated");
         }
-        if (!Modifier.isPublic(type.getModifiers())) {
+        if (!Modifier.isPublic(type.getModifiers()) || !isPackageAccessible(type)) {
             throw new NoSuchMethodException("Class is not accessible");
         }
         PrimitiveWrapperMap.replacePrimitivesWithWrappers(args);
@@ -110,18 +112,5 @@ public final class ConstructorFinder extends AbstractFinder<Constructor<?>> {
     @Override
     protected boolean isVarArgs(Constructor<?> constructor) {
         return constructor.isVarArgs();
-    }
-
-    /**
-     * Checks validness of the constructor.
-     * The valid constructor should be public.
-     *
-     * @param constructor  the object that represents constructor
-     * @return {@code true} if the constructor is valid,
-     *         {@code false} otherwise
-     */
-    @Override
-    protected boolean isValid(Constructor<?> constructor) {
-        return Modifier.isPublic(constructor.getModifiers());
     }
 }
