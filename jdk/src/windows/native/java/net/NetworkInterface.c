@@ -66,7 +66,6 @@ jfieldID ni_nameID;         /* NetworkInterface.name */
 jfieldID ni_displayNameID;  /* NetworkInterface.displayName */
 jfieldID ni_childsID;       /* NetworkInterface.childs */
 jclass ni_iacls;            /* InetAddress */
-jfieldID ni_iaAddr;         /* InetAddress.address */
 
 jclass ni_ia4cls;           /* Inet4Address */
 jmethodID ni_ia4Ctor;       /* Inet4Address() */
@@ -178,7 +177,7 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
     int count;
     netif *netifP;
     DWORD i;
-    int lo=0, eth=0, tr=0, fddi=0, ppp=0, sl=0, net=0;
+    int lo=0, eth=0, tr=0, fddi=0, ppp=0, sl=0, net=0, wlen=0;
 
     /*
      * Ask the IP Helper library to enumerate the adapters
@@ -256,8 +255,17 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
          */
         curr = (netif *)calloc(1, sizeof(netif));
         if (curr != NULL) {
+            wlen = MultiByteToWideChar(CP_OEMCP, 0, ifrowP->bDescr,
+                       ifrowP->dwDescrLen, NULL, 0);
+            if(wlen == 0) {
+                // MultiByteToWideChar should not fail
+                // But in rare case it fails, we allow 'char' to be displayed
+                curr->displayName = (char *)malloc(ifrowP->dwDescrLen + 1);
+            } else {
+                curr->displayName = (wchar_t *)malloc(wlen*(sizeof(wchar_t))+1);
+            }
+
             curr->name = (char *)malloc(strlen(dev_name) + 1);
-            curr->displayName = (char *)malloc(ifrowP->dwDescrLen + 1);
 
             if (curr->name == NULL || curr->displayName == NULL) {
                 if (curr->name) free(curr->name);
@@ -266,7 +274,7 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
             }
         }
         if (curr == NULL) {
-            JNU_ThrowOutOfMemoryError(env, "heap allocation failure");
+            JNU_ThrowOutOfMemoryError(env, "Native heap allocation failure");
             free_netif(netifP);
             free(tableP);
             return -1;
@@ -278,8 +286,29 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
          * 32-bit numbers as index values.
          */
         strcpy(curr->name, dev_name);
-        strncpy(curr->displayName, ifrowP->bDescr, ifrowP->dwDescrLen);
-        curr->displayName[ifrowP->dwDescrLen] = '\0';
+        if (wlen == 0) {
+            // display char type in case of MultiByteToWideChar failure
+            strncpy(curr->displayName, ifrowP->bDescr, ifrowP->dwDescrLen);
+            curr->displayName[ifrowP->dwDescrLen] = '\0';
+        } else {
+            // call MultiByteToWideChar again to fill curr->displayName
+            // it should not fail, because we have called it once before
+            if (MultiByteToWideChar(CP_OEMCP, 0, ifrowP->bDescr,
+                   ifrowP->dwDescrLen, curr->displayName, wlen) == 0) {
+                JNU_ThrowByName(env, "java/lang/Error",
+                       "Cannot get multibyte char for interface display name");
+                free_netif(netifP);
+                free(tableP);
+                free(curr->name);
+                free(curr->displayName);
+                free(curr);
+                return -1;
+            } else {
+                curr->displayName[wlen*(sizeof(wchar_t))] = '\0';
+                curr->dNameIsUnicode = TRUE;
+            }
+        }
+
         curr->dwIndex = ifrowP->dwIndex;
         curr->ifType = ifrowP->dwType;
         curr->index = GetFriendlyIfIndex(ifrowP->dwIndex);
@@ -366,7 +395,7 @@ int enumAddresses_win(JNIEnv *env, netif *netifP, netaddr **netaddrPP)
 
             netaddr *curr = (netaddr *)malloc(sizeof(netaddr));
             if (curr == NULL) {
-                JNU_ThrowOutOfMemoryError(env, "heap allocation failure");
+                JNU_ThrowOutOfMemoryError(env, "Native heap allocation failure");
                 free_netaddr(netaddrP);
                 free(tableP);
                 return -1;
@@ -445,7 +474,6 @@ Java_java_net_NetworkInterface_init(JNIEnv *env, jclass cls)
 
     ni_iacls = (*env)->FindClass(env, "java/net/InetAddress");
     ni_iacls = (*env)->NewGlobalRef(env, ni_iacls);
-    ni_iaAddr = (*env)->GetFieldID(env, ni_iacls, "address", "I");
 
     ni_ia4cls = (*env)->FindClass(env, "java/net/Inet4Address");
     ni_ia4cls = (*env)->NewGlobalRef(env, ni_ia4cls);
@@ -504,8 +532,7 @@ jobject createNetworkInterface
      */
     if (netaddrCount < 0) {
         netaddrCount = enumAddresses_win(env, ifs, &netaddrP);
-        if ((*env)->ExceptionOccurred(env)) {
-            free_netaddr(netaddrP);
+        if (netaddrCount == -1) {
             return NULL;
         }
     }
@@ -534,7 +561,7 @@ jobject createNetworkInterface
             }
             /* default ctor will set family to AF_INET */
 
-            (*env)->SetIntField(env, iaObj, ni_iaAddr, ntohl(addrs->addr.him4.sin_addr.s_addr));
+            setInetAddress_addr(env, iaObj, ntohl(addrs->addr.him4.sin_addr.s_addr));
             if (addrs->mask != -1) {
               ibObj = (*env)->NewObject(env, ni_ibcls, ni_ibctrID);
               if (ibObj == NULL) {
@@ -547,8 +574,7 @@ jobject createNetworkInterface
                 free_netaddr(netaddrP);
                 return NULL;
               }
-              (*env)->SetIntField(env, ia2Obj, ni_iaAddr,
-                                  ntohl(addrs->brdcast.him4.sin_addr.s_addr));
+              setInetAddress_addr(env, ia2Obj, ntohl(addrs->brdcast.him4.sin_addr.s_addr));
               (*env)->SetObjectField(env, ibObj, ni_ibbroadcastID, ia2Obj);
               (*env)->SetShortField(env, ibObj, ni_ibmaskID, addrs->mask);
               (*env)->SetObjectArrayElement(env, bindsArr, bind_index++, ibObj);
@@ -702,7 +728,7 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
     (JNIEnv *env, jclass cls, jobject iaObj)
 {
     netif *ifList, *curr;
-    jint addr = (*env)->GetIntField(env, iaObj, ni_iaAddr);
+    jint addr = getInetAddress_addr(env, iaObj);
     jobject netifObj = NULL;
 
     // Retained for now to support IPv4 only stack, java.net.preferIPv4Stack

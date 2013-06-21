@@ -40,10 +40,14 @@
 
 U_NAMESPACE_BEGIN
 
-le_uint32 LigatureSubstitutionSubtable::process(GlyphIterator *glyphIterator, const LEGlyphFilter *filter) const
+le_uint32 LigatureSubstitutionSubtable::process(const LETableReference &base, GlyphIterator *glyphIterator, LEErrorCode &success, const LEGlyphFilter *filter) const
 {
     LEGlyphID glyph = glyphIterator->getCurrGlyphID();
-    le_int32 coverageIndex = getGlyphCoverage(glyph);
+    le_int32 coverageIndex = getGlyphCoverage(base, glyph, success);
+
+    if (LE_FAILURE(success)) {
+      return 0;
+    }
 
     if (coverageIndex >= 0) {
         Offset ligSetTableOffset = SWAPW(ligSetTableOffsetArray[coverageIndex]);

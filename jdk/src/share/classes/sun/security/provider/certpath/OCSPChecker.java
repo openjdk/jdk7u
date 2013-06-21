@@ -31,8 +31,19 @@ import java.util.*;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.Security;
-import java.security.cert.*;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateRevokedException;
+import java.security.cert.CertPath;
+import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertPathValidatorException.BasicReason;
+import java.security.cert.CertStore;
+import java.security.cert.CertStoreException;
+import java.security.cert.PKIXCertPathChecker;
+import java.security.cert.PKIXParameters;
+import java.security.cert.TrustAnchor;
+import java.security.cert.X509Certificate;
+import java.security.cert.X509CertSelector;
 import java.net.URI;
 import java.net.URISyntaxException;
 import javax.security.auth.x500.X500Principal;
@@ -257,18 +268,21 @@ class OCSPChecker extends PKIXCertPathChecker {
                         }
                     }
 
-                    // Check that the key identifiers match
+                    // Check that the key identifiers match, if both are present
+                    byte[] anchorKeyId = null;
                     if (certIssuerKeyId != null &&
-                        !Arrays.equals(certIssuerKeyId, getKeyId(anchorCert))) {
+                        (anchorKeyId =
+                            OCSPChecker.getKeyId(anchorCert)) != null) {
+                        if (!Arrays.equals(certIssuerKeyId, anchorKeyId)) {
+                            continue; // try next cert
+                        }
 
-                        continue; // try next cert
-                    }
-
-                    if (DEBUG != null && certIssuerKeyId != null) {
-                        DEBUG.println("Issuer certificate key ID: " +
-                            String.format("0x%0" +
-                                (certIssuerKeyId.length * 2) + "x",
-                                    new BigInteger(1, certIssuerKeyId)));
+                        if (DEBUG != null) {
+                            DEBUG.println("Issuer certificate key ID: " +
+                                String.format("0x%0" +
+                                    (certIssuerKeyId.length * 2) + "x",
+                                        new BigInteger(1, certIssuerKeyId)));
+                        }
                     }
 
                     issuerCert = anchorCert;

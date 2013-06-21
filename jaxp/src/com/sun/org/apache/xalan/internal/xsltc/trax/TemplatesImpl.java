@@ -23,6 +23,7 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.trax;
 
+import com.sun.org.apache.xalan.internal.XalanConstants;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -43,6 +44,7 @@ import com.sun.org.apache.xalan.internal.xsltc.compiler.util.ErrorMsg;
 import com.sun.org.apache.xalan.internal.xsltc.runtime.AbstractTranslet;
 import com.sun.org.apache.xalan.internal.xsltc.runtime.Hashtable;
 import com.sun.org.apache.xalan.internal.utils.ObjectFactory;
+import com.sun.org.apache.xalan.internal.utils.SecuritySupport;
 
 /**
  * @author Morten Jorgensen
@@ -52,6 +54,8 @@ import com.sun.org.apache.xalan.internal.utils.ObjectFactory;
  */
 public final class TemplatesImpl implements Templates, Serializable {
     static final long serialVersionUID = 673094361519270707L;
+    public final static String DESERIALIZE_TRANSLET = "jdk.xml.enableTemplatesImplDeserialization";
+
     /**
      * Name of the superclass of all translets. This is needed to
      * determine which, among all classes comprising a translet,
@@ -121,6 +125,11 @@ public final class TemplatesImpl implements Templates, Serializable {
 
     private boolean _useServicesMechanism;
 
+    /**
+     * protocols allowed for external references set by the stylesheet processing instruction, Import and Include element.
+     */
+    private String _accessExternalStylesheet = XalanConstants.EXTERNAL_ACCESS_DEFAULT;
+
     static final class TransletClassLoader extends ClassLoader {
         TransletClassLoader(ClassLoader parent) {
             super(parent);
@@ -168,6 +177,7 @@ public final class TemplatesImpl implements Templates, Serializable {
         _indentNumber = indentNumber;
         _tfactory = tfactory;
         _useServicesMechanism = tfactory.useServicesMechnism();
+        _accessExternalStylesheet = (String) tfactory.getAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET);
     }
     /**
      * Need for de-serialization, see readObject().
@@ -186,6 +196,15 @@ public final class TemplatesImpl implements Templates, Serializable {
     private void  readObject(ObjectInputStream is)
       throws IOException, ClassNotFoundException
     {
+        SecurityManager security = System.getSecurityManager();
+        if (security != null){
+            String temp = SecuritySupport.getSystemProperty(DESERIALIZE_TRANSLET);
+            if (temp == null || !(temp.length()==0 || temp.equalsIgnoreCase("true"))) {
+                ErrorMsg err = new ErrorMsg(ErrorMsg.DESERIALIZE_TRANSLET_ERR);
+                throw new UnsupportedOperationException(err.toString());
+            }
+        }
+
         is.defaultReadObject();
         if (is.readBoolean()) {
             _uriResolver = (URIResolver) is.readObject();
@@ -369,6 +388,7 @@ public final class TemplatesImpl implements Templates, Serializable {
             translet.postInitialization();
             translet.setTemplates(this);
             translet.setServicesMechnism(_useServicesMechanism);
+            translet.setAllowedProtocols(_accessExternalStylesheet);
             if (_auxClasses != null) {
                 translet.setAuxiliaryClasses(_auxClasses);
             }

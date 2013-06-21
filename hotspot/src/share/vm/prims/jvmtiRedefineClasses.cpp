@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -129,8 +129,15 @@ void VM_RedefineClasses::doit() {
   // See jvmtiExport.hpp for detailed explanation.
   JvmtiExport::set_has_redefined_a_class();
 
-#ifdef ASSERT
-  SystemDictionary::classes_do(check_class, thread);
+// check_class() is optionally called for product bits, but is
+// always called for non-product bits.
+#ifdef PRODUCT
+  if (RC_TRACE_ENABLED(0x00004000)) {
+#endif
+    RC_TRACE_WITH_THREAD(0x00004000, thread, ("calling check_class"));
+    SystemDictionary::classes_do(check_class, thread);
+#ifdef PRODUCT
+  }
 #endif
 }
 
@@ -831,7 +838,7 @@ bool VM_RedefineClasses::is_unresolved_string_mismatch(constantPoolHandle cp1,
 jvmtiError VM_RedefineClasses::load_new_class_versions(TRAPS) {
   // For consistency allocate memory using os::malloc wrapper.
   _scratch_classes = (instanceKlassHandle *)
-    os::malloc(sizeof(instanceKlassHandle) * _class_count);
+    os::malloc(sizeof(instanceKlassHandle) * _class_count, mtInternal);
   if (_scratch_classes == NULL) {
     return JVMTI_ERROR_OUT_OF_MEMORY;
   }
@@ -2400,44 +2407,33 @@ void VM_RedefineClasses::set_new_constant_pool(
   // new constant indices as needed. The inner classes info is a
   // quadruple:
   // (inner_class_info, outer_class_info, inner_name, inner_access_flags)
-  typeArrayOop inner_class_list = scratch_class->inner_classes();
-  int icl_length = (inner_class_list == NULL) ? 0 : inner_class_list->length();
-  if (icl_length > 0) {
-    typeArrayHandle inner_class_list_h(THREAD, inner_class_list);
-    for (int i = 0; i < icl_length;
-         i += instanceKlass::inner_class_next_offset) {
-      int cur_index = inner_class_list_h->ushort_at(i
-                        + instanceKlass::inner_class_inner_class_info_offset);
-      if (cur_index == 0) {
-        continue;  // JVM spec. allows null inner class refs so skip it
-      }
-      int new_index = find_new_index(cur_index);
-      if (new_index != 0) {
-        RC_TRACE_WITH_THREAD(0x00080000, THREAD,
-          ("inner_class_info change: %d to %d", cur_index, new_index));
-        inner_class_list_h->ushort_at_put(i
-          + instanceKlass::inner_class_inner_class_info_offset, new_index);
-      }
-      cur_index = inner_class_list_h->ushort_at(i
-                    + instanceKlass::inner_class_outer_class_info_offset);
-      new_index = find_new_index(cur_index);
-      if (new_index != 0) {
-        RC_TRACE_WITH_THREAD(0x00080000, THREAD,
-          ("outer_class_info change: %d to %d", cur_index, new_index));
-        inner_class_list_h->ushort_at_put(i
-          + instanceKlass::inner_class_outer_class_info_offset, new_index);
-      }
-      cur_index = inner_class_list_h->ushort_at(i
-                    + instanceKlass::inner_class_inner_name_offset);
-      new_index = find_new_index(cur_index);
-      if (new_index != 0) {
-        RC_TRACE_WITH_THREAD(0x00080000, THREAD,
-          ("inner_name change: %d to %d", cur_index, new_index));
-        inner_class_list_h->ushort_at_put(i
-          + instanceKlass::inner_class_inner_name_offset, new_index);
-      }
-    } // end for each inner class
-  } // end if we have inner classes
+  InnerClassesIterator iter(scratch_class);
+  for (; !iter.done(); iter.next()) {
+    int cur_index = iter.inner_class_info_index();
+    if (cur_index == 0) {
+      continue;  // JVM spec. allows null inner class refs so skip it
+    }
+    int new_index = find_new_index(cur_index);
+    if (new_index != 0) {
+      RC_TRACE_WITH_THREAD(0x00080000, THREAD,
+        ("inner_class_info change: %d to %d", cur_index, new_index));
+      iter.set_inner_class_info_index(new_index);
+    }
+    cur_index = iter.outer_class_info_index();
+    new_index = find_new_index(cur_index);
+    if (new_index != 0) {
+      RC_TRACE_WITH_THREAD(0x00080000, THREAD,
+        ("outer_class_info change: %d to %d", cur_index, new_index));
+      iter.set_outer_class_info_index(new_index);
+    }
+    cur_index = iter.inner_name_index();
+    new_index = find_new_index(cur_index);
+    if (new_index != 0) {
+      RC_TRACE_WITH_THREAD(0x00080000, THREAD,
+        ("inner_name change: %d to %d", cur_index, new_index));
+      iter.set_inner_name_index(new_index);
+    }
+  } // end for each inner class
 
   // Attach each method in klass to the new constant pool and update
   // to use new constant pool indices as needed:
@@ -2489,23 +2485,17 @@ void VM_RedefineClasses::set_new_constant_pool(
     // to use new constant pool indices as needed. The exception table
     // holds quadruple entries of the form:
     //   (beg_bci, end_bci, handler_bci, klass_index)
-    const int beg_bci_offset     = 0;
-    const int end_bci_offset     = 1;
-    const int handler_bci_offset = 2;
-    const int klass_index_offset = 3;
-    const int entry_size         = 4;
 
-    typeArrayHandle ex_table (THREAD, method->exception_table());
-    int ext_length = ex_table->length();
-    assert(ext_length % entry_size == 0, "exception table format has changed");
+    ExceptionTable ex_table(method());
+    int ext_length = ex_table.length();
 
-    for (int j = 0; j < ext_length; j += entry_size) {
-      int cur_index = ex_table->int_at(j + klass_index_offset);
+    for (int j = 0; j < ext_length; j ++) {
+      int cur_index = ex_table.catch_type_index(j);
       int new_index = find_new_index(cur_index);
       if (new_index != 0) {
         RC_TRACE_WITH_THREAD(0x00080000, THREAD,
           ("ext-klass_index change: %d to %d", cur_index, new_index));
-        ex_table->int_at_put(j + klass_index_offset, new_index);
+        ex_table.set_catch_type_index(j, new_index);
       }
     } // end for each exception table entry
 
@@ -3077,11 +3067,9 @@ void VM_RedefineClasses::redefine_single_class(jclass the_jclass,
   klassOop the_class_oop = java_lang_Class::as_klassOop(the_class_mirror);
   instanceKlassHandle the_class = instanceKlassHandle(THREAD, the_class_oop);
 
-#ifndef JVMTI_KERNEL
   // Remove all breakpoints in methods of this class
   JvmtiBreakpoints& jvmti_breakpoints = JvmtiCurrentBreakpoints::get_jvmti_breakpoints();
   jvmti_breakpoints.clearall_in_class_at_safepoint(the_class_oop);
-#endif // !JVMTI_KERNEL
 
   if (the_class_oop == Universe::reflect_invoke_cache()->klass()) {
     // We are redefining java.lang.reflect.Method. Method.invoke() is
@@ -3247,7 +3235,9 @@ void VM_RedefineClasses::redefine_single_class(jclass the_jclass,
 
   // Copy the "source debug extension" attribute from new class version
   the_class->set_source_debug_extension(
-    scratch_class->source_debug_extension());
+    scratch_class->source_debug_extension(),
+    scratch_class->source_debug_extension() == NULL ? 0 :
+    (int)strlen(scratch_class->source_debug_extension()));
 
   // Use of javac -g could be different in the old and the new
   if (scratch_class->access_flags().has_localvariable_table() !=
@@ -3366,76 +3356,116 @@ void VM_RedefineClasses::increment_class_counter(instanceKlass *ik, TRAPS) {
   }
 }
 
-#ifndef PRODUCT
 void VM_RedefineClasses::check_class(klassOop k_oop,
        oop initiating_loader, TRAPS) {
   Klass *k = k_oop->klass_part();
   if (k->oop_is_instance()) {
     HandleMark hm(THREAD);
     instanceKlass *ik = (instanceKlass *) k;
+    bool no_old_methods = true;  // be optimistic
+    ResourceMark rm(THREAD);
 
-    if (ik->vtable_length() > 0) {
-      ResourceMark rm(THREAD);
-      if (!ik->vtable()->check_no_old_entries()) {
-        tty->print_cr("klassVtable::check_no_old_entries failure -- OLD method found -- class: %s", ik->signature_name());
+    // a vtable should never contain old or obsolete methods
+    if (ik->vtable_length() > 0 &&
+        !ik->vtable()->check_no_old_or_obsolete_entries()) {
+      if (RC_TRACE_ENABLED(0x00004000)) {
+        RC_TRACE_WITH_THREAD(0x00004000, THREAD,
+          ("klassVtable::check_no_old_or_obsolete_entries failure"
+           " -- OLD or OBSOLETE method found -- class: %s",
+           ik->signature_name()));
         ik->vtable()->dump_vtable();
-        dump_methods();
-        assert(false, "OLD method found");
       }
+      no_old_methods = false;
+    }
+
+    // an itable should never contain old or obsolete methods
+    if (ik->itable_length() > 0 &&
+        !ik->itable()->check_no_old_or_obsolete_entries()) {
+      if (RC_TRACE_ENABLED(0x00004000)) {
+        RC_TRACE_WITH_THREAD(0x00004000, THREAD,
+          ("klassItable::check_no_old_or_obsolete_entries failure"
+           " -- OLD or OBSOLETE method found -- class: %s",
+           ik->signature_name()));
+        ik->itable()->dump_itable();
+      }
+      no_old_methods = false;
+    }
+
+    // the constant pool cache should never contain old or obsolete methods
+    if (ik->constants() != NULL &&
+        ik->constants()->cache() != NULL &&
+        !ik->constants()->cache()->check_no_old_or_obsolete_entries()) {
+      if (RC_TRACE_ENABLED(0x00004000)) {
+        RC_TRACE_WITH_THREAD(0x00004000, THREAD,
+          ("cp-cache::check_no_old_or_obsolete_entries failure"
+           " -- OLD or OBSOLETE method found -- class: %s",
+           ik->signature_name()));
+        ik->constants()->cache()->dump_cache();
+      }
+      no_old_methods = false;
+    }
+
+    if (!no_old_methods) {
+      if (RC_TRACE_ENABLED(0x00004000)) {
+        dump_methods();
+      } else {
+        tty->print_cr("INFO: use the '-XX:TraceRedefineClasses=16384' option "
+          "to see more info about the following guarantee() failure.");
+      }
+      guarantee(false, "OLD and/or OBSOLETE method(s) found");
     }
   }
 }
 
 void VM_RedefineClasses::dump_methods() {
-        int j;
-        tty->print_cr("_old_methods --");
-        for (j = 0; j < _old_methods->length(); ++j) {
-          methodOop m = (methodOop) _old_methods->obj_at(j);
-          tty->print("%4d  (%5d)  ", j, m->vtable_index());
-          m->access_flags().print_on(tty);
-          tty->print(" --  ");
-          m->print_name(tty);
-          tty->cr();
-        }
-        tty->print_cr("_new_methods --");
-        for (j = 0; j < _new_methods->length(); ++j) {
-          methodOop m = (methodOop) _new_methods->obj_at(j);
-          tty->print("%4d  (%5d)  ", j, m->vtable_index());
-          m->access_flags().print_on(tty);
-          tty->print(" --  ");
-          m->print_name(tty);
-          tty->cr();
-        }
-        tty->print_cr("_matching_(old/new)_methods --");
-        for (j = 0; j < _matching_methods_length; ++j) {
-          methodOop m = _matching_old_methods[j];
-          tty->print("%4d  (%5d)  ", j, m->vtable_index());
-          m->access_flags().print_on(tty);
-          tty->print(" --  ");
-          m->print_name(tty);
-          tty->cr();
-          m = _matching_new_methods[j];
-          tty->print("      (%5d)  ", m->vtable_index());
-          m->access_flags().print_on(tty);
-          tty->cr();
-        }
-        tty->print_cr("_deleted_methods --");
-        for (j = 0; j < _deleted_methods_length; ++j) {
-          methodOop m = _deleted_methods[j];
-          tty->print("%4d  (%5d)  ", j, m->vtable_index());
-          m->access_flags().print_on(tty);
-          tty->print(" --  ");
-          m->print_name(tty);
-          tty->cr();
-        }
-        tty->print_cr("_added_methods --");
-        for (j = 0; j < _added_methods_length; ++j) {
-          methodOop m = _added_methods[j];
-          tty->print("%4d  (%5d)  ", j, m->vtable_index());
-          m->access_flags().print_on(tty);
-          tty->print(" --  ");
-          m->print_name(tty);
-          tty->cr();
-        }
+  int j;
+  RC_TRACE(0x00004000, ("_old_methods --"));
+  for (j = 0; j < _old_methods->length(); ++j) {
+    methodOop m = (methodOop) _old_methods->obj_at(j);
+    RC_TRACE_NO_CR(0x00004000, ("%4d  (%5d)  ", j, m->vtable_index()));
+    m->access_flags().print_on(tty);
+    tty->print(" --  ");
+    m->print_name(tty);
+    tty->cr();
+  }
+  RC_TRACE(0x00004000, ("_new_methods --"));
+  for (j = 0; j < _new_methods->length(); ++j) {
+    methodOop m = (methodOop) _new_methods->obj_at(j);
+    RC_TRACE_NO_CR(0x00004000, ("%4d  (%5d)  ", j, m->vtable_index()));
+    m->access_flags().print_on(tty);
+    tty->print(" --  ");
+    m->print_name(tty);
+    tty->cr();
+  }
+  RC_TRACE(0x00004000, ("_matching_(old/new)_methods --"));
+  for (j = 0; j < _matching_methods_length; ++j) {
+    methodOop m = _matching_old_methods[j];
+    RC_TRACE_NO_CR(0x00004000, ("%4d  (%5d)  ", j, m->vtable_index()));
+    m->access_flags().print_on(tty);
+    tty->print(" --  ");
+    m->print_name(tty);
+    tty->cr();
+    m = _matching_new_methods[j];
+    RC_TRACE_NO_CR(0x00004000, ("      (%5d)  ", m->vtable_index()));
+    m->access_flags().print_on(tty);
+    tty->cr();
+  }
+  RC_TRACE(0x00004000, ("_deleted_methods --"));
+  for (j = 0; j < _deleted_methods_length; ++j) {
+    methodOop m = _deleted_methods[j];
+    RC_TRACE_NO_CR(0x00004000, ("%4d  (%5d)  ", j, m->vtable_index()));
+    m->access_flags().print_on(tty);
+    tty->print(" --  ");
+    m->print_name(tty);
+    tty->cr();
+  }
+  RC_TRACE(0x00004000, ("_added_methods --"));
+  for (j = 0; j < _added_methods_length; ++j) {
+    methodOop m = _added_methods[j];
+    RC_TRACE_NO_CR(0x00004000, ("%4d  (%5d)  ", j, m->vtable_index()));
+    m->access_flags().print_on(tty);
+    tty->print(" --  ");
+    m->print_name(tty);
+    tty->cr();
+  }
 }
-#endif

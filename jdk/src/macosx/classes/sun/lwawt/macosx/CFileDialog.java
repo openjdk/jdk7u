@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,12 +30,14 @@ import java.awt.peer.*;
 import java.awt.BufferCapabilities.FlipContents;
 import java.awt.event.*;
 import java.awt.image.*;
+import java.security.AccessController;
 import java.util.List;
 import java.io.*;
 
 import sun.awt.CausedFocusEvent.Cause;
 import sun.awt.AWTAccessor;
 import sun.java2d.pipe.Region;
+import sun.security.action.GetBooleanAction;
 
 class CFileDialog implements FileDialogPeer {
 
@@ -53,11 +55,14 @@ class CFileDialog implements FileDialogPeer {
                 if (title == null) {
                     title = " ";
                 }
+                Boolean chooseDirectories = AccessController.doPrivileged(
+                        new GetBooleanAction("apple.awt.fileDialogForDirectories"));
 
                 String[] userFileNames = nativeRunFileDialog(title,
                         dialogMode,
                         target.isMultipleMode(),
                         navigateApps,
+                        chooseDirectories,
                         target.getFilenameFilter() != null,
                         target.getDirectory(),
                         target.getFile());
@@ -142,7 +147,8 @@ class CFileDialog implements FileDialogPeer {
     }
 
     private native String[] nativeRunFileDialog(String title, int mode,
-            boolean multipleMode, boolean shouldNavigateApps, boolean hasFilenameFilter,
+            boolean multipleMode, boolean shouldNavigateApps,
+            boolean canChooseDirectories, boolean hasFilenameFilter,
             String directory, String file);
 
     @Override
@@ -174,7 +180,7 @@ class CFileDialog implements FileDialogPeer {
     }
 
     @Override
-    public void setAlwaysOnTop(boolean alwaysOnTop) {
+    public void updateAlwaysOnTopState() {
     }
 
     @Override

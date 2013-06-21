@@ -59,8 +59,7 @@ EXCLUDE_PROPWARN_PKGS = com.sun.java.swing.plaf.windows  \
 # This is an interim solution until the ct.sym is replaced
 # with a new module system (being discussed for JDK 8).
 #
-EXPORTED_PRIVATE_PKGS = com.sun.servicetag \
-                        com.oracle.net \
+EXPORTED_PRIVATE_PKGS = com.oracle.net \
                         com.oracle.nio \
                         com.oracle.util
 
@@ -158,7 +157,6 @@ JDK_MAN_PAGES =            \
         jstack.1           \
         jstat.1            \
         jstatd.1           \
-        jvisualvm.1        \
 	native2ascii.1     \
 	rmic.1             \
         schemagen.1        \
@@ -166,6 +164,10 @@ JDK_MAN_PAGES =            \
         wsgen.1            \
         wsimport.1         \
         xjc.1
+
+ifndef OPENJDK
+  JDK_MAN_PAGES += jvisualvm.1
+endif
 
 ifeq ($(PLATFORM), solaris)
   MANBASEDIRS=$(JDK_TOPDIR)/src/solaris/doc $(IMPORTDOCDIR)
@@ -233,8 +235,8 @@ initial-image-jre-sol64 initial-image-jdk-sol64 \
 trim-image-jre trim-image-jdk \
 identify-image-jre identify-image-jdk \
 process-image-jre process-image-jdk \
-compare-image \
-sec-files sec-files-win jgss-files ::
+compare-image  \
+sec-files sec-files-win jgss-files server-jdk-image ::
 	@$(ECHO) ">>>Making "$@" @ `$(DATE)` ..."
 
 # Order is important here, trim jre after jdk image is created
@@ -243,16 +245,17 @@ ifeq ($(PLATFORM), macosx)
 images:: sanity-images post-sanity-images  \
 	 $(INITIAL_IMAGE_JRE) $(EXTRA_JRE_TARGETS) $(INITIAL_IMAGE_JDK) \
 	 trim-image-jre trim-image-jdk \
-     identify-image-jre identify-image-jdk \
-	 process-image-jre process-image-jdk sec-files sec-files-win jgss-files \
-	 $(EXTRA_IMAGE_TARGETS)
+	 identify-image-jre identify-image-jdk \
+	 process-image-jre process-image-jdk sec-files sec-files-win \
+	jgss-files $(EXTRA_IMAGE_TARGETS) server-jdk-image 
 else
 
 images:: sanity-images post-sanity-images  \
 	 $(INITIAL_IMAGE_JRE) $(INITIAL_IMAGE_JDK) \
 	 trim-image-jre trim-image-jdk \
          identify-image-jre identify-image-jdk \
-	 process-image-jre process-image-jdk sec-files sec-files-win jgss-files 
+	 process-image-jre process-image-jdk sec-files sec-files-win \
+	 jgss-files server-jdk-image
 endif
 
 # Don't use these
@@ -399,10 +402,29 @@ TOOLS = \
 	sun/tools/jinfo         \
 	sun/tools/jmap
 
+JFR_SRCDIRS_EXIST := $(shell \
+  if [ -d $(CLOSED_SHARE_SRC)/classes/com/oracle/jrockit/jfr ] ; then \
+   echo true; \
+  else \
+   echo false; \
+  fi)
+
+BUILD_JFR=
+ifndef OPENJDK
+ifndef JAVASE_EMBEDDED
+ifeq ($(JFR_SRCDIRS_EXIST), true)
+BUILD_JFR=true
+endif
+endif
+endif
+
 # classes that go into jfr.jar
+JFR_CLASSES_DIRS=
+ifdef BUILD_JFR
 JFR_CLASSES_DIRS= \
 	com/oracle/jrockit/jfr \
 	oracle/jrockit/jfr
+endif
 
 # classes that go into jsse.jar
 JSSE_CLASSES_DIRS = \
@@ -606,8 +628,7 @@ $(NOT_RT_JAR_LIST): FRC
 	$(ECHO) "sun/tools/jstack/" >> $@
 	$(ECHO) "sun/tools/jinfo/" >> $@
 	$(ECHO) "sun/tools/jmap/" >> $@
-ifndef OPENJDK
-ifndef JAVASE_EMBEDDED
+ifdef BUILD_JFR
 	$(ECHO) "com/oracle/jrockit/jfr/" >> $@
 	$(ECHO) "com/oracle/jrockit/jfr/client/" >> $@
 	$(ECHO) "com/oracle/jrockit/jfr/management/" >> $@
@@ -618,7 +639,7 @@ ifndef JAVASE_EMBEDDED
 	$(ECHO) "oracle/jrockit/jfr/settings/" >> $@
 	$(ECHO) "oracle/jrockit/jfr/tools/" >> $@
 endif
-endif
+
 
 
 # File order list for rt.jar
@@ -645,8 +666,7 @@ $(TOTAL_JAR_FILELIST): $(JARREORDER_JARFILE) $(NOT_RT_JAR_LIST)
 
 # Create jfr.jar
 JFR_JAR=
-ifndef OPENJDK
-ifndef JAVASE_EMBEDDED
+ifdef BUILD_JFR
 JFR_JAR=$(ABS_TEMPDIR)/jfr-orig.jar
 $(JFR_JAR): $(OTHER_JAR_MANIFEST_FILE)
 	$(prep-target)
@@ -654,7 +674,6 @@ $(JFR_JAR): $(OTHER_JAR_MANIFEST_FILE)
 	    $(BOOT_JAR_CMD) $(CREATE_JAR_OPTS) $(OTHER_JAR_MANIFEST_FILE) $@ \
 		$(JFR_CLASSES_DIRS) $(BOOT_JAR_JFLAGS)
 	@$(CD) $(CLASSBINDIR) && $(java-vm-cleanup)
-endif
 endif
 
 # Create the rt.jar file list & non-class files list
@@ -911,6 +930,27 @@ endif
 	  $(call binary_file_verification,$${f}); \
 	done
 	$(RM) $(JRE_BIN_LIST)
+
+# Duplicate current j2re-image contents to server-j2re-image 
+# for the server version of jre, before deploy build
+server-jdk-image::
+ifeq ($(PLATFORM), macosx)
+	$(RM) -r $(JDK_SERVER_BUNDLE_DIR)/Home/demo
+	$(RM) -r $(JDK_SERVER_BUNDLE_DIR)/Home/sample
+	$(RM) $(JDK_SERVER_BUNDLE_DIR)/Home/bin/jcontrol
+	$(RM) $(JDK_SERVER_BUNDLE_DIR)/Home/jre/bin/jcontrol
+	$(RM) $(JDK_SERVER_BUNDLE_DIR)/Home/man/ja_JP.UTF-8/man1/javaws.1
+	$(RM) $(JDK_SERVER_BUNDLE_DIR)/Home/man/man1/javaws.1
+else
+	$(RM) -r $(JDK_SERVER_IMAGE_DIR)
+	$(CP) -r $(JDK_IMAGE_DIR) $(JDK_SERVER_IMAGE_DIR)
+	$(RM) -r $(JDK_SERVER_IMAGE_DIR)/demo
+	$(RM) -r $(JDK_SERVER_IMAGE_DIR)/sample
+	$(RM) $(JDK_SERVER_IMAGE_DIR)/bin/jcontrol
+	$(RM) $(JDK_SERVER_IMAGE_DIR)/jre/bin/jcontrol
+	$(RM) $(JDK_SERVER_IMAGE_DIR)/man/ja_JP.UTF-8/man1/javaws.1
+	$(RM) $(JDK_SERVER_IMAGE_DIR)/man/man1/javaws.1
+endif
 
 ######################################################
 # JDK Image
@@ -1188,6 +1228,10 @@ define info-file-item # name value
 $(PRINTF) '%s="%s"\n' $1 $2 >> $@
 endef
 
+define echo-java-info
+$(CAT) $1
+endef
+
 # Values to emit
 MINIMUM_OS_NAME    := $(REQUIRED_OS_NAME)
 MINIMUM_OS_VERSION := $(REQUIRED_OS_VERSION)
@@ -1204,6 +1248,7 @@ $(JDK_INFO_FILE): FRC
 	$(call info-file-item, "OS_VERSION",   "$(MINIMUM_OS_VERSION)")
 	$(call info-file-item, "OS_ARCH",      "$(MINIMUM_OS_ARCH)")
 	$(call info-file-item, "SOURCE",       "$(ALL_SOURCE_TIPS)")
+	$(call echo-java-info, $@)
 
 # Create release file to identify this image
 identify-image-jdk:: $(JDK_INFO_FILE)
@@ -1215,6 +1260,7 @@ $(JRE_INFO_FILE): FRC
 	$(call info-file-item, "OS_VERSION",   "$(MINIMUM_OS_VERSION)")
 	$(call info-file-item, "OS_ARCH",      "$(MINIMUM_OS_ARCH)")
 	$(call info-file-item, "SOURCE",       "$(ALL_SOURCE_TIPS)")
+	$(call echo-java-info, $@)
 
 # Create release file to identify this image
 identify-image-jre:: $(JRE_INFO_FILE)
@@ -1312,8 +1358,8 @@ $(TEMP_PREV_JDK_COMPARISON): install-previous-jdk $(DIRDIFF_JARFILE)
 	@$(java-vm-cleanup)
 
 # Clean up names in the messages printed out
-CAT_FILTER = $(SED) -e "s@$(JDK_IMAGE_DIR)@JDK_IMAGE@g" \
-	            -e "s@$(JRE_IMAGE_DIR)@JRE_IMAGE@g"
+CAT_FILTER = $(SED) -e "s|$(JDK_IMAGE_DIR)|JDK_IMAGE|g" \
+	            -e "s|$(JRE_IMAGE_DIR)|JRE_IMAGE|g"
 
 # Report on the jre image comparison
 compare-image-jre: $(TEMP_PREV_JRE_COMPARISON)
@@ -1381,3 +1427,4 @@ images images-clobber::
 # Force rule
 FRC:
 
+-include $(JDK_TOPDIR)/make/closed/common/release.gmk
