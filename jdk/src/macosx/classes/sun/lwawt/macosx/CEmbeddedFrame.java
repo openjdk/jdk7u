@@ -97,7 +97,7 @@ public class CEmbeddedFrame extends EmbeddedFrame {
     public void handleKeyEvent(int eventType, int modifierFlags, String characters,
                                String charsIgnoringMods, boolean isRepeat, short keyCode,
                                boolean needsKeyTyped) {
-        responder.handleKeyEvent(eventType, modifierFlags, charsIgnoringMods, keyCode, needsKeyTyped);
+        responder.handleKeyEvent(eventType, modifierFlags, charsIgnoringMods, keyCode, needsKeyTyped, isRepeat);
     }
 
     // REMIND: delete this method once 'deploy' changes for 7156194 is pushed
@@ -112,15 +112,25 @@ public class CEmbeddedFrame extends EmbeddedFrame {
 
     public void handleFocusEvent(boolean focused) {
         this.focused = focused;
+        if (focused) {
+            // see bug 8010925
+            // we can't put this to handleWindowFocusEvent because
+            // it won't be invoced if focuse is moved to a html element
+            // on the same page.
+            CClipboard clipboard = (CClipboard) Toolkit.getDefaultToolkit().getSystemClipboard();
+            clipboard.checkPasteboard();
+        }
         if (parentWindowActive) {
-            responder.handleWindowFocusEvent(focused);
+            responder.handleWindowFocusEvent(focused, null);
         }
     }
 
     public void handleWindowFocusEvent(boolean parentWindowActive) {
         this.parentWindowActive = parentWindowActive;
-        if (focused) {
-            responder.handleWindowFocusEvent(parentWindowActive);
+        // ignore focus "lost" native request as it may mistakenly
+        // deactivate active window (see 8001161)
+        if (focused && parentWindowActive) {
+            responder.handleWindowFocusEvent(parentWindowActive, null);
         }
     }
 

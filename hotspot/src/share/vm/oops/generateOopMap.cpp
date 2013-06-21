@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@
 #include "runtime/java.hpp"
 #include "runtime/relocator.hpp"
 #include "utilities/bitMap.inline.hpp"
+#include "prims/methodHandles.hpp"
 
 //
 //
@@ -400,10 +401,9 @@ void GenerateOopMap::mark_bbheaders_and_count_gc_points() {
   bool fellThrough = false;  // False to get first BB marked.
 
   // First mark all exception handlers as start of a basic-block
-  typeArrayOop excps = method()->exception_table();
-  for(int i = 0; i < excps->length(); i += 4) {
-    int handler_pc_idx = i+2;
-    bb_mark_fct(this, excps->int_at(handler_pc_idx), NULL);
+  ExceptionTable excps(method());
+  for(int i = 0; i < excps.length(); i ++) {
+    bb_mark_fct(this, excps.handler_pc(i), NULL);
   }
 
   // Then iterate through the code
@@ -450,10 +450,9 @@ void GenerateOopMap::mark_reachable_code() {
 
   // Mark entry basic block as alive and all exception handlers
   _basic_blocks[0].mark_as_alive();
-  typeArrayOop excps = method()->exception_table();
-  for(int i = 0; i < excps->length(); i += 4) {
-    int handler_pc_idx = i+2;
-    BasicBlock *bb = get_basic_block_at(excps->int_at(handler_pc_idx));
+  ExceptionTable excps(method());
+  for(int i = 0; i < excps.length(); i++) {
+    BasicBlock *bb = get_basic_block_at(excps.handler_pc(i));
     // If block is not already alive (due to multiple exception handlers to same bb), then
     // make it alive
     if (bb->is_dead()) bb->mark_as_alive();
@@ -643,11 +642,20 @@ int GenerateOopMap::next_bb_start_pc(BasicBlock *bb) {
 // CellType handling methods
 //
 
+// Allocate memory and throw LinkageError if failure.
+#define ALLOC_RESOURCE_ARRAY(var, type, count) \
+  var = NEW_RESOURCE_ARRAY_RETURN_NULL(type, count);              \
+  if (var == NULL) {                                              \
+    report_error("Cannot reserve enough memory to analyze this method"); \
+    return;                                                       \
+  }
+
 void GenerateOopMap::init_state() {
   _state_len     = _max_locals + _max_stack + _max_monitors;
-  _state         = NEW_RESOURCE_ARRAY(CellTypeState, _state_len);
+  ALLOC_RESOURCE_ARRAY(_state, CellTypeState, _state_len);
   memset(_state, 0, _state_len * sizeof(CellTypeState));
-  _state_vec_buf = NEW_RESOURCE_ARRAY(char, MAX3(_max_locals, _max_stack, _max_monitors) + 1/*for null terminator char */);
+  int count = MAX3(_max_locals, _max_stack, _max_monitors) + 1/*for null terminator char */;
+  ALLOC_RESOURCE_ARRAY(_state_vec_buf, char, count)
 }
 
 void GenerateOopMap::make_context_uninitialized() {
@@ -905,7 +913,7 @@ void GenerateOopMap::init_basic_blocks() {
   // But cumbersome since we don't know the stack heights yet.  (Nor the
   // monitor stack heights...)
 
-  _basic_blocks = NEW_RESOURCE_ARRAY(BasicBlock, _bb_count);
+  ALLOC_RESOURCE_ARRAY(_basic_blocks, BasicBlock, _bb_count);
 
   // Make a pass through the bytecodes.  Count the number of monitorenters.
   // This can be used an upper bound on the monitor stack depth in programs
@@ -976,8 +984,8 @@ void GenerateOopMap::init_basic_blocks() {
     return;
   }
 
-  CellTypeState *basicBlockState =
-      NEW_RESOURCE_ARRAY(CellTypeState, bbNo * _state_len);
+  CellTypeState *basicBlockState;
+  ALLOC_RESOURCE_ARRAY(basicBlockState, CellTypeState, bbNo * _state_len);
   memset(basicBlockState, 0, bbNo * _state_len * sizeof(CellTypeState));
 
   // Make a pass over the basicblocks and assign their state vectors.
@@ -1181,12 +1189,12 @@ void GenerateOopMap::do_exception_edge(BytecodeStream* itr) {
 
   if (_has_exceptions) {
     int bci = itr->bci();
-    typeArrayOop exct  = method()->exception_table();
-    for(int i = 0; i< exct->length(); i+=4) {
-      int start_pc   = exct->int_at(i);
-      int end_pc     = exct->int_at(i+1);
-      int handler_pc = exct->int_at(i+2);
-      int catch_type = exct->int_at(i+3);
+    ExceptionTable exct(method());
+    for(int i = 0; i< exct.length(); i++) {
+      int start_pc   = exct.start_pc(i);
+      int end_pc     = exct.end_pc(i);
+      int handler_pc = exct.handler_pc(i);
+      int catch_type = exct.catch_type_index(i);
 
       if (start_pc <= bci && bci < end_pc) {
         BasicBlock *excBB = get_basic_block_at(handler_pc);
@@ -2055,7 +2063,7 @@ void GenerateOopMap::compute_map(TRAPS) {
   _conflict       = false;
   _max_locals     = method()->max_locals();
   _max_stack      = method()->max_stack();
-  _has_exceptions = (method()->exception_table()->length() > 0);
+  _has_exceptions = (method()->has_exception_handler());
   _nof_refval_conflicts = 0;
   _init_vars      = new GrowableArray<intptr_t>(5);  // There are seldom more than 5 init_vars
   _report_result  = false;
@@ -2070,9 +2078,10 @@ void GenerateOopMap::compute_map(TRAPS) {
     if (Verbose) {
       _method->print_codes();
       tty->print_cr("Exception table:");
-      typeArrayOop excps = method()->exception_table();
-      for(int i = 0; i < excps->length(); i += 4) {
-        tty->print_cr("[%d - %d] -> %d", excps->int_at(i + 0), excps->int_at(i + 1), excps->int_at(i + 2));
+      ExceptionTable excps(method());
+      for(int i = 0; i < excps.length(); i ++) {
+        tty->print_cr("[%d - %d] -> %d",
+                      excps.start_pc(i), excps.end_pc(i), excps.handler_pc(i));
       }
     }
   }

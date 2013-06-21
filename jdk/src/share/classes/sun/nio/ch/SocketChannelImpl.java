@@ -33,7 +33,7 @@ import java.nio.channels.*;
 import java.nio.channels.spi.*;
 import java.util.*;
 import sun.net.NetHooks;
-
+import sun.misc.IoTrace;
 
 /**
  * An implementation of SocketChannels
@@ -70,6 +70,9 @@ class SocketChannelImpl
 
     // -- The following fields are protected by stateLock
 
+    // set true when exclusive binding is on and SO_REUSEADDR is emulated
+    private boolean isReuseAddress;
+
     // State, increases monotonically
     private static final int ST_UNINITIALIZED = -1;
     private static final int ST_UNCONNECTED = 0;
@@ -80,8 +83,8 @@ class SocketChannelImpl
     private int state = ST_UNINITIALIZED;
 
     // Binding
-    private SocketAddress localAddress;
-    private SocketAddress remoteAddress;
+    private InetSocketAddress localAddress;
+    private InetSocketAddress remoteAddress;
 
     // Input/Output open
     private boolean isInputOpen = true;
@@ -143,7 +146,7 @@ class SocketChannelImpl
         synchronized (stateLock) {
             if (!isOpen())
                 throw new ClosedChannelException();
-            return localAddress;
+            return  Net.getRevealedLocalAddress(localAddress);
         }
     }
 
@@ -174,6 +177,12 @@ class SocketChannelImpl
                 if (!Net.isIPv6Available())
                     Net.setSocketOption(fd, StandardProtocolFamily.INET, name, value);
                 return this;
+            } else if (name == StandardSocketOptions.SO_REUSEADDR &&
+                           Net.useExclusiveBind())
+            {
+                // SO_REUSEADDR emulated when using exclusive bind
+                isReuseAddress = (Boolean)value;
+                return this;
             }
 
             // no options that require special handling
@@ -195,6 +204,13 @@ class SocketChannelImpl
         synchronized (stateLock) {
             if (!isOpen())
                 throw new ClosedChannelException();
+
+            if (name == StandardSocketOptions.SO_REUSEADDR &&
+                    Net.useExclusiveBind())
+            {
+                // SO_REUSEADDR emulated when using exclusive bind
+                return (T)Boolean.valueOf(isReuseAddress);
+            }
 
             // special handling for IP_TOS: always return 0 when IPv6
             if (name == StandardSocketOptions.IP_TOS) {
@@ -278,6 +294,10 @@ class SocketChannelImpl
         synchronized (readLock) {
             if (!ensureReadOpen())
                 return -1;
+            Object traceContext = null;
+            if (isBlocking()) {
+                traceContext = IoTrace.socketReadBegin();
+            }
             int n = 0;
             try {
 
@@ -356,7 +376,7 @@ class SocketChannelImpl
                 // except that the shutdown operation plays the role of
                 // nd.preClose().
                 for (;;) {
-                    n = IOUtil.read(fd, buf, -1, nd, readLock);
+                    n = IOUtil.read(fd, buf, -1, nd);
                     if ((n == IOStatus.INTERRUPTED) && isOpen()) {
                         // The system call was interrupted but the channel
                         // is still open, so retry
@@ -367,6 +387,12 @@ class SocketChannelImpl
 
             } finally {
                 readerCleanup();        // Clear reader thread
+
+                if (isBlocking()) {
+                    IoTrace.socketReadEnd(traceContext, remoteAddress.getAddress(),
+                                          remoteAddress.getPort(), 0, n > 0 ? n : 0);
+                }
+
                 // The end method, which is defined in our superclass
                 // AbstractInterruptibleChannel, resets the interruption
                 // machinery.  If its argument is true then it returns
@@ -407,6 +433,10 @@ class SocketChannelImpl
             if (!ensureReadOpen())
                 return -1;
             long n = 0;
+            Object traceContext = null;
+            if (isBlocking()) {
+                traceContext = IoTrace.socketReadBegin();
+            }
             try {
                 begin();
                 synchronized (stateLock) {
@@ -423,6 +453,10 @@ class SocketChannelImpl
                 }
             } finally {
                 readerCleanup();
+                if (isBlocking()) {
+                    IoTrace.socketReadEnd(traceContext, remoteAddress.getAddress(),
+                                          remoteAddress.getPort(), 0, n > 0 ? n : 0);
+                }
                 end(n > 0 || (n == IOStatus.UNAVAILABLE));
                 synchronized (stateLock) {
                     if ((n <= 0) && (!isInputOpen))
@@ -439,6 +473,9 @@ class SocketChannelImpl
         synchronized (writeLock) {
             ensureWriteOpen();
             int n = 0;
+            Object traceContext =
+                IoTrace.socketWriteBegin();
+
             try {
                 begin();
                 synchronized (stateLock) {
@@ -447,13 +484,15 @@ class SocketChannelImpl
                     writerThread = NativeThread.current();
                 }
                 for (;;) {
-                    n = IOUtil.write(fd, buf, -1, nd, writeLock);
+                    n = IOUtil.write(fd, buf, -1, nd);
                     if ((n == IOStatus.INTERRUPTED) && isOpen())
                         continue;
                     return IOStatus.normalize(n);
                 }
             } finally {
                 writerCleanup();
+                IoTrace.socketWriteEnd(traceContext, remoteAddress.getAddress(),
+                                       remoteAddress.getPort(), n > 0 ? n : 0);
                 end(n > 0 || (n == IOStatus.UNAVAILABLE));
                 synchronized (stateLock) {
                     if ((n <= 0) && (!isOutputOpen))
@@ -472,6 +511,8 @@ class SocketChannelImpl
         synchronized (writeLock) {
             ensureWriteOpen();
             long n = 0;
+            Object traceContext =
+                IoTrace.socketWriteBegin();
             try {
                 begin();
                 synchronized (stateLock) {
@@ -487,6 +528,8 @@ class SocketChannelImpl
                 }
             } finally {
                 writerCleanup();
+                IoTrace.socketWriteEnd(traceContext, remoteAddress.getAddress(),
+                                       remoteAddress.getPort(), n > 0 ? n : 0);
                 end((n > 0) || (n == IOStatus.UNAVAILABLE));
                 synchronized (stateLock) {
                     if ((n <= 0) && (!isOutputOpen))
@@ -531,7 +574,7 @@ class SocketChannelImpl
         IOUtil.configureBlocking(fd, block);
     }
 
-    public SocketAddress localAddress() {
+    public InetSocketAddress localAddress() {
         synchronized (stateLock) {
             return localAddress;
         }
@@ -936,6 +979,7 @@ class SocketChannelImpl
         return fdVal;
     }
 
+    @Override
     public String toString() {
         StringBuffer sb = new StringBuffer();
         sb.append(this.getClass().getSuperclass().getName());
@@ -959,9 +1003,10 @@ class SocketChannelImpl
                         sb.append(" oshut");
                     break;
                 }
-                if (localAddress() != null) {
+                InetSocketAddress addr = localAddress();
+                if (addr != null) {
                     sb.append(" local=");
-                    sb.append(localAddress().toString());
+                    sb.append(Net.getRevealedLocalAddressAsString(addr));
                 }
                 if (remoteAddress() != null) {
                     sb.append(" remote=");
