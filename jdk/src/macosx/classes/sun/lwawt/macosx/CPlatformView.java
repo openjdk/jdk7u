@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,11 @@ package sun.lwawt.macosx;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.VolatileImage;
 
 import sun.awt.CGraphicsConfig;
+import sun.awt.CGraphicsEnvironment;
 import sun.lwawt.LWWindowPeer;
 import sun.lwawt.macosx.event.NSEvent;
 
@@ -39,6 +41,10 @@ import sun.java2d.opengl.CGLSurfaceData;
 
 public class CPlatformView extends CFRetainedResource {
     private native long nativeCreateView(int x, int y, int width, int height, long windowLayerPtr);
+    private static native void nativeSetAutoResizable(long awtView, boolean toResize);
+    private static native int nativeGetNSViewDisplayID(long awtView);
+    private static native Rectangle2D nativeGetLocationOnScreen(long awtView);
+    private static native boolean nativeIsViewUnderMouse(long ptr);
 
     private LWWindowPeer peer;
     private SurfaceData surfaceData;
@@ -54,17 +60,21 @@ public class CPlatformView extends CFRetainedResource {
         this.responder = responder;
 
         if (!LWCToolkit.getSunAwtDisableCALayers()) {
-            this.windowLayer = new CGLLayer(peer);
+            this.windowLayer = createCGLayer();
         }
         setPtr(nativeCreateView(0, 0, 0, 0, getWindowLayerPtr()));
     }
 
-    public long getAWTView() {
-        return ptr;
+    public CGLLayer createCGLayer() {
+        return new CGLLayer(peer);
     }
 
+    public long getAWTView() {
+        return ptr;
+        }
+
     public boolean isOpaque() {
-        return peer.isOpaque();
+        return !peer.isTranslucent();
     }
 
     /*
@@ -84,33 +94,16 @@ public class CPlatformView extends CFRetainedResource {
         return peer;
     }
 
-    public void enterFullScreenMode(final long nsWindowPtr) {
+    public void enterFullScreenMode() {
         CWrapper.NSView.enterFullScreenMode(ptr);
-
-        // REMIND: CGLSurfaceData expects top-level's size
-        // and therefore we need to account insets before
-        // recreating the surface data
-        Insets insets = peer.getInsets();
-
-        Rectangle screenBounds;
-        final long screenPtr = CWrapper.NSWindow.screen(nsWindowPtr);
-        try {
-            screenBounds = CWrapper.NSScreen.frame(screenPtr).getBounds();
-        } finally {
-            CWrapper.NSObject.release(screenPtr);
-        }
-
-        // the move/size notification from the underlying system comes
-        // but it contains a bounds smaller than the whole screen
-        // and therefore we need to create the synthetic notifications
-        peer.notifyReshape(screenBounds.x - insets.left,
-                           screenBounds.y - insets.bottom,
-                           screenBounds.width + insets.left + insets.right,
-                           screenBounds.height + insets.top + insets.bottom);
     }
 
     public void exitFullScreenMode() {
         CWrapper.NSView.exitFullScreenMode(ptr);
+    }
+
+    public void setToolTip(String msg) {
+        CWrapper.NSView.setToolTip(ptr, msg);
     }
 
     // ----------------------------------------------------------------------
@@ -127,11 +120,11 @@ public class CPlatformView extends CFRetainedResource {
     }
 
     public Image createBackBuffer() {
-        Rectangle r = peer.getBounds();
+        Rectangle r = getBounds();
         Image im = null;
         if (!r.isEmpty()) {
             int transparency = (isOpaque() ? Transparency.OPAQUE : Transparency.TRANSLUCENT);
-            im = peer.getGraphicsConfiguration().createCompatibleImage(r.width, r.height, transparency);
+            im = getGraphicsConfiguration().createCompatibleImage(r.width, r.height, transparency);
         }
         return im;
     }
@@ -141,7 +134,7 @@ public class CPlatformView extends CFRetainedResource {
             surfaceData = windowLayer.replaceSurfaceData();
         } else {
             if (surfaceData == null) {
-                CGraphicsConfig graphicsConfig = (CGraphicsConfig)peer.getGraphicsConfiguration();
+                CGraphicsConfig graphicsConfig = (CGraphicsConfig)getGraphicsConfiguration();
                 surfaceData = graphicsConfig.createSurfaceData(this);
             } else {
                 validateSurface();
@@ -180,9 +173,45 @@ public class CPlatformView extends CFRetainedResource {
         }
     }
 
+    public void setAutoResizable(boolean toResize) {
+        nativeSetAutoResizable(this.getAWTView(), toResize);
+    }
+
+    public boolean isUnderMouse() {
+        return nativeIsViewUnderMouse(getAWTView());
+    }
+
+    public GraphicsDevice getGraphicsDevice() {
+        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        CGraphicsEnvironment cge = (CGraphicsEnvironment)ge;
+        int displayID = nativeGetNSViewDisplayID(getAWTView());
+        GraphicsDevice gd = cge.getScreenDevice(displayID);
+        if (gd == null) {
+            // this could possibly happen during device removal
+            // use the default screen device in this case
+            gd = ge.getDefaultScreenDevice();
+        }
+        return gd;
+    }
+
+    public Point getLocationOnScreen() {
+        Rectangle r = nativeGetLocationOnScreen(this.getAWTView()).getBounds();
+        return new Point(r.x, r.y);
+    }
+
     // ----------------------------------------------------------------------
     // NATIVE CALLBACKS
     // ----------------------------------------------------------------------
+
+    /*
+     * The callback is called only in the embedded case when the view is
+     * automatically resized by the superview.
+     * In normal mode this method is never called.
+     */
+    private void deliverResize(int x, int y, int w, int h) {
+        responder.handleReshapeEvent(x, y, w, h);
+    }
+
 
     private void deliverMouseEvent(NSEvent event) {
         int x = event.getX();
@@ -199,15 +228,15 @@ public class CPlatformView extends CFRetainedResource {
 
     private void deliverKeyEvent(NSEvent event) {
         responder.handleKeyEvent(event.getType(), event.getModifierFlags(),
-                                 event.getCharactersIgnoringModifiers(), event.getKeyCode(), true);
+                                 event.getCharactersIgnoringModifiers(), event.getKeyCode(), true, false);
     }
 
+    /**
+     * Called by the native delegate in layer backed view mode or in the simple
+     * NSView mode. See NSView.drawRect().
+     */
     private void deliverWindowDidExposeEvent() {
-        Rectangle r = peer.getBounds();
-        peer.notifyExpose(0, 0, r.width, r.height);
-    }
-
-    private void deliverWindowDidExposeEvent(float x, float y, float w, float h) {
-        peer.notifyExpose((int)x, (int)y, (int)w, (int)h);
+        Rectangle r = getBounds();
+        responder.handleWindowDidExposeEvent(new Rectangle(r.width, r.height));
     }
 }

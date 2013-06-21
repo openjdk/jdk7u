@@ -34,6 +34,8 @@ import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.util.*;
 
+import sun.misc.IoTrace;
+
 
 // Make a socket channel look like a socket.
 //
@@ -159,9 +161,9 @@ public class SocketAdaptor
 
     public InetAddress getLocalAddress() {
         if (sc.isOpen()) {
-            SocketAddress local = sc.localAddress();
+            InetSocketAddress local = sc.localAddress();
             if (local != null)
-                return ((InetSocketAddress)local).getAddress();
+                return Net.getRevealedLocalAddress(local).getAddress();
         }
         return new InetSocketAddress(0).getAddress();
     }
@@ -204,8 +206,9 @@ public class SocketAdaptor
                 SelectionKey sk = null;
                 Selector sel = null;
                 sc.configureBlocking(false);
+                int n = 0;
+                Object traceContext = IoTrace.socketReadBegin();
                 try {
-                    int n;
                     if ((n = sc.read(bb)) != 0)
                         return n;
                     sel = Util.getTemporarySelector(sc);
@@ -226,6 +229,8 @@ public class SocketAdaptor
                             throw new SocketTimeoutException();
                     }
                 } finally {
+                    IoTrace.socketReadEnd(traceContext, getInetAddress(),
+                                          getPort(), timeout, n > 0 ? n : 0);
                     if (sk != null)
                         sk.cancel();
                     if (sc.isOpen())

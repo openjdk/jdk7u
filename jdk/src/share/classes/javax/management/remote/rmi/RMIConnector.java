@@ -103,6 +103,7 @@ import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.rmi.ssl.SslRMIClientSocketFactory;
 import javax.security.auth.Subject;
+import sun.reflect.misc.ReflectUtil;
 import sun.rmi.server.UnicastRef2;
 import sun.rmi.transport.LiveRef;
 
@@ -277,9 +278,9 @@ public class RMIConnector implements JMXConnector, Serializable, JMXAddressable 
             // Check for secure RMIServer stub if the corresponding
             // client-side environment property is set to "true".
             //
-            boolean checkStub = EnvHelp.computeBooleanFromString(
-                    usemap,
-                    "jmx.remote.x.check.stub",false);
+            String stringBoolean =  (String) usemap.get("jmx.remote.x.check.stub");
+            boolean checkStub = EnvHelp.computeBooleanFromString(stringBoolean);
+
             if (checkStub) checkStub(stub, rmiServerImplStubClass);
 
             // Connect IIOP Stub if needed.
@@ -1991,7 +1992,9 @@ public class RMIConnector implements JMXConnector, Serializable, JMXAddressable 
         @Override
         protected Class<?> resolveClass(ObjectStreamClass classDesc)
                 throws IOException, ClassNotFoundException {
-            return Class.forName(classDesc.getName(), false, loader);
+            String name = classDesc.getName();
+            ReflectUtil.checkPackageAccess(name);
+            return Class.forName(name, false, loader);
         }
 
         private final ClassLoader loader;
