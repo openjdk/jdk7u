@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,7 +117,7 @@ public class CPlatformEmbeddedFrame implements PlatformWindow {
         Rectangle r = peer.getBounds();
         Image im = null;
         if (!r.isEmpty()) {
-            int transparency = (peer.isOpaque() ? Transparency.OPAQUE : Transparency.TRANSLUCENT);
+            int transparency = peer.isTranslucent() ? Transparency.TRANSLUCENT : Transparency.OPAQUE;
             im = peer.getGraphicsConfiguration().createCompatibleImage(r.width, r.height, transparency);
         }
         return im;
@@ -180,7 +180,7 @@ public class CPlatformEmbeddedFrame implements PlatformWindow {
     public void setResizable(boolean resizable) {}
 
     @Override
-    public void setMinimumSize(int width, int height) {}
+    public void setSizeConstraints(int minW, int minH, int maxW, int maxH) {}
 
     @Override
     public Graphics transformGraphics(Graphics g) {
@@ -203,8 +203,22 @@ public class CPlatformEmbeddedFrame implements PlatformWindow {
     public void exitFullScreenMode() {}
 
     @Override
+    public boolean isFullScreenMode() {
+        return false;
+    }
+
+    @Override
     public void setWindowState(int windowState) {}
 
     @Override
     public void setModalBlocked(boolean blocked) {}
+
+    /*
+     * The method could not be implemented due to CALayer restrictions.
+     * The exeption enforce clients not to use it.
+     */
+    @Override
+    public boolean isUnderMouse() {
+        throw new RuntimeException("Not implemented");
+    }
 }

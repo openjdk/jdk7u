@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,6 +70,27 @@ AWT_ASSERT_APPKIT_THREAD;
     JNIEnv *env = [ThreadUtilities getJNIEnv];
 JNF_COCOA_ENTER(env);
 
+    // If we are called as a result of user pressing a shorcut, do nothing,
+    // because AWTView has already sent corresponding key event to the Java
+    // layer from performKeyEquivalent
+    NSEvent *currEvent = [[NSApplication sharedApplication] currentEvent];
+    if ([currEvent type] == NSKeyDown) {
+        NSString *menuKey = [sender keyEquivalent];
+        NSString *eventKey = [currEvent charactersIgnoringModifiers];
+
+        // Apple uses characters from private Unicode range for some of the
+        // keys, so we need to do the same translation here that we do
+        // for the regular key down events
+        if ([eventKey length] == 1) {
+            unichar ch =  NsCharToJavaChar([eventKey characterAtIndex:0], 0);
+            eventKey = [NSString stringWithCharacters: &ch length: 1];
+        }
+
+        if ([menuKey isEqualToString:eventKey]) {
+            return;
+        }
+    }
+
     if (fIsCheckbox) {
         static JNF_CLASS_CACHE(jc_CCheckboxMenuItem, "sun/lwawt/macosx/CCheckboxMenuItem");
         static JNF_MEMBER_CACHE(jm_ckHandleAction, jc_CCheckboxMenuItem, "handleAction", "(Z)V");
@@ -83,14 +104,8 @@ JNF_COCOA_ENTER(env);
         static JNF_CLASS_CACHE(jc_CMenuItem, "sun/lwawt/macosx/CMenuItem");
         static JNF_MEMBER_CACHE(jm_handleAction, jc_CMenuItem, "handleAction", "(JI)V"); // AWT_THREADING Safe (event)
 
-        NSEvent *currEvent = [[NSApplication sharedApplication] currentEvent];
         NSUInteger modifiers = [currEvent modifierFlags];
-        jint javaModifiers = 0;
-
-        if ((modifiers & NSCommandKeyMask) != 0)   javaModifiers |= java_awt_Event_META_MASK;
-        if ((modifiers & NSShiftKeyMask) != 0)     javaModifiers |= java_awt_Event_SHIFT_MASK;
-        if ((modifiers & NSControlKeyMask) != 0)   javaModifiers |= java_awt_Event_CTRL_MASK;
-        if ((modifiers & NSAlternateKeyMask) != 0) javaModifiers |= java_awt_Event_ALT_MASK;
+        jint javaModifiers = NsKeyModifiersToJavaModifiers(modifiers, NO);
 
         JNFCallVoidMethod(env, fPeer, jm_handleAction, UTC(currEvent), javaModifiers); // AWT_THREADING Safe (event)
     }
@@ -98,7 +113,6 @@ JNF_COCOA_EXIT(env);
 }
 
 - (void) setJavaLabel:(NSString *)theLabel shortcut:(NSString *)theKeyEquivalent modifierMask:(jint)modifiers {
-AWT_ASSERT_NOT_APPKIT_THREAD;
 
     NSUInteger modifierMask = 0;
 
@@ -117,15 +131,10 @@ AWT_ASSERT_NOT_APPKIT_THREAD;
             modifiers &= ~java_awt_event_KeyEvent_SHIFT_MASK;
         }
 
-        if ((modifiers & java_awt_event_KeyEvent_SHIFT_MASK) != 0) modifierMask |= NSShiftKeyMask;
-        if ((modifiers & java_awt_event_KeyEvent_CTRL_MASK) != 0)  modifierMask |= NSControlKeyMask;
-        if ((modifiers & java_awt_event_KeyEvent_ALT_MASK) != 0)   modifierMask |= NSAlternateKeyMask;
-        if ((modifiers & java_awt_event_KeyEvent_META_MASK) != 0)  modifierMask |= NSCommandKeyMask;
+        modifierMask = JavaModifiersToNsKeyModifiers(modifiers, NO);
     }
 
-    [JNFRunLoop performOnMainThreadWaiting:YES withBlock:^(){
-        AWT_ASSERT_APPKIT_THREAD;
-
+    [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
         [fMenuItem setKeyEquivalent:theKeyEquivalent];
         [fMenuItem setKeyEquivalentModifierMask:modifierMask];
         [fMenuItem setTitle:theLabel];
@@ -133,32 +142,23 @@ AWT_ASSERT_NOT_APPKIT_THREAD;
 }
 
 - (void) setJavaImage:(NSImage *)theImage {
-AWT_ASSERT_NOT_APPKIT_THREAD;
 
-    [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
-        AWT_ASSERT_APPKIT_THREAD;
-
+    [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
         [fMenuItem setImage:theImage];
     }];
 }
 
 - (void) setJavaToolTipText:(NSString *)theText {
-AWT_ASSERT_NOT_APPKIT_THREAD;
 
-    [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
-        AWT_ASSERT_APPKIT_THREAD;
-
+    [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
         [fMenuItem setToolTip:theText];
     }];
 }
 
 
 - (void)setJavaEnabled:(BOOL) enabled {
-AWT_ASSERT_NOT_APPKIT_THREAD;
 
-    [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
-        AWT_ASSERT_APPKIT_THREAD;
-
+    [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
         @synchronized(self) {
             fIsEnabled = enabled;
 
@@ -171,7 +171,6 @@ AWT_ASSERT_NOT_APPKIT_THREAD;
 }
 
 - (BOOL)isEnabled {
-    // AWT_ASSERT_ANY_THREAD;
 
     BOOL enabled = NO;
     @synchronized(self) {
@@ -182,11 +181,8 @@ AWT_ASSERT_NOT_APPKIT_THREAD;
 
 
 - (void)setJavaState:(BOOL)newState {
-AWT_ASSERT_NOT_APPKIT_THREAD;
 
-    [JNFRunLoop performOnMainThreadWaiting:NO withBlock:^(){
-AWT_ASSERT_APPKIT_THREAD;
-
+    [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
         [fMenuItem setState:(newState ? NSOnState : NSOffState)];
     }];
 }
@@ -399,7 +395,7 @@ JNF_COCOA_ENTER(env);
         args = [[NSMutableArray alloc] initWithObjects:[NSValue valueWithBytes:&cPeerObjGlobal objCType:@encode(jobject)], [NSNumber numberWithBool:NO],  nil];
     }
 
-    [ThreadUtilities performOnMainThread:@selector(_createMenuItem_OnAppKitThread:) onObject:[CMenuItem alloc] withObject:args waitUntilDone:YES awtMode:YES];
+    [ThreadUtilities performOnMainThread:@selector(_createMenuItem_OnAppKitThread:) on:[CMenuItem alloc] withObject:args waitUntilDone:YES];
 
     aCMenuItem = (CMenuItem *)[args objectAtIndex: 0];
 
