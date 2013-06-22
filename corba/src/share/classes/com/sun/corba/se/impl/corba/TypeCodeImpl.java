@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -600,7 +600,8 @@ public final class TypeCodeImpl extends TypeCode
     }
 
     public static CDROutputStream newOutputStream(ORB orb) {
-        TypeCodeOutputStream tcos = new TypeCodeOutputStream((ORB)orb);
+        TypeCodeOutputStream tcos =
+            sun.corba.OutputStreamFactory.newTypeCodeOutputStream(orb);
         //if (debug) System.out.println("Created TypeCodeOutputStream " + tcos +
         // " with no parent");
         return tcos;
@@ -2189,10 +2190,7 @@ public final class TypeCodeImpl extends TypeCode
 
                 if (labelIndex == _unionLabels.length) {
                     // check if label has not been found
-                    if (_defaultIndex == -1)
-                        // throw exception if default was not expected
-                        throw wrapper.unexpectedUnionDefault() ;
-                    else
+                    if (_defaultIndex != -1)
                         // must be of the default branch type
                         _memberTypes[_defaultIndex].copy(src, dst);
                 }

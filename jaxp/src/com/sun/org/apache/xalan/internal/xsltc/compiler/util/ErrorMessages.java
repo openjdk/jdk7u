@@ -446,6 +446,12 @@ public class ErrorMessages extends ListResourceBundle {
         "Could not find stylesheet target ''{0}''."},
 
         /*
+         * Note to translators:  access to the stylesheet target is denied
+         */
+        {ErrorMsg.ACCESSING_XSLT_TARGET_ERR,
+        "Could not read stylesheet target ''{0}'', because ''{1}'' access is not allowed due to restriction set by the accessExternalStylesheet property."},
+
+        /*
          * Note to translators:  This message represents an internal error in
          * condition in XSLTC.  The substitution text is the class name in XSLTC
          * that is missing some functionality.
@@ -997,7 +1003,12 @@ public class ErrorMessages extends ListResourceBundle {
          "kilobytes.  This is usually caused by templates in a stylesheet " +
          "that are very large.  Try restructuring your stylesheet to use " +
          "smaller templates."
-        }
+        },
+
+         {ErrorMsg.DESERIALIZE_TRANSLET_ERR, "When Java security is enabled, " +
+                        "support for deserializing TemplatesImpl is disabled." +
+                        "This can be overridden by setting the jdk.xml.enableTemplatesImplDeserialization" +
+                        " system property to true."}
 
     };
 

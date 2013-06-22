@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -145,6 +145,7 @@ oop Universe::_the_null_string                        = NULL;
 oop Universe::_the_min_jint_string                   = NULL;
 LatestMethodOopCache* Universe::_finalizer_register_cache = NULL;
 LatestMethodOopCache* Universe::_loader_addClass_cache    = NULL;
+LatestMethodOopCache* Universe::_pd_implies_cache         = NULL;
 ActiveMethodOopsCache* Universe::_reflect_invoke_cache    = NULL;
 oop Universe::_out_of_memory_error_java_heap          = NULL;
 oop Universe::_out_of_memory_error_perm_gen           = NULL;
@@ -264,6 +265,7 @@ void Universe::oops_do(OopClosure* f, bool do_all) {
   f->do_oop((oop*)&_the_min_jint_string);
   _finalizer_register_cache->oops_do(f);
   _loader_addClass_cache->oops_do(f);
+  _pd_implies_cache->oops_do(f);
   _reflect_invoke_cache->oops_do(f);
   f->do_oop((oop*)&_out_of_memory_error_java_heap);
   f->do_oop((oop*)&_out_of_memory_error_perm_gen);
@@ -764,7 +766,7 @@ jint universe_init() {
 
   FileMapInfo* mapinfo = NULL;
   if (UseSharedSpaces) {
-    mapinfo = NEW_C_HEAP_OBJ(FileMapInfo);
+    mapinfo = NEW_C_HEAP_OBJ(FileMapInfo, mtInternal);
     memset(mapinfo, 0, sizeof(FileMapInfo));
 
     // Open the shared archive file, read and validate the header. If
@@ -788,6 +790,7 @@ jint universe_init() {
   // CompactingPermGenGen::initialize_oops() tries to populate them.
   Universe::_finalizer_register_cache = new LatestMethodOopCache();
   Universe::_loader_addClass_cache    = new LatestMethodOopCache();
+  Universe::_pd_implies_cache         = new LatestMethodOopCache();
   Universe::_reflect_invoke_cache     = new ActiveMethodOopsCache();
 
   if (UseSharedSpaces) {
@@ -946,12 +949,14 @@ jint Universe::initialize_heap() {
       Universe::set_narrow_oop_base(Universe::heap()->base() - os::vm_page_size());
       Universe::set_narrow_oop_shift(LogMinObjAlignmentInBytes);
       if (verbose) {
-        tty->print(", Compressed Oops with base: "PTR_FORMAT, Universe::narrow_oop_base());
+        tty->print(", %s: "PTR_FORMAT,
+            narrow_oop_mode_to_string(HeapBasedNarrowOop),
+            Universe::narrow_oop_base());
       }
     } else {
       Universe::set_narrow_oop_base(0);
       if (verbose) {
-        tty->print(", zero based Compressed Oops");
+        tty->print(", %s", narrow_oop_mode_to_string(ZeroBasedNarrowOop));
       }
 #ifdef _WIN64
       if (!Universe::narrow_oop_use_implicit_null_checks()) {
@@ -966,7 +971,7 @@ jint Universe::initialize_heap() {
       } else {
         Universe::set_narrow_oop_shift(0);
         if (verbose) {
-          tty->print(", 32-bits Oops");
+          tty->print(", %s", narrow_oop_mode_to_string(UnscaledNarrowOop));
         }
       }
     }
@@ -1000,19 +1005,37 @@ void Universe::update_heap_info_at_gc() {
 }
 
 
+const char* Universe::narrow_oop_mode_to_string(Universe::NARROW_OOP_MODE mode) {
+  switch (mode) {
+    case UnscaledNarrowOop:
+      return "32-bits Oops";
+    case ZeroBasedNarrowOop:
+      return "zero based Compressed Oops";
+    case HeapBasedNarrowOop:
+      return "Compressed Oops with base";
+  }
+
+  ShouldNotReachHere();
+  return "";
+}
+
+
+Universe::NARROW_OOP_MODE Universe::narrow_oop_mode() {
+  if (narrow_oop_base() != 0) {
+    return HeapBasedNarrowOop;
+  }
+
+  if (narrow_oop_shift() != 0) {
+    return ZeroBasedNarrowOop;
+  }
+
+  return UnscaledNarrowOop;
+}
+
 
 void universe2_init() {
   EXCEPTION_MARK;
   Universe::genesis(CATCH);
-  // Although we'd like to verify here that the state of the heap
-  // is good, we can't because the main thread has not yet added
-  // itself to the threads list (so, using current interfaces
-  // we can't "fill" its TLAB), unless TLABs are disabled.
-  if (VerifyBeforeGC && !UseTLAB &&
-      Universe::heap()->total_collections() >= VerifyGCStartAt) {
-     Universe::heap()->prepare_for_verify();
-     Universe::verify();   // make sure we're starting with a clean slate
-  }
 }
 
 
@@ -1140,6 +1163,23 @@ bool universe_post_init() {
   }
   Universe::_loader_addClass_cache->init(
     SystemDictionary::ClassLoader_klass(), m, CHECK_false);
+
+  // Setup method for checking protection domain
+  instanceKlass::cast(SystemDictionary::ProtectionDomain_klass())->link_class(CHECK_false);
+  m = instanceKlass::cast(SystemDictionary::ProtectionDomain_klass())->
+            find_method(vmSymbols::impliesCreateAccessControlContext_name(),
+                        vmSymbols::void_boolean_signature());
+  // Allow NULL which should only happen with bootstrapping.
+  if (m != NULL) {
+    if (m->is_static()) {
+      // NoSuchMethodException doesn't actually work because it tries to run the
+      // <init> function before java_lang_Class is linked. Print error and exit.
+      tty->print_cr("ProtectionDomain.impliesCreateAccessControlContext() has the wrong linkage");
+      return false; // initialization failed
+    }
+    Universe::_pd_implies_cache->init(
+      SystemDictionary::ProtectionDomain_klass(), m, CHECK_false);;
+  }
 
   // The folowing is initializing converter functions for serialization in
   // JVM.cpp. If we clean up the StrictMath code above we may want to find
@@ -1326,7 +1366,7 @@ void Universe::print_heap_after_gc(outputStream* st, bool ignore_extended) {
   st->print_cr("}");
 }
 
-void Universe::verify(bool allow_dirty, bool silent, VerifyOption option) {
+void Universe::verify(bool silent, VerifyOption option) {
   if (SharedSkipVerify) {
     return;
   }
@@ -1350,7 +1390,7 @@ void Universe::verify(bool allow_dirty, bool silent, VerifyOption option) {
   if (!silent) gclog_or_tty->print("[Verifying ");
   if (!silent) gclog_or_tty->print("threads ");
   Threads::verify();
-  heap()->verify(allow_dirty, silent, option);
+  heap()->verify(silent, option);
 
   if (!silent) gclog_or_tty->print("syms ");
   SymbolTable::verify();
@@ -1546,7 +1586,7 @@ void ActiveMethodOopsCache::add_previous_version(const methodOop method) {
     // This is the first previous version so make some space.
     // Start with 2 elements under the assumption that the class
     // won't be redefined much.
-    _prev_methods = new (ResourceObj::C_HEAP) GrowableArray<jweak>(2, true);
+    _prev_methods = new (ResourceObj::C_HEAP, mtClass) GrowableArray<jweak>(2, true);
   }
 
   // RC_TRACE macro has an embedded ResourceMark
@@ -1621,6 +1661,7 @@ bool ActiveMethodOopsCache::is_same_method(const methodOop method) const {
 
 
 methodOop LatestMethodOopCache::get_methodOop() {
+  if (klass() == NULL) return NULL;
   instanceKlass* ik = instanceKlass::cast(klass());
   methodOop m = ik->method_with_idnum(method_idnum());
   assert(m != NULL, "sanity check");

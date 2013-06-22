@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "oops/markOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/virtualspace.hpp"
+#include "services/memTracker.hpp"
 #ifdef TARGET_OS_FAMILY_linux
 # include "os_linux.inline.hpp"
 #endif
@@ -80,15 +81,39 @@ ReservedSpace::align_reserved_region(char* addr, const size_t len,
   const size_t end_delta = len - (beg_delta + required_size);
 
   if (beg_delta != 0) {
-    os::release_memory(addr, beg_delta);
+    os::release_or_uncommit_partial_region(addr, beg_delta);
   }
 
   if (end_delta != 0) {
     char* release_addr = (char*) (s + beg_delta + required_size);
-    os::release_memory(release_addr, end_delta);
+    os::release_or_uncommit_partial_region(release_addr, end_delta);
   }
 
   return (char*) (s + beg_delta);
+}
+
+void ReservedSpace::set_raw_base_and_size(char * const raw_base,
+                                          size_t raw_size) {
+  assert(raw_base == NULL || !os::can_release_partial_region(), "sanity");
+  _raw_base = raw_base;
+  _raw_size = raw_size;
+}
+
+// On some systems (e.g., windows), the address returned by os::reserve_memory()
+// is the only addr that can be passed to os::release_memory().  If alignment
+// was done by this class, that original address is _raw_base.
+void ReservedSpace::release_memory(char* default_addr, size_t default_size) {
+  bool ok;
+  if (_raw_base == NULL) {
+    ok = os::release_memory(default_addr, default_size);
+  } else {
+    assert(!os::can_release_partial_region(), "sanity");
+    ok = os::release_memory(_raw_base, _raw_size);
+  }
+  if (!ok) {
+    fatal("os::release_memory failed");
+  }
+  set_raw_base_and_size(NULL, 0);
 }
 
 char* ReservedSpace::reserve_and_align(const size_t reserve_size,
@@ -109,6 +134,10 @@ char* ReservedSpace::reserve_and_align(const size_t reserve_size,
     fatal("os::release_memory failed");
   }
 
+  if (!os::can_release_partial_region()) {
+    set_raw_base_and_size(raw_addr, reserve_size);
+  }
+
 #ifdef ASSERT
   if (result != NULL) {
     const size_t raw = size_t(raw_addr);
@@ -126,8 +155,10 @@ char* ReservedSpace::reserve_and_align(const size_t reserve_size,
 }
 
 // Helper method.
-static bool failed_to_reserve_as_requested(char* base, char* requested_address,
-                                           const size_t size, bool special)
+bool ReservedSpace::failed_to_reserve_as_requested(char* base,
+                                                   char* requested_address,
+                                                   const size_t size,
+                                                   bool special)
 {
   if (base == requested_address || requested_address == NULL)
     return false; // did not fail
@@ -146,9 +177,7 @@ static bool failed_to_reserve_as_requested(char* base, char* requested_address,
         fatal("os::release_memory_special failed");
       }
     } else {
-      if (!os::release_memory(base, size)) {
-        fatal("os::release_memory failed");
-      }
+      release_memory(base, size);
     }
   }
   return true;
@@ -175,6 +204,8 @@ ReservedSpace::ReservedSpace(const size_t prefix_size,
   // Assert that if noaccess_prefix is used, it is the same as prefix_align.
   assert(noaccess_prefix == 0 ||
          noaccess_prefix == prefix_align, "noaccess prefix wrong");
+
+  set_raw_base_and_size(NULL, 0);
 
   // Add in noaccess_prefix to prefix_size;
   const size_t adjusted_prefix_size = prefix_size + noaccess_prefix;
@@ -223,9 +254,7 @@ ReservedSpace::ReservedSpace(const size_t prefix_size,
     // result is often the same address (if the kernel hands out virtual
     // addresses from low to high), or an address that is offset by the increase
     // in size.  Exploit that to minimize the amount of extra space requested.
-    if (!os::release_memory(addr, size)) {
-      fatal("os::release_memory failed");
-    }
+    release_memory(addr, size);
 
     const size_t extra = MAX2(ofs, suffix_align - ofs);
     addr = reserve_and_align(size + extra, adjusted_prefix_size, prefix_align,
@@ -263,6 +292,8 @@ void ReservedSpace::initialize(size_t size, size_t alignment, bool large,
          "alignment not aligned to os::vm_allocation_granularity()");
   assert(alignment == 0 || is_power_of_2((intptr_t)alignment),
          "not a power of 2");
+
+  set_raw_base_and_size(NULL, 0);
 
   alignment = MAX2(alignment, (size_t)os::vm_page_size());
 
@@ -339,21 +370,11 @@ void ReservedSpace::initialize(size_t size, size_t alignment, bool large,
     // Check alignment constraints
     if ((((size_t)base + noaccess_prefix) & (alignment - 1)) != 0) {
       // Base not aligned, retry
-      if (!os::release_memory(base, size)) fatal("os::release_memory failed");
-      // Reserve size large enough to do manual alignment and
-      // increase size to a multiple of the desired alignment
+      release_memory(base, size);
+
+      // Make sure that size is aligned
       size = align_size_up(size, alignment);
-      size_t extra_size = size + alignment;
-      do {
-        char* extra_base = os::reserve_memory(extra_size, NULL, alignment);
-        if (extra_base == NULL) return;
-        // Do manual alignement
-        base = (char*) align_size_up((uintptr_t) extra_base, alignment);
-        assert(base >= extra_base, "just checking");
-        // Re-reserve the region at the aligned base address.
-        os::release_memory(extra_base, extra_size);
-        base = os::reserve_memory(size, base);
-      } while (base == NULL);
+      base = os::reserve_memory_aligned(size, alignment);
 
       if (requested_address != 0 &&
           failed_to_reserve_as_requested(base, requested_address, size, false)) {
@@ -388,6 +409,7 @@ ReservedSpace::ReservedSpace(char* base, size_t size, size_t alignment,
          "size not allocation aligned");
   _base = base;
   _size = size;
+  set_raw_base_and_size(NULL, 0);
   _alignment = alignment;
   _noaccess_prefix = 0;
   _special = special;
@@ -443,7 +465,7 @@ void ReservedSpace::release() {
     if (special()) {
       os::release_memory_special(real_base, real_size);
     } else{
-      os::release_memory(real_base, real_size);
+      release_memory(real_base, real_size);
     }
     _base = NULL;
     _size = 0;
@@ -489,6 +511,10 @@ ReservedHeapSpace::ReservedHeapSpace(size_t size, size_t alignment,
                 (UseCompressedOops && (Universe::narrow_oop_base() != NULL) &&
                  Universe::narrow_oop_use_implicit_null_checks()) ?
                   lcm(os::vm_page_size(), alignment) : 0) {
+  if (base() > 0) {
+    MemTracker::record_virtual_memory_type((address)base(), mtJavaHeap);
+  }
+
   // Only reserved space for the java heap should have a noaccess_prefix
   // if using compressed oops.
   protect_noaccess_prefix(size);
@@ -504,6 +530,10 @@ ReservedHeapSpace::ReservedHeapSpace(const size_t prefix_size,
                 (UseCompressedOops && (Universe::narrow_oop_base() != NULL) &&
                  Universe::narrow_oop_use_implicit_null_checks()) ?
                   lcm(os::vm_page_size(), prefix_align) : 0) {
+  if (base() > 0) {
+    MemTracker::record_virtual_memory_type((address)base(), mtJavaHeap);
+  }
+
   protect_noaccess_prefix(prefix_size+suffix_size);
 }
 
@@ -513,6 +543,7 @@ ReservedCodeSpace::ReservedCodeSpace(size_t r_size,
                                      size_t rs_align,
                                      bool large) :
   ReservedSpace(r_size, rs_align, large, /*executable*/ true) {
+  MemTracker::record_virtual_memory_type((address)base(), mtCode);
 }
 
 // VirtualSpace
@@ -715,11 +746,13 @@ bool VirtualSpace::expand_by(size_t bytes, bool pre_touch) {
            lower_high() + lower_needs <= lower_high_boundary(),
            "must not expand beyond region");
     if (!os::commit_memory(lower_high(), lower_needs, _executable)) {
-      debug_only(warning("os::commit_memory failed"));
+      debug_only(warning("INFO: os::commit_memory(" PTR_FORMAT
+                         ", lower_needs=" SIZE_FORMAT ", %d) failed",
+                         lower_high(), lower_needs, _executable);)
       return false;
     } else {
       _lower_high += lower_needs;
-     }
+    }
   }
   if (middle_needs > 0) {
     assert(lower_high_boundary() <= middle_high() &&
@@ -727,7 +760,10 @@ bool VirtualSpace::expand_by(size_t bytes, bool pre_touch) {
            "must not expand beyond region");
     if (!os::commit_memory(middle_high(), middle_needs, middle_alignment(),
                            _executable)) {
-      debug_only(warning("os::commit_memory failed"));
+      debug_only(warning("INFO: os::commit_memory(" PTR_FORMAT
+                         ", middle_needs=" SIZE_FORMAT ", " SIZE_FORMAT
+                         ", %d) failed", middle_high(), middle_needs,
+                         middle_alignment(), _executable);)
       return false;
     }
     _middle_high += middle_needs;
@@ -737,7 +773,9 @@ bool VirtualSpace::expand_by(size_t bytes, bool pre_touch) {
            upper_high() + upper_needs <= upper_high_boundary(),
            "must not expand beyond region");
     if (!os::commit_memory(upper_high(), upper_needs, _executable)) {
-      debug_only(warning("os::commit_memory failed"));
+      debug_only(warning("INFO: os::commit_memory(" PTR_FORMAT
+                         ", upper_needs=" SIZE_FORMAT ", %d) failed",
+                         upper_high(), upper_needs, _executable);)
       return false;
     } else {
       _upper_high += upper_needs;
