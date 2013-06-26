@@ -23,46 +23,29 @@
 
 /*
  * @test
- * @bug 8011901
- * @summary instruct xaddL_no_res shouldn't allow 64 bit constants.
- * @run main/othervm -XX:-BackgroundCompilation Test8011901
- *
+ * @bug 8016814
+ * @summary Test sun.reflect.Reflection.getCallerClass(int)
+ * @compile -XDignore.symbol.file GetCallerClass.java
+ * @run main GetCallerClass
  */
 
-import java.lang.reflect.*;
-import sun.misc.*;
-
-public class Test8011901 {
-
-    private long ctl;
-
-    private static final sun.misc.Unsafe U;
-    private static final long CTL;
-
-    static {
-        try {
-            Field unsafe = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-            unsafe.setAccessible(true);
-            U = (sun.misc.Unsafe) unsafe.get(null);
-            CTL = U.objectFieldOffset(Test8011901.class.getDeclaredField("ctl"));
-        } catch (Exception e) {
-            throw new Error(e);
+public class GetCallerClass {
+    public static void main(String[] args) throws Exception {
+        Class<?> c = Temp.test();
+        if (c != GetCallerClass.class) {
+            throw new RuntimeException("Incorrect caller: " + c);
         }
     }
 
-    public static void main(String[] args) {
-        for(int c = 0; c < 20000; c++) {
-            new Test8011901().makeTest();
-        }
-        System.out.println("Test Passed");
+    @sun.reflect.CallerSensitive
+    public Class<?> getCallerClass() {
+        // 0: Reflection 1: getCallerClass 2: Temp.test 3: main
+        return sun.reflect.Reflection.getCallerClass(3);
     }
 
-    public static final long EXPECTED = 1L << 42;
-
-    public void makeTest() {
-        U.getAndAddLong(this, CTL, EXPECTED);
-        if (ctl != EXPECTED) {
-            throw new RuntimeException("Test failed. Expected: " + EXPECTED + ", but got = " + ctl);
+    static class Temp {
+        public static Class<?> test() {
+            return new GetCallerClass().getCallerClass();
         }
     }
 }
