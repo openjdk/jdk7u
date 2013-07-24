@@ -353,6 +353,14 @@ extern int LogMinObjAlignmentInBytes;
 # include "globalDefinitions_ppc.hpp"
 #endif
 
+/*
+ * If a platform does not support native stack walking
+ * the platform specific globalDefinitions (above)
+ * can set PLATFORM_NATIVE_STACK_WALKING_SUPPORTED to 0
+ */
+#ifndef PLATFORM_NATIVE_STACK_WALKING_SUPPORTED
+#define PLATFORM_NATIVE_STACK_WALKING_SUPPORTED 1
+#endif
 
 // The byte alignment to be used by Arena::Amalloc.  See bugid 4169348.
 // Note: this value must be a power of 2
