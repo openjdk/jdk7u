@@ -136,6 +136,7 @@ public class SAXParser
             securityPropertyManager = new XMLSecurityPropertyManager();
         }
         int index = securityPropertyManager.getIndex(name);
+
         if (index > -1) {
             /**
              * this is a direct call to this parser, not a subclass since
