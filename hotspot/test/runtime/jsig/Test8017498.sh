@@ -1,8 +1,7 @@
 #!/bin/sh
 
 #
-#  Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
-#  Copyright (c) 2011 SAP AG.  All Rights Reserved.
+#  Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 #  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 #  This code is free software; you can redistribute it and/or modify it
@@ -25,11 +24,12 @@
 #
 
 ##
-## @test Test7107135.sh
-## @bug 7107135
+## @test Test8017498.sh
+## @bug 8017498
+## @bug 8020791
 ## @bug 8021296
-## @summary Stack guard pages lost after loading library with executable stack.
-## @run shell Test7107135.sh
+## @summary sigaction(sig) results in process hang/timed-out if sig is much greater than SIGRTMAX
+## @run shell/timeout=30 Test8017498.sh
 ##
 
 if [ "${TESTSRC}" = "" ]
@@ -51,50 +51,44 @@ case "$OS" in
         echo "WARNING: gcc not found. Cannot execute test." 2>&1
         exit 0;
     fi
+    if [ "$VM_BITS" = "64" ]
+    then
+        MY_LD_PRELOAD=${TESTJAVA}${FS}jre${FS}lib${FS}amd64${FS}libjsig.so
+    else
+        MY_LD_PRELOAD=${TESTJAVA}${FS}jre${FS}lib${FS}i386${FS}libjsig.so
+    fi
+    echo MY_LD_PRELOAD = ${MY_LD_PRELOAD}
     ;;
   *)
-    NULL=NUL
-    PS=";"
-    FS="\\"
     echo "Test passed; only valid for Linux"
     exit 0;
     ;;
 esac
-
-ARCH=`uname -m`
 
 THIS_DIR=.
 
 cp ${TESTSRC}${FS}*.java ${THIS_DIR}
 ${TESTJAVA}${FS}bin${FS}javac *.java
 
-$gcc_cmd -fPIC -shared -c -o test.o \
-    -I${TESTJAVA}${FS}include -I${TESTJAVA}${FS}include${FS}linux \
-    ${TESTSRC}${FS}test.c
+$gcc_cmd -DLINUX -fPIC -shared \
+    -o ${TESTSRC}${FS}libTestJNI.so \
+    -I${TESTJAVA}${FS}include \
+    -I${TESTJAVA}${FS}include${FS}linux \
+    ${TESTSRC}${FS}TestJNI.c
 
-ld -shared -z   execstack -o libtest-rwx.so test.o
-ld -shared -z noexecstack -o libtest-rw.so  test.o
+# run the java test in the background
+cmd="LD_PRELOAD=$MY_LD_PRELOAD \
+    ${TESTJAVA}${FS}bin${FS}java \
+    -Djava.library.path=${TESTSRC}${FS} -server TestJNI 100"
+echo "$cmd > test.out 2>&1"
+eval $cmd > test.out 2>&1
 
-
-LD_LIBRARY_PATH=${THIS_DIR}
-echo   LD_LIBRARY_PATH = ${LD_LIBRARY_PATH}
-export LD_LIBRARY_PATH
-
-# This should not fail.
-echo Check testprogram. Expected to pass:
-echo ${TESTJAVA}${FS}bin${FS}java -cp ${THIS_DIR} Test test-rw
-${TESTJAVA}${FS}bin${FS}java -cp ${THIS_DIR} Test test-rw
-
-echo
-echo Test changing of stack protection:
-echo ${TESTJAVA}${FS}bin${FS}java -cp ${THIS_DIR} Test test-rw
-${TESTJAVA}${FS}bin${FS}java -cp ${THIS_DIR} Test test-rwx
-
-if [ "$?" == "0" ]
+grep "old handler" test.out > ${NULL}
+if [ $? = 0 ]
 then
-  echo
-  echo ${TESTJAVA}${FS}bin${FS}java -cp ${THIS_DIR} TestMT test-rwx
-  ${TESTJAVA}${FS}bin${FS}java -cp ${THIS_DIR} TestMT test-rwx
+    echo "Test Passed"
+    exit 0
 fi
 
-exit $?
+echo "Test Failed"
+exit 1
