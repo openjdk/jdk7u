@@ -228,10 +228,13 @@
 #endif
 
 #if defined(PPC32) || defined(PPC64)
+#ifndef PPC
 #define PPC
+#endif
 #define PPC_ONLY(code) code
 #define NOT_PPC(code)
 #else
+#undef PPC
 #define PPC_ONLY(code)
 #define NOT_PPC(code) code
 #endif
