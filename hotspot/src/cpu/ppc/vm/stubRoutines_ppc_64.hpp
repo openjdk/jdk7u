@@ -24,7 +24,7 @@
  */
 
 #ifndef CPU_PPC_VM_STUBROUTINES_PPC_64_HPP
-#define CPU_PPC_VM_STUBROUTINES_OJDKPPC_HPP
+#define CPU_PPC_VM_STUBROUTINES_PPC_64_HPP
 
 // This file holds the platform specific parts of the StubRoutines
 // definition. See stubRoutines.hpp for a description on how to
