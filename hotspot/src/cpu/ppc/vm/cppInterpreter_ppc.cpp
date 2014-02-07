@@ -422,8 +422,8 @@ void CppInterpreterGenerator::generate_compute_interpreter_state(Label& stack_ov
     __ addi(max_stack, max_stack, methodOopDesc::extra_stack_entries());
   }
 
-  // mem_stack_limit = thread->memory_stack_limit();
-  __ ld(mem_stack_limit, thread_(memory_stack_limit));
+  // mem_stack_limit = thread->stack_limit();
+  __ ld(mem_stack_limit, thread_(stack_overflow_limit));
 
   // Point locals at the first argument. Method's locals are the
   // parameters on top of caller's expression stack.

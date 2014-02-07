@@ -94,7 +94,6 @@ void os::initialize_thread(Thread *thread) {
   // Initialize the memory stack limit.
   address mem_stk_limit = ((JavaThread *)thread)->stack_yellow_zone_base() +
     (os::vm_page_size() * StackShadowPages);
-  thread->set_memory_stack_limit(mem_stk_limit);
 }
 
 // Frame information (pc, sp, fp) retrieved via ucontext

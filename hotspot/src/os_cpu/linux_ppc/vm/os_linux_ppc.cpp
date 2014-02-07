@@ -106,8 +106,6 @@ void os::initialize_thread(Thread *thread) {
   // Initialize the memory stack limit.
   address mem_stk_limit = thread->stack_base() - thread->stack_size() +
     ((StackShadowPages + StackYellowPages + StackRedPages) * os::vm_page_size());
-
-  thread->set_memory_stack_limit(mem_stk_limit);
 }
 
 // Frame information (pc, sp, fp) retrieved via ucontext
