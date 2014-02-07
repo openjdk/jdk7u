@@ -268,7 +268,7 @@ class relocInfo VALUE_OBJ_CLASS_SPEC {
     poll_return_type        = 11, // polling instruction for safepoints at return
     breakpoint_type         = 12, // an initialization barrier or safepoint
     trampoline_stub_type    = 13, // stub-entry for trampoline
-    yet_unused_type         = 14, // Still unused
+    yet_unused_type_1       = 14, // Still unused
     data_prefix_tag         = 15, // tag for a prefix (carries data arguments)
     type_mask               = 15  // A mask which selects only the above values
   };
@@ -1118,14 +1118,14 @@ class runtime_call_Relocation : public CallRelocation {
 // is the chance that this branch can not reach all possible code locations.
 // If the relocation finds that a branch is too far for the instruction
 // in the code, it can patch it to jump to the trampoline where is
-// sufficient space for a far branch.  Needed on PPC.
+// sufficient space for a far branch. Needed on PPC.
 class trampoline_stub_Relocation : public Relocation {
   relocInfo::relocType type() { return relocInfo::trampoline_stub_type; }
 
  public:
   static RelocationHolder spec(address static_call) {
     RelocationHolder rh = newHolder();
-    return (new(rh) trampoline_stub_Relocation(static_call));
+    return (new (rh) trampoline_stub_Relocation(static_call));
   }
 
  private:
@@ -1143,7 +1143,7 @@ class trampoline_stub_Relocation : public Relocation {
   // Return the address of the NativeCall that owns the trampoline.
   address owner() { return _owner; }
 
-  void pack_data_to(  CodeSection * dest);
+  void pack_data_to(CodeSection * dest);
   void unpack_data();
 
   // Find the trampoline stub for a call.

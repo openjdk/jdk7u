@@ -622,7 +622,7 @@ void static_stub_Relocation::unpack_data() {
 }
 
 void trampoline_stub_Relocation::pack_data_to(CodeSection* dest ) {
-  short*  p  = (short*) dest->locs_end();
+  short* p = (short*) dest->locs_end();
   CodeSection* insts = dest->outer()->insts();
   normalize_address(_owner, insts);
   p = pack_1_int_to(p,scaled_offset(_owner, insts->start() ));
@@ -1196,6 +1196,12 @@ void RelocIterator::print_current() {
     {
       static_stub_Relocation* r = (static_stub_Relocation*) reloc();
       tty->print(" | [static_call=" INTPTR_FORMAT "]", r->static_call());
+      break;
+    }
+  case relocInfo::trampoline_stub_type:
+    {
+      trampoline_stub_Relocation* r = (trampoline_stub_Relocation*) reloc();
+      tty->print(" | [trampoline owner=" INTPTR_FORMAT "]", r->owner());
       break;
     }
   }
