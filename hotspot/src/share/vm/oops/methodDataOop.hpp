@@ -620,7 +620,7 @@ public:
     increment_uint_at_no_overflow(layout, count_off);
   }
 
-  // Support counter decrementation at checkcast / subtype check failed
+  // Support counter decrementation at checkcast / subtype check failed.
   static void decrement_count(DataLayout* layout) {
     increment_uint_at_no_overflow(layout, count_off, -1);
   }

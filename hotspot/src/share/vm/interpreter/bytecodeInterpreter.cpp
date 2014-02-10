@@ -345,7 +345,7 @@
             && (mdo_last_branch_taken_count >= (uint)InvocationCounter::InterpreterBackwardBranchLimit)\
             /* When ProfileInterpreter is on, the backedge_count comes     */                       \
             /* from the methodDataOop, which value does not get reset on   */                       \
-            /* the call to frequency_counter_overflow().  To avoid         */                       \
+            /* the call to frequency_counter_overflow(). To avoid          */                       \
             /* excessive calls to the overflow routine while the method is */                       \
             /* being compiled, add a second test to make sure the overflow */                       \
             /* function is called only once every overflow_frequency.      */                       \
@@ -411,11 +411,11 @@
  * On some architectures/platforms it should be possible to do this implicitly
  */
 #undef CHECK_NULL
-#define CHECK_NULL(obj_)                                                                      \
-    if ((obj_) == NULL) {                                                                     \
-      VM_JAVA_ERROR(vmSymbols::java_lang_NullPointerException(), NULL, note_nullCheck_trap);  \
-    }                                                                                         \
-    VERIFY_OOP(obj_)
+#define CHECK_NULL(obj_)                                                                         \
+        if ((obj_) == NULL) {                                                                    \
+          VM_JAVA_ERROR(vmSymbols::java_lang_NullPointerException(), NULL, note_nullCheck_trap); \
+        }                                                                                        \
+        VERIFY_OOP(obj_)
 
 #define VMdoubleConstZero() 0.0
 #define VMdoubleConstOne() 1.0
@@ -663,7 +663,7 @@ BytecodeInterpreter::run(interpreterState istate) {
 
   switch (istate->msg()) {
     case initialize: {
-      if (initialized++) ShouldNotReachHere(); // Only one initialize call
+      if (initialized++) ShouldNotReachHere(); // Only one initialize call.
       _compiling = (UseCompiler || CountCompiledCalls);
 #ifdef VM_JVMTI
       _jvmti_interp_events = JvmtiExport::can_post_interpreter_events();
@@ -682,7 +682,7 @@ BytecodeInterpreter::run(interpreterState istate) {
         INCR_INVOCATION_COUNT;
         if (INVOCATION_COUNT->reached_InvocationLimit(BACKEDGE_COUNT)) {
           CALL_VM((void)InterpreterRuntime::frequency_counter_overflow(THREAD, NULL), handle_exception);
-          // We no longer retry on a counter overflow
+          // We no longer retry on a counter overflow.
         }
         // Get or create profile data. Check for pending (async) exceptions.
         BI_PROFILE_GET_OR_CREATE_METHOD_DATA(handle_exception);
@@ -2323,9 +2323,7 @@ run:
             // Check for compatibilty. This check must not GC!!
             // Seems way more expensive now that we must dispatch.
             //
-            if (objKlassOop != klassOf &&
-                !objKlassOop->klass_part()->is_subtype_of(klassOf)) {
-
+            if (objKlassOop != klassOf && !objKlassOop->klass_part()->is_subtype_of(klassOf)) {
               // Decrement counter at checkcast.
               BI_PROFILE_SUBTYPECHECK_FAILED(objKlassOop);
               ResourceMark rm(THREAD);
@@ -2521,6 +2519,7 @@ run:
 
         UPDATE_PC_AND_RETURN(0); // I'll be back...
       }
+
       CASE(_invokehandle): {
 
         if (!EnableInvokeDynamic) {
@@ -2533,12 +2532,10 @@ run:
         if (! cache->is_resolved((Bytecodes::Code) opcode)) {
           CALL_VM(InterpreterRuntime::resolve_invokehandle(THREAD),
                   handle_exception);
-          // GC might move cache while returning from VM call.
-          cache = cp->entry_at(index); // reload
+          cache = cp->entry_at(index);
         }
 
         methodOop method = cache->f2_as_vfinal_method();
-
         VERIFY_OOP(method);
 
         if (cache->has_appendix()) {
@@ -2585,9 +2582,9 @@ run:
             // Profile 'special case of invokeinterface' final call.
             BI_PROFILE_UPDATE_FINALCALL();
           } else {
-            // get receiver
+            // Get receiver.
             int parms = cache->parameter_size();
-            // Same comments as invokevirtual apply here
+            // Same comments as invokevirtual apply here.
             oop rcvr = STACK_OBJECT(-parms);
             VERIFY_OOP(rcvr);
             instanceKlass* rcvrKlass = (instanceKlass*)rcvr->klass()->klass_part();
@@ -2796,7 +2793,7 @@ run:
       CASE(_ret): {
           // Profile ret.
           BI_PROFILE_UPDATE_RET(/*bci=*/((int)(intptr_t)(LOCALS_ADDR(pc[1]))));
-          // now, update the pc
+          // Now, update the pc.
           pc = istate->method()->code_base() + (intptr_t)(LOCALS_ADDR(pc[1]));
           UPDATE_PC_AND_CONTINUE(0);
       }

@@ -3485,14 +3485,11 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
     UseBiasedLocking = false;
   }
 
-#ifdef CC_INTERP
-  // Clear flags not supported by the C++ interpreter
-#if !defined(PPC64)
-  // Now supported by CC_INTERP, but not tested with other ports than PPC.
-  LP64_ONLY(FLAG_SET_DEFAULT(UseCompressedOops, false));
+#ifdef ZERO
+  // Clear flags not supported on zero.
   FLAG_SET_DEFAULT(ProfileInterpreter, false);
   FLAG_SET_DEFAULT(UseBiasedLocking, false);
-#endif
+  LP64_ONLY(FLAG_SET_DEFAULT(UseCompressedOops, false));
 #endif // CC_INTERP
 
 #ifdef COMPILER2

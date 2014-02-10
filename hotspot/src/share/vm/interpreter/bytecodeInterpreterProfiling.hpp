@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012 SAP AG. All rights reserved.
+ * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2012, 2013 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,8 +34,8 @@
 // Global settings /////////////////////////////////////////////////////////////
 
 
-// Enables profiling support
-#if defined(COMPILER2) && defined(PPC64)
+// Enables profiling support.
+#if defined(COMPILER2)
 #define CC_INTERP_PROFILE
 #endif
 
@@ -74,7 +74,6 @@
 
 
 // Non-dummy implementations ///////////////////////////////////////////////////
-
 
 // Accessors for the current method data pointer 'mdx'.
 #define MDX()        (istate->mdx())
@@ -248,7 +247,7 @@
       ReceiverTypeData::set_null_seen(MDX());                                  \
     } else {                                                                   \
       /* Template interpreter doesn't increment count. */                      \
-      /* ReceiverTypeData::increment_count_no_overflow(MDX());*/               \
+      /* ReceiverTypeData::increment_count_no_overflow(MDX()); */              \
       ReceiverTypeData::increment_receiver_count_no_overflow(MDX(), receiver); \
     }                                                                          \
     SET_MDX(ReceiverTypeData::advance(MDX()));                                 \
