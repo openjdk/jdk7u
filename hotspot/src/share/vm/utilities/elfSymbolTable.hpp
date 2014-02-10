@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,11 +45,7 @@ class ElfSymbolTable: public CHeapObj<mtInternal> {
   ~ElfSymbolTable();
 
   // search the symbol that is nearest to the specified address.
-#if defined(PPC64)
   bool lookup(address addr, int* stringtableIndex, int* posIndex, int* offset, ElfFuncDescTable* funcDescTable);
-#else
-  bool lookup(address addr, int* stringtableIndex, int* posIndex, int* offset);
-#endif
 
   NullDecoder::decoder_status get_status() { return m_status; };
 
@@ -69,35 +65,6 @@ class ElfSymbolTable: public CHeapObj<mtInternal> {
   NullDecoder::decoder_status  m_status;
 };
 
-#if defined(PPC64)
-
-class ElfFuncDescTable: public CHeapObj<mtInternal> {
-  friend class ElfFile;
- public:
-  ElfFuncDescTable(FILE* file, Elf_Shdr shdr);
-  ~ElfFuncDescTable();
-
-  // return the function address for the function descriptor at 'index' or NULL on error
-  address lookup(Elf_Word index);
-
-  NullDecoder::decoder_status get_status() { return m_status; };
-
- protected:
-  // holds the complete function descriptor section if
-  // we can allocate enough memory
-  address*            m_funcDescs;
-
-  // file contains string table
-  FILE*               m_file;
-
-  // section header
-  Elf_Shdr            m_shdr;
-
-  NullDecoder::decoder_status  m_status;
-};
-
-#endif
-
-#endif // _WINDOWS and _APPLE
+#endif // !_WINDOWS and !__APPLE__
 
 #endif // SHARE_VM_UTILITIES_ELF_SYMBOL_TABLE_HPP
