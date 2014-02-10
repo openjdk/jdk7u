@@ -31,7 +31,6 @@
 #include "interpreter/bytecodeInterpreterProfiling.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
-#include "memory/cardTableModRefBS.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -154,7 +153,7 @@
     RESET_LAST_JAVA_FRAME();                                                      \
     CACHE_STATE();
 
-// Normal throw of a java error
+// Normal throw of a java error.
 #define VM_JAVA_ERROR(name, msg, note_a_trap)                                     \
     VM_JAVA_ERROR_NO_JUMP(name, msg, note_a_trap)                                 \
     goto handle_exception;
@@ -1746,7 +1745,7 @@ run:
           ARRAY_INTRO(-2);                                                                 \
           SET_ ## stackRes(*(T2 *)(((address) arrObj->base(T)) + index * sizeof(T2)), -1); \
           extra;                                                                           \
-          UPDATE_PC_AND_CONTINUE(1);                                            \
+          UPDATE_PC_AND_CONTINUE(1);                                                       \
       }
 
       CASE(_iaload):
@@ -1754,16 +1753,9 @@ run:
       CASE(_faload):
           ARRAY_LOADTO32(T_FLOAT, jfloat, "%f",   STACK_FLOAT, 0);
       CASE(_aaload): {
-        // Decode compressed oop.
-        if (UseCompressedOops) {
           ARRAY_INTRO(-2);
-          address oopAdr = ((address) arrObj->base(T_OBJECT)) + index * sizeof(narrowOop);
-          oop decodedOop =  oopDesc::decode_heap_oop(*(narrowOop*)(oopAdr));
-          SET_STACK_OBJECT(decodedOop, -2);
+          SET_STACK_OBJECT(((objArrayOop) arrObj)->obj_at(index), -2);
           UPDATE_PC_AND_TOS_AND_CONTINUE(1, -1);
-        } else {
-          ARRAY_LOADTO32(T_OBJECT, oop, INTPTR_FORMAT, STACK_OBJECT, 0);
-        }
       }
       CASE(_baload):
           ARRAY_LOADTO32(T_BYTE, jbyte,  "%d",   STACK_INT, 0);
@@ -1826,8 +1818,6 @@ run:
             // Profile checkcast with null_seen and receiver.
             BI_PROFILE_UPDATE_CHECKCAST(/*null_seen=*/true, NULL);
           }
-          // G1GC port. Use accessor instead of storing manually.
-          // Takes care of write barriers internally and replaces the code above.
           ((objArrayOopDesc *) arrObj)->obj_at_put(index, rhsObject);
           UPDATE_PC_AND_TOS_AND_CONTINUE(1, -3);
       }
@@ -2924,70 +2914,77 @@ run:
     // No handler in this activation, unwind and try again
     THREAD->set_pending_exception(except_oop(), NULL, 0);
     goto handle_return;
-  }  /* handle_exception: */
+  }  // handle_exception:
 
   // Return from an interpreter invocation with the result of the interpretation
   // on the top of the Java Stack (or a pending exception)
 
-handle_Pop_Frame:
+  handle_Pop_Frame: {
 
-  // We don't really do anything special here except we must be aware
-  // that we can get here without ever locking the method (if sync).
-  // Also we skip the notification of the exit.
+    // We don't really do anything special here except we must be aware
+    // that we can get here without ever locking the method (if sync).
+    // Also we skip the notification of the exit.
 
-  istate->set_msg(popping_frame);
-  // Clear pending so while the pop is in process
-  // we don't start another one if a call_vm is done.
-  THREAD->clr_pop_frame_pending();
-  // Let interpreter (only) see the we're in the process of popping a frame
-  THREAD->set_pop_frame_in_process();
+    istate->set_msg(popping_frame);
+    // Clear pending so while the pop is in process
+    // we don't start another one if a call_vm is done.
+    THREAD->clr_pop_frame_pending();
+    // Let interpreter (only) see the we're in the process of popping a frame
+    THREAD->set_pop_frame_in_process();
 
-  goto handle_return;
+    goto handle_return;
 
-// ForceEarlyReturn ends a method, and returns to the caller with a return value
-// given by the invoker of the early return.
-handle_Early_Return:
+  } // handle_Pop_Frame
 
-  istate->set_msg(early_return);
+  // ForceEarlyReturn ends a method, and returns to the caller with a return value
+  // given by the invoker of the early return.
+  handle_Early_Return: {
 
-  // Clear expression stack.
-  topOfStack = istate->stack_base() - Interpreter::stackElementWords;
+    istate->set_msg(early_return);
 
-  // Push the value to be returned.
-  switch (istate->method()->result_type()) {
-    case T_BOOLEAN:
-    case T_SHORT:
-    case T_BYTE:
-    case T_CHAR:
-    case T_INT:
-      SET_STACK_INT(THREAD->jvmti_thread_state()->earlyret_value().i, 0);
-      MORE_STACK(1);
-      break;
-    case T_LONG:
-      SET_STACK_LONG(THREAD->jvmti_thread_state()->earlyret_value().j, 1);
-      MORE_STACK(2);
-      break;
-    case T_FLOAT:
-      SET_STACK_FLOAT(THREAD->jvmti_thread_state()->earlyret_value().f, 0);
-      MORE_STACK(1);
-      break;
-    case T_DOUBLE:
-      SET_STACK_DOUBLE(THREAD->jvmti_thread_state()->earlyret_value().d, 1);
-      MORE_STACK(2);
-      break;
-    case T_ARRAY:
-    case T_OBJECT:
-      SET_STACK_OBJECT(THREAD->jvmti_thread_state()->earlyret_oop(), 0);
-      MORE_STACK(1);
-      break;
-  }
+    // Clear expression stack.
+    topOfStack = istate->stack_base() - Interpreter::stackElementWords;
 
-  THREAD->jvmti_thread_state()->clr_earlyret_value();
-  THREAD->jvmti_thread_state()->set_earlyret_oop(NULL);
-  THREAD->jvmti_thread_state()->clr_earlyret_pending();
+    JvmtiThreadState *ts = THREAD->jvmti_thread_state();
 
-handle_return:
-  {
+    // Push the value to be returned.
+    switch (istate->method()->result_type()) {
+      case T_BOOLEAN:
+      case T_SHORT:
+      case T_BYTE:
+      case T_CHAR:
+      case T_INT:
+        SET_STACK_INT(ts->earlyret_value().i, 0);
+        MORE_STACK(1);
+        break;
+      case T_LONG:
+        SET_STACK_LONG(ts->earlyret_value().j, 1);
+        MORE_STACK(2);
+        break;
+      case T_FLOAT:
+        SET_STACK_FLOAT(ts->earlyret_value().f, 0);
+        MORE_STACK(1);
+        break;
+      case T_DOUBLE:
+        SET_STACK_DOUBLE(ts->earlyret_value().d, 1);
+        MORE_STACK(2);
+        break;
+      case T_ARRAY:
+      case T_OBJECT:
+        SET_STACK_OBJECT(ts->earlyret_oop(), 0);
+        MORE_STACK(1);
+        break;
+    }
+
+    ts->clr_earlyret_value();
+    ts->set_earlyret_oop(NULL);
+    ts->clr_earlyret_pending();
+
+    // Fall through to handle_return.
+
+  } // handle_Early_Return
+
+  handle_return: {
     // A storestore barrier is required to order initialization of
     // final fields with publishing the reference to the object that
     // holds the field. Without the barrier the value of final fields
@@ -3195,7 +3192,7 @@ handle_return:
     //
     assert(!suppress_error || (suppress_error && illegal_state_oop() == NULL), "Error was not suppressed");
     if (illegal_state_oop() != NULL || original_exception() != NULL) {
-      // inform the frame manager we have no result
+      // Inform the frame manager we have no result.
       istate->set_msg(throwing_exception);
       if (illegal_state_oop() != NULL)
         THREAD->set_pending_exception(illegal_state_oop(), NULL, 0);
@@ -3220,7 +3217,6 @@ handle_return:
         THREAD->set_popframe_condition_bit(JavaThread::popframe_force_deopt_reexecution_bit);
       }
     } else {
-      // Don't overwrite the message 'popping_frame'.
       istate->set_msg(return_from_method);
     }
 
@@ -3500,7 +3496,6 @@ BytecodeInterpreter::print() {
   tty->print_cr("result_to_call._bcp_advance: %d ", this->_result._to_call._bcp_advance);
   tty->print_cr("osr._osr_buf: " INTPTR_FORMAT, (uintptr_t) this->_result._osr._osr_buf);
   tty->print_cr("osr._osr_entry: " INTPTR_FORMAT, (uintptr_t) this->_result._osr._osr_entry);
-  tty->print_cr("result_return_kind 0x%x ", (int) this->_result._return_kind);
   tty->print_cr("prev_link: " INTPTR_FORMAT, (uintptr_t) this->_prev_link);
   tty->print_cr("native_mirror: " INTPTR_FORMAT, (uintptr_t) this->_oop_temp);
   tty->print_cr("stack_base: " INTPTR_FORMAT, (uintptr_t) this->_stack_base);
