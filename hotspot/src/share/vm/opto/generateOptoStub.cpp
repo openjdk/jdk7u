@@ -235,7 +235,7 @@ void GraphKit::gen_stub(address C_function,
 #if defined(SPARC) || (defined(IA64) && !defined(AIX))
   store_to_memory(NULL, adr_flags, intcon(0), T_INT, NoAlias);
 #endif
-#if defined(IA64) && !defined(AIX)
+#if (defined(IA64) && !defined(AIX))
   Node* adr_last_Java_fp = basic_plus_adr(top(), thread, in_bytes(JavaThread::last_Java_fp_offset()));
   store_to_memory(NULL, adr_last_Java_fp, null(), T_ADDRESS, NoAlias);
 #endif

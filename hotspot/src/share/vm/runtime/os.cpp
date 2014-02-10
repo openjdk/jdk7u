@@ -996,7 +996,7 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
 // if C stack is walkable beyond current frame. The check for fp() is not
 // necessary on Sparc, but it's harmless.
 bool os::is_first_C_frame(frame* fr) {
-#if defined(IA64) && !defined(AIX)
+#if (defined(IA64) && !defined(AIX))
   // In order to walk native frames on Itanium, we need to access the unwind
   // table, which is inside ELF. We don't want to parse ELF after fatal error,
   // so return true for IA64. If we need to support C stack walking on IA64,
