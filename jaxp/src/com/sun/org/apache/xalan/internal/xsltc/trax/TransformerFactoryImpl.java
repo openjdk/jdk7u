@@ -23,6 +23,23 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.trax;
 
+import com.sun.org.apache.xalan.internal.XalanConstants;
+import com.sun.org.apache.xalan.internal.utils.FactoryImpl;
+import com.sun.org.apache.xalan.internal.utils.FeatureManager;
+import com.sun.org.apache.xalan.internal.utils.FeaturePropertyBase;
+import com.sun.org.apache.xalan.internal.utils.ObjectFactory;
+import com.sun.org.apache.xalan.internal.utils.SecuritySupport;
+import com.sun.org.apache.xalan.internal.utils.XMLSecurityManager;
+import com.sun.org.apache.xalan.internal.utils.XMLSecurityPropertyManager;
+import com.sun.org.apache.xalan.internal.utils.XMLSecurityPropertyManager.Property;
+import com.sun.org.apache.xalan.internal.utils.FeaturePropertyBase.State;
+import com.sun.org.apache.xalan.internal.xsltc.compiler.Constants;
+import com.sun.org.apache.xalan.internal.xsltc.compiler.SourceLoader;
+import com.sun.org.apache.xalan.internal.xsltc.compiler.XSLTC;
+import com.sun.org.apache.xalan.internal.xsltc.compiler.util.ErrorMsg;
+import com.sun.org.apache.xalan.internal.xsltc.dom.XSLTCDTMManager;
+import com.sun.org.apache.xml.internal.utils.StopParseException;
+import com.sun.org.apache.xml.internal.utils.StylesheetPIHandler;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -37,11 +54,9 @@ import java.util.Properties;
 import java.util.Vector;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-
 import javax.xml.XMLConstants;
-import javax.xml.parsers.SAXParserFactory;
 import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParserFactory;
 
 import javax.xml.transform.ErrorListener;
 import javax.xml.transform.Source;
@@ -58,26 +73,9 @@ import javax.xml.transform.sax.SAXSource;
 import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TemplatesHandler;
 import javax.xml.transform.sax.TransformerHandler;
+import javax.xml.transform.stax.*;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
-import javax.xml.transform.stax.*;
-
-import com.sun.org.apache.xml.internal.utils.StylesheetPIHandler;
-import com.sun.org.apache.xml.internal.utils.StopParseException;
-
-import com.sun.org.apache.xalan.internal.XalanConstants;
-import com.sun.org.apache.xalan.internal.xsltc.compiler.Constants;
-import com.sun.org.apache.xalan.internal.xsltc.compiler.SourceLoader;
-import com.sun.org.apache.xalan.internal.xsltc.compiler.XSLTC;
-import com.sun.org.apache.xalan.internal.xsltc.compiler.util.ErrorMsg;
-import com.sun.org.apache.xalan.internal.xsltc.dom.XSLTCDTMManager;
-import com.sun.org.apache.xalan.internal.utils.ObjectFactory;
-import com.sun.org.apache.xalan.internal.utils.FactoryImpl;
-import com.sun.org.apache.xalan.internal.utils.SecuritySupport;
-import com.sun.org.apache.xalan.internal.utils.XMLSecurityPropertyManager;
-import com.sun.org.apache.xalan.internal.utils.XMLSecurityPropertyManager.Property;
-import com.sun.org.apache.xalan.internal.utils.XMLSecurityPropertyManager.State;
-
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLFilter;
 import org.xml.sax.XMLReader;
@@ -227,17 +225,19 @@ public class TransformerFactoryImpl
      */
     private boolean _useServicesMechanism;
 
-    /**
+     /**
      * protocols allowed for external references set by the stylesheet processing instruction, Import and Include element.
      */
     private String _accessExternalStylesheet = XalanConstants.EXTERNAL_ACCESS_DEFAULT;
-
      /**
      * protocols allowed for external DTD references in source file and/or stylesheet.
      */
     private String _accessExternalDTD = XalanConstants.EXTERNAL_ACCESS_DEFAULT;
 
     private XMLSecurityPropertyManager _xmlSecurityPropertyMgr;
+    private XMLSecurityManager _xmlSecurityManager;
+
+    private final FeatureManager _featureManager;
 
     /**
      * javax.xml.transform.sax.TransformerFactory implementation.
@@ -253,10 +253,13 @@ public class TransformerFactoryImpl
     private TransformerFactoryImpl(boolean useServicesMechanism) {
         this.m_DTMManagerClass = XSLTCDTMManager.getDTMManagerClass(useServicesMechanism);
         this._useServicesMechanism = useServicesMechanism;
+        _featureManager = new FeatureManager();
 
         if (System.getSecurityManager() != null) {
             _isSecureMode = true;
             _isNotSecureProcessing = false;
+            _featureManager.setValue(FeatureManager.Feature.ORACLE_ENABLE_EXTENSION_FUNCTION,
+                    FeaturePropertyBase.State.FSP, XalanConstants.FEATURE_FALSE);
         }
 
         _xmlSecurityPropertyMgr = new XMLSecurityPropertyManager();
@@ -264,6 +267,9 @@ public class TransformerFactoryImpl
                 Property.ACCESS_EXTERNAL_DTD);
         _accessExternalStylesheet = _xmlSecurityPropertyMgr.getValue(
                 Property.ACCESS_EXTERNAL_STYLESHEET);
+
+        //Parser's security manager
+        _xmlSecurityManager = new XMLSecurityManager(true);
     }
 
     /**
@@ -322,11 +328,21 @@ public class TransformerFactoryImpl
               return Boolean.TRUE;
             else
               return Boolean.FALSE;
+        } else if (name.equals(XalanConstants.SECURITY_MANAGER)) {
+            return _xmlSecurityManager;
         }
 
-        int index = _xmlSecurityPropertyMgr.getIndex(name);
-        if (index > -1) {
-            return _xmlSecurityPropertyMgr.getValueByIndex(index);
+        /** Check to see if the property is managed by the security manager **/
+        String propertyValue = (_xmlSecurityManager != null) ?
+                _xmlSecurityManager.getLimitAsString(name) : null;
+        if (propertyValue != null) {
+            return propertyValue;
+        } else {
+            propertyValue = (_xmlSecurityPropertyMgr != null) ?
+                _xmlSecurityPropertyMgr.getValue(name) : null;
+            if (propertyValue != null) {
+                return propertyValue;
+            }
         }
 
         // Throw an exception for all other attributes
@@ -429,10 +445,13 @@ public class TransformerFactoryImpl
             }
         }
 
-        int index = _xmlSecurityPropertyMgr.getIndex(name);
-        if (index > -1) {
-            _xmlSecurityPropertyMgr.setValue(index,
-                    State.APIPROPERTY, (String)value);
+        if (_xmlSecurityManager != null &&
+                _xmlSecurityManager.setLimit(name, XMLSecurityManager.State.APIPROPERTY, value)) {
+            return;
+        }
+
+        if (_xmlSecurityPropertyMgr != null &&
+            _xmlSecurityPropertyMgr.setValue(name, XMLSecurityPropertyManager.State.APIPROPERTY, value)) {
             _accessExternalDTD = _xmlSecurityPropertyMgr.getValue(
                     Property.ACCESS_EXTERNAL_DTD);
             _accessExternalStylesheet = _xmlSecurityPropertyMgr.getValue(
@@ -482,6 +501,7 @@ public class TransformerFactoryImpl
                 throw new TransformerConfigurationException(err.toString());
             }
             _isNotSecureProcessing = !value;
+            _xmlSecurityManager.setSecureProcessing(value);
 
             // set external access restriction when FSP is explicitly set
             if (value && XalanConstants.IS_JDK8_OR_ABOVE) {
@@ -495,6 +515,10 @@ public class TransformerFactoryImpl
                         Property.ACCESS_EXTERNAL_STYLESHEET);
             }
 
+            if (value && _featureManager != null) {
+                _featureManager.setValue(FeatureManager.Feature.ORACLE_ENABLE_EXTENSION_FUNCTION,
+                        FeaturePropertyBase.State.FSP, XalanConstants.FEATURE_FALSE);
+            }
             return;
         }
         else if (name.equals(XalanConstants.ORACLE_FEATURE_SERVICE_MECHANISM)) {
@@ -503,6 +527,11 @@ public class TransformerFactoryImpl
                 _useServicesMechanism = value;
         }
         else {
+            if (_featureManager != null &&
+                    _featureManager.setValue(name, State.APIPROPERTY, value)) {
+                return;
+            }
+
             // unknown feature
             ErrorMsg err = new ErrorMsg(ErrorMsg.JAXP_UNSUPPORTED_FEATURE, name);
             throw new TransformerConfigurationException(err.toString());
@@ -551,6 +580,13 @@ public class TransformerFactoryImpl
                 return !_isNotSecureProcessing;
         }
 
+        /** Check to see if the property is managed by the security manager **/
+        String propertyValue = (_featureManager != null) ?
+                _featureManager.getValueAsString(name) : null;
+        if (propertyValue != null) {
+            return Boolean.parseBoolean(propertyValue);
+        }
+
         // Feature not supported
         return false;
     }
@@ -559,6 +595,13 @@ public class TransformerFactoryImpl
      */
     public boolean useServicesMechnism() {
         return _useServicesMechanism;
+    }
+
+     /**
+     * @return the feature manager
+     */
+    public FeatureManager getFeatureManager() {
+        return _featureManager;
     }
 
     /**
@@ -841,7 +884,7 @@ public class TransformerFactoryImpl
         }
 
         // Create and initialize a stylesheet compiler
-        final XSLTC xsltc = new XSLTC(_useServicesMechanism);
+        final XSLTC xsltc = new XSLTC(_useServicesMechanism, _featureManager);
         if (_debug) xsltc.setDebug(true);
         if (_enableInlining)
                 xsltc.setTemplateInlining(true);
@@ -851,6 +894,7 @@ public class TransformerFactoryImpl
         if (!_isNotSecureProcessing) xsltc.setSecureProcessing(true);
         xsltc.setProperty(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, _accessExternalStylesheet);
         xsltc.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, _accessExternalDTD);
+        xsltc.setProperty(XalanConstants.SECURITY_MANAGER, _xmlSecurityManager);
         xsltc.init();
 
         // Set a document loader (for xsl:include/import) if defined
