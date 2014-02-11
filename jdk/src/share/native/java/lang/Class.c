@@ -70,7 +70,7 @@ static JNINativeMethod methods[] = {
     {"getProtectionDomain0", "()" PD,       (void *)&JVM_GetProtectionDomain},
     {"setProtectionDomain0", "(" PD ")V",   (void *)&JVM_SetProtectionDomain},
     {"getDeclaredClasses0",  "()[" CLS,      (void *)&JVM_GetDeclaredClasses},
-    {"getDeclaringClass",   "()" CLS,      (void *)&JVM_GetDeclaringClass},
+    {"getDeclaringClass0",   "()" CLS,      (void *)&JVM_GetDeclaringClass},
     {"getGenericSignature", "()" STR,       (void *)&JVM_GetClassSignature},
     {"getRawAnnotations",      "()" BA,        (void *)&JVM_GetClassAnnotations},
     {"getConstantPool",     "()" CPL,       (void *)&JVM_GetClassConstantPool},
@@ -187,3 +187,16 @@ Java_java_lang_Class_getPrimitiveClass(JNIEnv *env,
 
     return result;
 }
+
+JNIEXPORT jobject JNICALL
+Java_java_lang_Class_getCheckMemberAccessMethod(JNIEnv *env, jclass cls, jclass smClass)
+{
+    jmethodID mid;
+
+    mid = (*env)->GetMethodID(env, smClass, "checkMemberAccess", "(Ljava/lang/Class;I)V");
+    if (mid == NULL) {
+        return NULL;
+    }
+    return (*env)->ToReflectedMethod(env, smClass, mid, JNI_FALSE);
+}
+

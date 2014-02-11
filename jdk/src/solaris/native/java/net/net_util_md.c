@@ -114,9 +114,9 @@ int getDefaultScopeID(JNIEnv *env) {
     static jfieldID ni_defaultIndexID;
     if (ni_class == NULL) {
         jclass c = (*env)->FindClass(env, "java/net/NetworkInterface");
-        CHECK_NULL(c);
+        CHECK_NULL_RETURN(c, 0);
         c = (*env)->NewGlobalRef(env, c);
-        CHECK_NULL(c);
+        CHECK_NULL_RETURN(c, 0);
         ni_defaultIndexID = (*env)->GetStaticFieldID(
             env, c, "defaultIndex", "I");
         ni_class = c;
@@ -138,8 +138,7 @@ static int useExclBind = 0;
  * of the parameter is assumed to be an 'int'. If the parameter
  * cannot be obtained return -1
  */
-static int
-getParam(char *driver, char *param)
+int net_getParam(char *driver, char *param)
 {
     struct strioctl stri;
     char buf [64];
@@ -166,7 +165,7 @@ getParam(char *driver, char *param)
 
 /*
  * Iterative way to find the max value that SO_SNDBUF or SO_RCVBUF
- * for Solaris versions that do not support the ioctl() in getParam().
+ * for Solaris versions that do not support the ioctl() in net_getParam().
  * Ugly, but only called once (for each sotype).
  *
  * As an optimisation, we make a guess using the default values for Solaris
@@ -823,7 +822,6 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port, struct sockaddr 
     /* needs work. 1. family 2. clean up him6 etc deallocate memory */
     if (ipv6_available() && !(family == IPv4 && v4MappedAddress == JNI_FALSE)) {
         struct sockaddr_in6 *him6 = (struct sockaddr_in6 *)him;
-        jbyteArray ipaddress;
         jbyte caddr[16];
         jint address;
 
@@ -844,8 +842,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port, struct sockaddr 
                 caddr[15] = (address & 0xff);
             }
         } else {
-            ipaddress = (*env)->GetObjectField(env, iaObj, ia6_ipaddressID);
-            (*env)->GetByteArrayRegion(env, ipaddress, 0, 16, caddr);
+            getInet6Address_ipaddress(env, iaObj, (char *)caddr);
         }
         memset((char *)him6, 0, sizeof(struct sockaddr_in6));
         him6->sin6_port = htons(port);
@@ -882,7 +879,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port, struct sockaddr 
                  */
                 if (!cached_scope_id) {
                     if (ia6_scopeidID) {
-                        scope_id = (int)(*env)->GetIntField(env,iaObj,ia6_scopeidID);
+                        scope_id = getInet6Address_scopeid(env, iaObj);
                     }
                     if (scope_id != 0) {
                         /* check user-specified value for loopback case
@@ -928,7 +925,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port, struct sockaddr 
 
         if (family != IPv4) {
             if (ia6_scopeidID) {
-                him6->sin6_scope_id = (int)(*env)->GetIntField(env, iaObj, ia6_scopeidID);
+                him6->sin6_scope_id = getInet6Address_scopeid(env, iaObj);
             }
         }
 #endif
@@ -1409,7 +1406,7 @@ NET_SetSockOpt(int fd, int level, int  opt, const void *arg,
              * If that fails, we use the search algorithm in findMaxBuf()
              */
             if (!init_tcp_max_buf && sotype == SOCK_STREAM) {
-                tcp_max_buf = getParam("/dev/tcp", "tcp_max_buf");
+                tcp_max_buf = net_getParam("/dev/tcp", "tcp_max_buf");
                 if (tcp_max_buf == -1) {
                     tcp_max_buf = findMaxBuf(fd, opt, SOCK_STREAM);
                     if (tcp_max_buf == -1) {
@@ -1418,7 +1415,7 @@ NET_SetSockOpt(int fd, int level, int  opt, const void *arg,
                 }
                 init_tcp_max_buf = 1;
             } else if (!init_udp_max_buf && sotype == SOCK_DGRAM) {
-                udp_max_buf = getParam("/dev/udp", "udp_max_buf");
+                udp_max_buf = net_getParam("/dev/udp", "udp_max_buf");
                 if (udp_max_buf == -1) {
                     udp_max_buf = findMaxBuf(fd, opt, SOCK_DGRAM);
                     if (udp_max_buf == -1) {

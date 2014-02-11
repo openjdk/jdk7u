@@ -946,6 +946,10 @@ public final class Subject implements java.io.Serializable {
 
         s.defaultReadObject();
 
+        // Rewrap the principals into a SecureSet
+        principals = Collections.synchronizedSet(new SecureSet<Principal>
+                                (this, PRINCIPAL_SET, principals));
+
         // The Credential <code>Set</code> is not serialized, but we do not
         // want the default deserialization routine to set it to null.
         this.pubCredentials = Collections.synchronizedSet
@@ -1296,8 +1300,14 @@ public final class Subject implements java.io.Serializable {
         {
             ObjectInputStream.GetField fields = ois.readFields();
             subject = (Subject) fields.get("this$0", null);
-            elements = (LinkedList<E>) fields.get("elements", null);
             which = fields.get("which", 0);
+
+            LinkedList<E> tmp = (LinkedList<E>) fields.get("elements", null);
+            if (tmp.getClass() != LinkedList.class) {
+                elements = new LinkedList<E>(tmp);
+            } else {
+                elements = tmp;
+            }
         }
     }
 

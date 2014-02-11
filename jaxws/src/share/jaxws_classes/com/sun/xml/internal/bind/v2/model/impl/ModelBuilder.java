@@ -160,8 +160,8 @@ public class ModelBuilder<T,C,F,M> {
                 res = Messages.INCOMPATIBLE_API_VERSION;
 
             throw new LinkageError( res.format(
-                Which.which(XmlSchema.class),
-                Which.which(ModelBuilder.class)
+                    Which.which(XmlSchema.class),
+                    Which.which(ModelBuilder.class)
             ));
         }
     }
@@ -176,8 +176,8 @@ public class ModelBuilder<T,C,F,M> {
         } catch (NoSuchMethodError e) {
             // we seem to be getting 1.0 runtime
             throw new LinkageError( Messages.RUNNING_WITH_1_0_RUNTIME.format(
-                Which.which(WhiteSpaceProcessor.class),
-                Which.which(ModelBuilder.class)
+                    Which.which(WhiteSpaceProcessor.class),
+                    Which.which(ModelBuilder.class)
             ));
         }
     }
@@ -235,7 +235,7 @@ public class ModelBuilder<T,C,F,M> {
                         String pkg = nav.getPackageName(ci.getClazz());
                         if(!registries.containsKey(pkg)) {
                             // insert the package's object factory
-                            C c = loadObjectFactory(ci, pkg);
+                            C c = nav.loadObjectFactory(clazz, pkg);
                             if(c!=null)
                                 addRegistry(c,(Locatable)p);
                         }
@@ -262,15 +262,6 @@ public class ModelBuilder<T,C,F,M> {
 
 
         return r;
-    }
-
-    private C loadObjectFactory(ClassInfoImpl<T, C, F, M> ci, String pkg) {
-        try {
-            return nav.findClass(pkg + ".ObjectFactory", ci.getClazz());
-        } catch (SecurityException ignored) {
-            // treat SecurityException in same way as ClassNotFoundException in this case
-            return null;
-        }
     }
 
     /**
@@ -302,7 +293,7 @@ public class ModelBuilder<T,C,F,M> {
 
         if(nav.isArray(t)) { // no need for checking byte[], because above typeInfoset.getTypeInfo() would return non-null
             ArrayInfoImpl<T,C,F,M> ai =
-                createArrayInfo(upstream, t);
+                    createArrayInfo(upstream, t);
             addTypeName(ai);
             typeInfoSet.add(ai);
             return ai;
@@ -338,7 +329,7 @@ public class ModelBuilder<T,C,F,M> {
     }
 
     protected ElementInfoImpl<T,C,F,M> createElementInfo(
-        RegistryInfoImpl<T,C,F,M> registryInfo, M m) throws IllegalAnnotationException {
+            RegistryInfoImpl<T,C,F,M> registryInfo, M m) throws IllegalAnnotationException {
         return new ElementInfoImpl<T,C,F,M>(this,registryInfo,m);
     }
 
