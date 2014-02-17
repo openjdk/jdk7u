@@ -2551,9 +2551,9 @@ void ArchDesc::defineLateExpand(FILE *fp, InstructForm &inst) {
 
   fprintf(fp, "  // Access to ins and operands for late expand.\n");
   const int buflen = 2000;
-  char idxbuf[buflen]; char *ib = idxbuf; sprintf(ib, "");
-  char nbuf  [buflen]; char *nb = nbuf;   sprintf(nb, "");
-  char opbuf [buflen]; char *ob = opbuf;  sprintf(ob, "");
+  char idxbuf[buflen]; char *ib = idxbuf; idxbuf[0] = '\0';
+  char nbuf  [buflen]; char *nb = nbuf;   nbuf[0]   = '\0';
+  char opbuf [buflen]; char *ob = opbuf;  opbuf[0]  = '\0';
 
   encoding->_parameter_type.reset();
   encoding->_parameter_name.reset();
