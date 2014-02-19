@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 1998, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,16 +21,38 @@
  * questions.
  */
 
-#include "java_props.h"
+/*
+ * @test
+ * @bug 8033294
+ * @summary javac, spurious warning for instanceof operator
+ * @compile -Werror -Xlint:unchecked RedundantWarningInIntersectionTest.java
+ */
 
-char *setupMacOSXLocale(int cat);
-void setOSNameAndVersion(java_props_t *sprops);
-void setUserHome(java_props_t *sprops);
-void setProxyProperties(java_props_t *sProps);
+import java.math.BigDecimal;
 
-enum PreferredToolkit_enum {
-    unset = 0, CToolkit, XToolkit, HToolkit
-};
-typedef enum PreferredToolkit_enum PreferredToolkit;
+public class RedundantWarningInIntersectionTest {
 
-PreferredToolkit getPreferredToolkit();
+    class A<S extends A<S, T>, T> {
+
+        protected T p;
+
+        A(T p) {}
+
+        public S m(T parameter) {
+            @SuppressWarnings("unchecked")
+            S self = (S) new A<>(parameter);
+            return self;
+        }
+    }
+
+    class B<K extends Number & Comparable<? super K>> extends A<B<K>, K> {
+
+        B(K parameter) {
+            super(parameter);
+        }
+
+        public boolean m2() {
+            return (p instanceof BigDecimal);
+        }
+    }
+}
