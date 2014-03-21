@@ -315,6 +315,9 @@ class frame VALUE_OBJ_CLASS_SPEC {
   void interpreter_frame_set_monitor_end(BasicObjectLock* value);
 #endif // CC_INTERP
 
+  // Address of the temp oop in the frame. Needed as GC root.
+  oop* interpreter_frame_temp_oop_addr() const;
+
   // BasicObjectLocks:
   //
   // interpreter_frame_monitor_begin is higher in memory than interpreter_frame_monitor_end
@@ -351,9 +354,6 @@ class frame VALUE_OBJ_CLASS_SPEC {
   void interpreter_frame_set_method(methodOop method);
   methodOop* interpreter_frame_method_addr() const;
   constantPoolCacheOop* interpreter_frame_cache_addr() const;
-#ifdef PPC32
-  oop* interpreter_frame_mirror_addr() const;
-#endif
 
  public:
   // Entry frames
