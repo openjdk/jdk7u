@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright 2012, 2014 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,14 +39,14 @@
 #include "runtime/stubCodeGenerator.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/top.hpp"
+#ifdef COMPILER2
+#include "opto/runtime.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_aix
 # include "thread_aix.inline.hpp"
 #endif
 #ifdef TARGET_OS_FAMILY_linux
 # include "thread_linux.inline.hpp"
-#endif
-#ifdef COMPILER2
-#include "opto/runtime.hpp"
 #endif
 
 #define __ _masm->
@@ -221,7 +221,7 @@ class StubGenerator: public StubCodeGenerator {
     {
       BLOCK_COMMENT("Call frame manager or native entry.");
       // Call frame manager or native entry.
-      Register r_new_arg_entry = R14_state;
+      Register r_new_arg_entry = R14; // PPC_state;
       assert_different_registers(r_new_arg_entry, r_top_of_arguments_addr,
                                  r_arg_method, r_arg_thread);
 
@@ -233,8 +233,12 @@ class StubGenerator: public StubCodeGenerator {
       //   R19_method  -  methodOop*
       //   R16_thread  -  JavaThread*
 
-      // tos must point to last argument - element_size.
+      // Tos must point to last argument - element_size.
+#ifdef CC_INTERP
       const Register tos = R17_tos;
+#else
+      const Register tos = R15_esp;
+#endif
       __ addi(tos, r_top_of_arguments_addr, -Interpreter::stackElementSize);
 
       // initialize call_stub locals (step 2)
@@ -248,8 +252,11 @@ class StubGenerator: public StubCodeGenerator {
       assert(tos != r_arg_thread && R19_method != r_arg_thread, "trashed r_arg_thread");
 
       // Set R15_prev_state to 0 for simplifying checks in callee.
+#ifdef CC_INTERP
       __ li(R15_prev_state, 0);
-
+#else
+      __ load_const_optimized(R25_templateTableBase, (address)Interpreter::dispatch_table((TosState)0), R11_scratch1);
+#endif
       // Stack on entry to frame manager / native entry:
       //
       //      F0      [TOP_IJAVA_FRAME_ABI]
@@ -681,7 +688,7 @@ class StubGenerator: public StubCodeGenerator {
             __ pop_frame();
             __ restore_LR_CR(R0);
           } else {
-            // SAPJVM MD 2013-04-26 Tail call: fake call from stub caller by branching without linking.
+            // Tail call: fake call from stub caller by branching without linking.
             address entry_point = (address)CAST_FROM_FN_PTR(address, BarrierSet::static_write_ref_array_post);
             __ mr_if_needed(R3_ARG1, addr);
             __ mr_if_needed(R4_ARG2, count);
@@ -2061,6 +2068,11 @@ class StubGenerator: public StubCodeGenerator {
     StubRoutines::_forward_exception_entry          = generate_forward_exception();
     StubRoutines::_call_stub_entry                  = generate_call_stub(StubRoutines::_call_stub_return_address);
     StubRoutines::_catch_exception_entry            = generate_catch_exception();
+
+    // Build this early so it's available for the interpreter.
+    StubRoutines::_throw_StackOverflowError_entry   =
+      generate_throw_exception("StackOverflowError throw_exception",
+                               CAST_FROM_FN_PTR(address, SharedRuntime::throw_StackOverflowError), false);
   }
 
   void generate_all() {
@@ -2072,7 +2084,6 @@ class StubGenerator: public StubCodeGenerator {
     // Handle IncompatibleClassChangeError in itable stubs.
     StubRoutines::_throw_IncompatibleClassChangeError_entry= generate_throw_exception("IncompatibleClassChangeError throw_exception", CAST_FROM_FN_PTR(address, SharedRuntime::throw_IncompatibleClassChangeError),  false);
     StubRoutines::_throw_NullPointerException_at_call_entry= generate_throw_exception("NullPointerException at call throw_exception", CAST_FROM_FN_PTR(address, SharedRuntime::throw_NullPointerException_at_call), false);
-    StubRoutines::_throw_StackOverflowError_entry          = generate_throw_exception("StackOverflowError throw_exception",           CAST_FROM_FN_PTR(address, SharedRuntime::throw_StackOverflowError),   false);
 
     StubRoutines::_handler_for_unsafe_access_entry         = generate_handler_for_unsafe_access();
 
@@ -2082,7 +2093,7 @@ class StubGenerator: public StubCodeGenerator {
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
 
-    // PPC uses stubs for safefetch.
+    // Safefetch stubs.
     generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
                                                        &StubRoutines::_safefetch32_fault_pc,
                                                        &StubRoutines::_safefetch32_continuation_pc);

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2012, 2014 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,10 +48,6 @@
 #include "utilities/debug.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Runtime1.hpp"
-#endif
-
-#ifndef CC_INTERP
-#error "CC_INTERP must be defined on PPC"
 #endif
 
 #define __ _masm->
@@ -146,7 +142,8 @@ address AbstractInterpreterGenerator::generate_slow_signature_handler() {
 #ifdef CC_INTERP
   __ ld(R19_method, state_(_method));
 #else
-  __ unimplemented("slow signature handler 1");
+  __ ld(R19_method, 0, target_sp);
+  __ ld(R19_method, _ijava_state_neg(method), R19_method);
 #endif
 
   // Get the result handler.
@@ -156,7 +153,8 @@ address AbstractInterpreterGenerator::generate_slow_signature_handler() {
 #ifdef CC_INTERP
   __ ld(R19_method, state_(_method));
 #else
-  __ unimplemented("slow signature handler 2");
+  __ ld(R19_method, 0, target_sp);
+  __ ld(R19_method, _ijava_state_neg(method), R19_method);
 #endif
 
   {
@@ -452,7 +450,7 @@ address InterpreterGenerator::generate_abstract_entry(void) {
   //
   // Registers alive
   //   R16_thread     - JavaThread*
-  //   R19_method     - callee's methodOop (method to be invoked)
+  //   R19_method     - callee's method (method to be invoked)
   //   R1_SP          - SP prepared such that caller's outgoing args are near top
   //   LR             - return address to caller
   //
@@ -490,7 +488,12 @@ address InterpreterGenerator::generate_abstract_entry(void) {
   // Return to frame manager, it will handle the pending exception.
   __ blr();
 #else
-  Unimplemented();
+  // We don't know our caller, so jump to the general forward exception stub,
+  // which will also pop our full frame off. Satisfy the interface of
+  // SharedRuntime::generate_forward_exception()
+  __ load_const_optimized(R11_scratch1, StubRoutines::forward_exception_entry(), R0);
+  __ mtctr(R11_scratch1);
+  __ bctr();
 #endif
 
   return entry;
@@ -499,8 +502,9 @@ address InterpreterGenerator::generate_abstract_entry(void) {
 // Call an accessor method (assuming it is resolved, otherwise drop into
 // vanilla (slow path) entry.
 address InterpreterGenerator::generate_accessor_entry(void) {
-  if(!UseFastAccessorMethods && (!FLAG_IS_ERGO(UseFastAccessorMethods)))
+  if (!UseFastAccessorMethods && (!FLAG_IS_ERGO(UseFastAccessorMethods))) {
     return NULL;
+  }
 
   Label Lslow_path, Lacquire;
 
@@ -585,10 +589,14 @@ address InterpreterGenerator::generate_accessor_entry(void) {
   // Load from branch table and dispatch (volatile case: one instruction ahead)
   __ sldi(Rflags, Rflags, LogBytesPerWord);
   __ cmpwi(CCR6, Rscratch, 1); // volatile?
-  __ sldi(Rscratch, Rscratch, exact_log2(BytesPerInstWord)); // volatile ? size of 1 instruction : 0
+  if (true/*support_IRIW_for_not_multiple_copy_atomic_cpu*/) {
+    __ sldi(Rscratch, Rscratch, exact_log2(BytesPerInstWord)); // volatile ? size of 1 instruction : 0
+  }
   __ ldx(Rbtable, Rbtable, Rflags);
 
-  __ subf(Rbtable, Rscratch, Rbtable); // point to volatile/non-volatile entry point
+  if (true/*support_IRIW_for_not_multiple_copy_atomic_cpu*/) {
+    __ subf(Rbtable, Rscratch, Rbtable); // point to volatile/non-volatile entry point
+  }
   __ mtctr(Rbtable);
   __ bctr();
 
@@ -604,7 +612,7 @@ address InterpreterGenerator::generate_accessor_entry(void) {
   }
   assert(all_uninitialized != all_initialized, "consistency"); // either or
 
-  __ sync(); // volatile entry point (one instruction before non-volatile_entry point)
+  __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
   if (branch_table[vtos] == 0) branch_table[vtos] = __ pc(); // non-volatile_entry point
   if (branch_table[dtos] == 0) branch_table[dtos] = __ pc(); // non-volatile_entry point
   if (branch_table[ftos] == 0) branch_table[ftos] = __ pc(); // non-volatile_entry point
@@ -613,7 +621,7 @@ address InterpreterGenerator::generate_accessor_entry(void) {
 
   if (branch_table[itos] == 0) { // generate only once
     __ align(32, 28, 28); // align load
-    __ sync(); // volatile entry point (one instruction before non-volatile_entry point)
+    __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
     branch_table[itos] = __ pc(); // non-volatile_entry point
     __ lwax(R3_RET, Rclass_or_obj, Roffset);
     __ beq(CCR6, Lacquire);
@@ -622,7 +630,7 @@ address InterpreterGenerator::generate_accessor_entry(void) {
 
   if (branch_table[ltos] == 0) { // generate only once
     __ align(32, 28, 28); // align load
-    __ sync(); // volatile entry point (one instruction before non-volatile_entry point)
+    __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
     branch_table[ltos] = __ pc(); // non-volatile_entry point
     __ ldx(R3_RET, Rclass_or_obj, Roffset);
     __ beq(CCR6, Lacquire);
@@ -631,7 +639,7 @@ address InterpreterGenerator::generate_accessor_entry(void) {
 
   if (branch_table[btos] == 0) { // generate only once
     __ align(32, 28, 28); // align load
-    __ sync(); // volatile entry point (one instruction before non-volatile_entry point)
+    __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
     branch_table[btos] = __ pc(); // non-volatile_entry point
     __ lbzx(R3_RET, Rclass_or_obj, Roffset);
     __ extsb(R3_RET, R3_RET);
@@ -641,7 +649,7 @@ address InterpreterGenerator::generate_accessor_entry(void) {
 
   if (branch_table[ctos] == 0) { // generate only once
     __ align(32, 28, 28); // align load
-    __ sync(); // volatile entry point (one instruction before non-volatile_entry point)
+    __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
     branch_table[ctos] = __ pc(); // non-volatile_entry point
     __ lhzx(R3_RET, Rclass_or_obj, Roffset);
     __ beq(CCR6, Lacquire);
@@ -650,7 +658,7 @@ address InterpreterGenerator::generate_accessor_entry(void) {
 
   if (branch_table[stos] == 0) { // generate only once
     __ align(32, 28, 28); // align load
-    __ sync(); // volatile entry point (one instruction before non-volatile_entry point)
+    __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
     branch_table[stos] = __ pc(); // non-volatile_entry point
     __ lhax(R3_RET, Rclass_or_obj, Roffset);
     __ beq(CCR6, Lacquire);
@@ -659,7 +667,7 @@ address InterpreterGenerator::generate_accessor_entry(void) {
 
   if (branch_table[atos] == 0) { // generate only once
     __ align(32, 28, 28); // align load
-    __ sync(); // volatile entry point (one instruction before non-volatile_entry point)
+    __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
     branch_table[atos] = __ pc(); // non-volatile_entry point
     __ load_heap_oop(R3_RET, (RegisterOrConstant)Roffset, Rclass_or_obj);
     __ verify_oop(R3_RET);
@@ -682,10 +690,7 @@ address InterpreterGenerator::generate_accessor_entry(void) {
 #endif
 
   __ bind(Lslow_path);
-  assert(Interpreter::entry_for_kind(Interpreter::zerolocals), "Normal entry must have been generated by now");
-  __ load_const_optimized(Rscratch, Interpreter::entry_for_kind(Interpreter::zerolocals), R0);
-  __ mtctr(Rscratch);
-  __ bctr();
+  __ branch_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals), Rscratch);
   __ flush();
 
   return entry;
@@ -772,10 +777,7 @@ address InterpreterGenerator::generate_Reference_get_entry(void) {
 
     // Generate regular method entry.
     __ bind(slow_path);
-    assert(Interpreter::entry_for_kind(Interpreter::zerolocals), "Normal entry must have been generated by now");
-    __ load_const_optimized(R11_scratch1, Interpreter::entry_for_kind(Interpreter::zerolocals), R0);
-    __ mtctr(R11_scratch1);
-    __ bctr();
+    __ branch_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals), R11_scratch1);
     __ flush();
 
     return entry;

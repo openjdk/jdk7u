@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright 2012, 2014 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,8 +58,25 @@ inline void MacroAssembler::round_to(Register r, int modulus) {
 
 // Move register if destination register and target register are different.
 inline void MacroAssembler::mr_if_needed(Register rd, Register rs) {
-  if(rs !=rd) mr(rd, rs);
+  if (rs != rd) mr(rd, rs);
 }
+inline void MacroAssembler::fmr_if_needed(FloatRegister rd, FloatRegister rs) {
+  if (rs != rd) fmr(rd, rs);
+}
+inline void MacroAssembler::endgroup_if_needed(bool needed) {
+  if (needed) {
+    endgroup();
+  }
+}
+
+inline void MacroAssembler::membar(int bits) {
+  // TODO: use elemental_membar(bits) for Power 8 and disable optimization of acquire-release
+  // (Matcher::post_membar_release where we use PPC64_ONLY(xop == Op_MemBarRelease ||))
+  if (bits & StoreLoad) sync(); else lwsync();
+}
+inline void MacroAssembler::release() { membar(LoadStore | StoreStore); }
+inline void MacroAssembler::acquire() { membar(LoadLoad | LoadStore); }
+inline void MacroAssembler::fence()   { membar(LoadLoad | LoadStore | StoreLoad | StoreStore); }
 
 // Address of the global TOC.
 inline address MacroAssembler::global_toc() {
@@ -266,9 +283,10 @@ inline void MacroAssembler::trap_ic_miss_check(Register a, Register b) {
 // Do an explicit null check if access to a+offset will not raise a SIGSEGV.
 // Either issue a trap instruction that raises SIGTRAP, or do a compare that
 // branches to exception_entry.
-// No support for compressed oops (base page of heap).  Does not distinguish
+// No support for compressed oops (base page of heap). Does not distinguish
 // loads and stores.
-inline void MacroAssembler::null_check_throw(Register a, int offset, Register temp_reg, address exception_entry) {
+inline void MacroAssembler::null_check_throw(Register a, int offset, Register temp_reg,
+                                             address exception_entry) {
   if (!ImplicitNullChecks || needs_explicit_null_check(offset) || !os::zero_page_read_protected()) {
     if (TrapBasedNullChecks) {
       assert(UseSIGTRAP, "sanity");
@@ -285,7 +303,7 @@ inline void MacroAssembler::null_check_throw(Register a, int offset, Register te
   }
 }
 
-inline void MacroAssembler::ld_with_trap_null_check(Register d, int si16, Register s1) {
+inline void MacroAssembler::load_with_trap_null_check(Register d, int si16, Register s1) {
   if (!os::zero_page_read_protected()) {
     if (TrapBasedNullChecks) {
       trap_null_check(s1);
@@ -315,6 +333,15 @@ inline void MacroAssembler::load_heap_oop_not_null(Register d, RegisterOrConstan
   }
 }
 
+inline void MacroAssembler::store_heap_oop_not_null(Register d, RegisterOrConstant offs, Register s1, Register tmp) {
+  if (UseCompressedOops) {
+    Register compressedOop = encode_heap_oop_not_null((tmp != noreg) ? tmp : d, d);
+    stw(compressedOop, offs, s1);
+  } else {
+    std(d, offs, s1);
+  }
+}
+
 inline void MacroAssembler::load_heap_oop(Register d, RegisterOrConstant offs, Register s1) {
   if (UseCompressedOops) {
     lwz(d, offs, s1);
@@ -324,18 +351,21 @@ inline void MacroAssembler::load_heap_oop(Register d, RegisterOrConstant offs, R
   }
 }
 
-
 inline void MacroAssembler::load_klass(Register dst, Register src) {
   load_heap_oop_not_null(dst, oopDesc::klass_offset_in_bytes(), src);
 }
 
-inline void MacroAssembler::encode_heap_oop_not_null(Register d) {
+inline Register MacroAssembler::encode_heap_oop_not_null(Register d, Register src) {
+  Register current = (src!=noreg) ? src : d; // Compressed oop is in d if no src provided.
   if (Universe::narrow_oop_base() != NULL) {
-    sub(d, d, R30);
+    sub(d, current, R30);
+    current = d;
   }
   if (Universe::narrow_oop_shift() != 0) {
-    srdi(d, d, LogMinObjAlignmentInBytes);
+    srdi(d, current, LogMinObjAlignmentInBytes);
+    current = d;
   }
+  return current; // Encoded oop is in this register.
 }
 
 inline void MacroAssembler::decode_heap_oop_not_null(Register d) {

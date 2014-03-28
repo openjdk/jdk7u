@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright 2012, 2014 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1041,10 +1041,10 @@ address MacroAssembler::call_c(const FunctionDescriptor* fd, relocInfo::relocTyp
       // so do a full call-c here.
       load_const(R11, (address)fd, R0);
       return branch_to(R11, /*and_link=*/true,
-                                /*save toc=*/false,
-                                /*restore toc=*/false,
-                                /*load toc=*/true,
-                                /*load env=*/true);
+                            /*save toc=*/false,
+                            /*restore toc=*/false,
+                            /*load toc=*/true,
+                            /*load env=*/true);
     } else {
       // it's a friend function, load the entry point and don't care about
       // toc and env.
@@ -1099,7 +1099,7 @@ address MacroAssembler::call_c_using_toc(const FunctionDescriptor* fd,
   }
   return _last_calls_return_pc;
 }
-#endif
+#endif // ABI_ELFv2
 
 void MacroAssembler::call_VM_base(Register oop_result,
                                   Register last_java_sp,
@@ -1678,8 +1678,9 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   cmpwi(CCR0, temp, 0);
   beq(CCR0, result_reg!=noreg ? failure : fallthru); // length 0
 
-  if (UseCompressedOops)
+  if (UseCompressedOops) {
     encode_heap_oop_not_null(super_klass);
+  }
 
   mtctr(temp); // load ctr
 
@@ -1696,16 +1697,18 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   addi(array_ptr, array_ptr, BytesPerHeapOop);
   bdnz(loop);
 
-  if (UseCompressedOops)
+  if (UseCompressedOops) {
     decode_heap_oop_not_null(super_klass); // restore super_klass
+  }
 
   bind(failure);
   if (result_reg!=noreg) li(result_reg, 1); // load non-zero result (indicates a miss)
   b(fallthru);
 
   bind(hit);
-  if (UseCompressedOops)
+  if (UseCompressedOops) {
     decode_heap_oop_not_null(super_klass); // restore super_klass
+  }
   std(super_klass, target_offset, sub_klass); // save result to cache
   if (result_reg != noreg) li(result_reg, 0); // load zero result (indicates a hit)
   if (L_success != NULL) b(*L_success);
@@ -2008,6 +2011,7 @@ void MacroAssembler::compiler_fast_lock_object(ConditionRegister flag, Register 
   // Must fence, otherwise, preceding store(s) may float below cmpxchg.
   // Compare object markOop with mark and if equal exchange scratch1 with object markOop.
   // CmpxchgX sets cr_reg to cmpX(current, displaced).
+  membar(Assembler::StoreStore);
   cmpxchgd(/*flag=*/flag,
            /*current_value=*/current_header,
            /*compare_value=*/displaced_header,
@@ -2199,7 +2203,7 @@ void MacroAssembler::card_table_write(jbyte* byte_map_base, Register Rtmp, Regis
   load_const_optimized(Rtmp, (address)byte_map_base, R0);
   srdi(Robj, Robj, CardTableModRefBS::card_shift);
   li(R0, 0); // dirty
-  if (UseConcMarkSweepGC) release();
+  if (UseConcMarkSweepGC) membar(Assembler::StoreStore);
   stbx(R0, Rtmp, Robj);
 }
 
@@ -2402,7 +2406,8 @@ void MacroAssembler::set_top_ijava_frame_at_SP_as_last_Java_frame(Register sp, R
 #ifdef CC_INTERP
   ld(tmp1/*pc*/, _top_ijava_frame_abi(frame_manager_lr), sp);
 #else
-  Unimplemented();
+  address entry = pc();
+  load_const_optimized(tmp1, entry);
 #endif
 
   set_last_Java_frame(/*sp=*/sp, /*pc=*/tmp1);
@@ -2427,7 +2432,7 @@ void MacroAssembler::get_vm_result(Register oop_result) {
 // Clear Array
 // Kills both input registers. tmp == R0 is allowed.
 void MacroAssembler::clear_memory_doubleword(Register base_ptr, Register cnt_dwords, Register tmp) {
-  // SAPJVM MD 2011-06-24 Procedure for large arrays (uses data cache block zero instruction).
+  // Procedure for large arrays (uses data cache block zero instruction).
     Label startloop, fast, fastloop, small_rest, restloop, done;
     const int cl_size         = VM_Version::get_cache_line_size(),
               cl_dwords       = cl_size>>3,
@@ -3042,3 +3047,15 @@ void MacroAssembler::zap_from_to(Register low, int before, Register high, int af
 }
 
 #endif // !PRODUCT
+
+SkipIfEqualZero::SkipIfEqualZero(MacroAssembler* masm, Register temp, const bool* flag_addr) : _masm(masm), _label() {
+  int simm16_offset = masm->load_const_optimized(temp, (address)flag_addr, R0, true);
+  assert(sizeof(bool) == 1, "PowerPC ABI");
+  masm->lbz(temp, simm16_offset, temp);
+  masm->cmpwi(CCR0, temp, 0);
+  masm->beq(CCR0, _label);
+}
+
+SkipIfEqualZero::~SkipIfEqualZero() {
+  _masm->bind(_label);
+}
