@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +22,16 @@
  *
  */
 
-#ifndef OS_AIX_VM_MUTEX_AIX_INLINE_HPP
-#define OS_AIX_VM_MUTEX_AIX_INLINE_HPP
+#ifndef OS_LINUX_VM_MUTEX_LINUX_INLINE_HPP
+#define OS_LINUX_VM_MUTEX_LINUX_INLINE_HPP
 
 #include "os_aix.inline.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "thread_aix.inline.hpp"
 
-#endif // OS_AIX_VM_MUTEX_AIX_INLINE_HPP
+
+// Reconciliation History
+// mutex_solaris.inline.hpp     1.5 99/06/22 16:38:49
+// End
+
+#endif // OS_LINUX_VM_MUTEX_LINUX_INLINE_HPP

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright 2012, 2014 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -397,6 +397,9 @@ void VM_Version::determine_features() {
   ResourceMark rm;
   CodeBuffer cb("detect_cpu_features", code_size, 0);
   MacroAssembler* a = new MacroAssembler(&cb);
+
+  // Must be set to true so we can generate the test code.
+  _features = VM_Version::all_features_m;
 
   // Must be set to true so we can generate the test code.
   _features = VM_Version::all_features_m;
