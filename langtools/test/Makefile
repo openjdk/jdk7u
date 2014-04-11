@@ -33,6 +33,9 @@ ifeq ($(OSNAME), Linux)
   ifeq ($(ARCH), i386)
     ARCH=i586
   endif
+  ifeq ($(ARCH), ppc64le)
+    ARCH=ppc64
+  endif
 endif
 ifeq ($(OSNAME), Darwin)
   PLATFORM = bsd
