@@ -197,8 +197,16 @@ CFLAGS_REQUIRED_sparc   += -m32 -mcpu=v9 -D_BIG_ENDIAN
 LDFLAGS_COMMON_sparc    += -m32 -mcpu=v9
 CFLAGS_REQUIRED_arm     += -fsigned-char -D_LITTLE_ENDIAN
 CFLAGS_REQUIRED_ppc     += -fsigned-char -D_BIG_ENDIAN
-CFLAGS_REQUIRED_ppc64   += -m64
-LDFLAGS_COMMON_ppc64    += -m64 -L/lib64 -Wl,-melf64ppc
+ifeq ($(ARCH),ppc64)
+  ifeq ($(OPENJDK_TARGET_CPU_ENDIAN),big)
+    CFLAGS_REQUIRED_ppc64   += -m64 -D_BIG_ENDIAN
+    LDFLAGS_COMMON_ppc64    += -m64 -L/lib64 -Wl,-melf64ppc
+  else ifeq ($(OPENJDK_TARGET_CPU_ENDIAN),little)
+    CFLAGS_REQUIRED_ppc64   += -D_LITTLE_ENDIAN -DABI_ELFv2
+  else
+    $(error Expected big/little for ARCH=ppc64, got OPENJDK_TARGET_CPU_ENDIAN=$(OPENJDK_TARGET_CPU_ENDIAN))
+  endif
+endif
 ifeq ($(ZERO_BUILD), true)
   CFLAGS_REQUIRED       =  $(ZERO_ARCHFLAG)
   ifeq ($(ZERO_ENDIANNESS), little)
