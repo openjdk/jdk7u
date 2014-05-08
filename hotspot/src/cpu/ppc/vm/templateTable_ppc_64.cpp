@@ -261,17 +261,17 @@ void TemplateTable::fconst(int value) {
   switch (value) {
     default: ShouldNotReachHere();
     case 0: {
-      int simm16_offset = __ load_const_optimized(R11_scratch1, (address*)&zero, R0);
+      int simm16_offset = __ load_const_optimized(R11_scratch1, (address*)&zero, R0, true);
       __ lfs(F15_ftos, simm16_offset, R11_scratch1);
       break;
     }
     case 1: {
-      int simm16_offset = __ load_const_optimized(R11_scratch1, (address*)&one, R0);
+      int simm16_offset = __ load_const_optimized(R11_scratch1, (address*)&one, R0, true);
       __ lfs(F15_ftos, simm16_offset, R11_scratch1);
       break;
     }
     case 2: {
-      int simm16_offset = __ load_const_optimized(R11_scratch1, (address*)&two, R0);
+      int simm16_offset = __ load_const_optimized(R11_scratch1, (address*)&two, R0, true);
       __ lfs(F15_ftos, simm16_offset, R11_scratch1);
       break;
     }
@@ -284,12 +284,12 @@ void TemplateTable::dconst(int value) {
   static double one  = 1.0;
   switch (value) {
     case 0: {
-      int simm16_offset = __ load_const_optimized(R11_scratch1, (address*)&zero, R0);
+      int simm16_offset = __ load_const_optimized(R11_scratch1, (address*)&zero, R0, true);
       __ lfd(F15_ftos, simm16_offset, R11_scratch1);
       break;
     }
     case 1: {
-      int simm16_offset = __ load_const_optimized(R11_scratch1, (address*)&one, R0);
+      int simm16_offset = __ load_const_optimized(R11_scratch1, (address*)&one, R0, true);
       __ lfd(F15_ftos, simm16_offset, R11_scratch1);
       break;
     }
@@ -3907,9 +3907,9 @@ void TemplateTable::checkcast() {
   transition(atos, atos);
 
   Label Ldone, Lis_null, Lquicked, Lresolved;
-  Register Roffset         = R5_ARG3,
+  Register Roffset         = R6_ARG4,
            RobjKlass       = R4_ARG2,
-           RspecifiedKlass = R6_ARG4, // Generate_ClassCastException_verbose_handler will expect this register.
+           RspecifiedKlass = R5_ARG3, // Generate_ClassCastException_verbose_handler will read value from this register.
            Rcpool          = R11_scratch1,
            Rtags           = R12_scratch2;
 
