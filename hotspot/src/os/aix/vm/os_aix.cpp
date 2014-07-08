@@ -2728,7 +2728,7 @@ void os::large_page_init() {
   }
 } // end: os::large_page_init()
 
-char* os::reserve_memory_special(size_t bytes, char* req_addr, bool exec) {
+char* os::reserve_memory_special(size_t bytes, size_t alignment, char* req_addr, bool exec) {
   // "exec" is passed in but not used. Creating the shared image for
   // the code cache doesn't have an SHM_X executable permission to check.
   Unimplemented();
@@ -5129,3 +5129,9 @@ int os::get_core_path(char* buffer, size_t bufferSize) {
 
   return strlen(buffer);
 }
+
+#ifndef PRODUCT
+void TestReserveMemorySpecial_test() {
+  // No tests available for this platform
+}
+#endif
