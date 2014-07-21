@@ -1371,7 +1371,7 @@ bool verify_object_alignment() {
   return true;
 }
 
-uintx Arguments::max_heap_for_compressed_oops() {
+size_t Arguments::max_heap_for_compressed_oops() {
   // Avoid sign flip.
   if (OopEncodingHeapMax < MaxPermSize + os::vm_page_size()) {
     return 0;
