@@ -301,6 +301,7 @@ class Assembler : public AbstractAssembler {
     LWZ_OPCODE   = (32u << OPCODE_SHIFT),
     LWZX_OPCODE  = (31u << OPCODE_SHIFT |  23u << 1),
     LWZU_OPCODE  = (33u << OPCODE_SHIFT),
+    LWBRX_OPCODE = (31u << OPCODE_SHIFT |  534 << 1),
 
     LHA_OPCODE   = (42u << OPCODE_SHIFT),
     LHAX_OPCODE  = (31u << OPCODE_SHIFT | 343u << 1),
@@ -309,6 +310,7 @@ class Assembler : public AbstractAssembler {
     LHZ_OPCODE   = (40u << OPCODE_SHIFT),
     LHZX_OPCODE  = (31u << OPCODE_SHIFT | 279u << 1),
     LHZU_OPCODE  = (41u << OPCODE_SHIFT),
+    LHBRX_OPCODE = (31u << OPCODE_SHIFT |  790 << 1),
 
     LBZ_OPCODE   = (34u << OPCODE_SHIFT),
     LBZX_OPCODE  = (31u << OPCODE_SHIFT |  87u << 1),
@@ -1369,10 +1371,16 @@ class Assembler : public AbstractAssembler {
   inline void lwax( Register d, Register s1, Register s2);
   inline void lwa(  Register d, int si16,    Register s1);
 
+  // 4 bytes reversed
+  inline void lwbrx( Register d, Register s1, Register s2);
+
   // 2 bytes
   inline void lhzx( Register d, Register s1, Register s2);
   inline void lhz(  Register d, int si16,    Register s1);
   inline void lhzu( Register d, int si16,    Register s1);
+
+  // 2 bytes reversed
+  inline void lhbrx( Register d, Register s1, Register s2);
 
   // 2 bytes
   inline void lhax( Register d, Register s1, Register s2);
@@ -1866,10 +1874,12 @@ class Assembler : public AbstractAssembler {
   inline void lwz(  Register d, int si16);
   inline void lwax( Register d, Register s2);
   inline void lwa(  Register d, int si16);
+  inline void lwbrx(Register d, Register s2);
   inline void lhzx( Register d, Register s2);
   inline void lhz(  Register d, int si16);
   inline void lhax( Register d, Register s2);
   inline void lha(  Register d, int si16);
+  inline void lhbrx(Register d, Register s2);
   inline void lbzx( Register d, Register s2);
   inline void lbz(  Register d, int si16);
   inline void ldx(  Register d, Register s2);
