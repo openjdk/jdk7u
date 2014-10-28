@@ -1633,6 +1633,33 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
        }
      }
 
+     // Without the fix for 8028280, it is possible for the above call:
+     //
+     //   Thread::SpinAcquire (&_WaitSetLock, "WaitSet - unlink") ;
+     //
+     // to consume the unpark() that was done when the successor was set.
+     // The solution for this very rare possibility is to redo the unpark()
+     // outside of the JvmtiExport::should_post_monitor_waited() check.
+     //
+     if (node._notified != 0 && _succ == Self) {
+       // In this part of the monitor wait-notify-reenter protocol it
+       // is possible (and normal) for another thread to do a fastpath
+       // monitor enter-exit while this thread is still trying to get
+       // to the reenter portion of the protocol.
+       //
+       // The ObjectMonitor was notified and the current thread is
+       // the successor which also means that an unpark() has already
+       // been done. The JVMTI_EVENT_MONITOR_WAITED event handler can
+       // consume the unpark() that was done when the successor was
+       // set because the same ParkEvent is shared between Java
+       // monitors and JVM/TI RawMonitors (for now).
+       //
+       // We redo the unpark() to ensure forward progress, i.e., we
+       // don't want all pending threads hanging (parked) with none
+       // entering the unlocked monitor.
+       node._event->unpark();
+     }
+
      if (event.should_commit()) {
        post_monitor_wait_event(&event, node._notifier_tid, millis, ret == OS_TIMEOUT);
      }
