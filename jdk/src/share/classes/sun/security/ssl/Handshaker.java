@@ -467,7 +467,9 @@ abstract class Handshaker {
 
         if (activeProtocols.collection().isEmpty() ||
                 activeProtocols.max.v == ProtocolVersion.NONE.v) {
-            throw new SSLHandshakeException("No appropriate protocol");
+            throw new SSLHandshakeException(
+                    "No appropriate protocol (protocol is disabled or " +
+                    "cipher suites are inappropriate)");
         }
 
         if (activeCipherSuites == null) {
@@ -637,7 +639,18 @@ abstract class Handshaker {
         if (activeProtocols == null) {
             boolean enabledSSL20Hello = false;
             ArrayList<ProtocolVersion> protocols = new ArrayList<>(4);
+            EnumSet<CryptoPrimitive> cryptoPrimitives =
+                EnumSet.<CryptoPrimitive>of(CryptoPrimitive.KEY_AGREEMENT);
             for (ProtocolVersion protocol : enabledProtocols.collection()) {
+                if (!algorithmConstraints.permits(
+                        cryptoPrimitives, protocol.name, null)) {
+                    if (debug != null && Debug.isOn("verbose")) {
+                        System.out.println(
+                            "Ignoring disabled protocol: " + protocol);
+                    }
+
+                    continue;
+                }
                 // Need not to check the SSL20Hello protocol.
                 if (protocol.v == ProtocolVersion.SSL20Hello.v) {
                     enabledSSL20Hello = true;
@@ -649,8 +662,7 @@ abstract class Handshaker {
                     if (suite.isAvailable() && suite.obsoleted > protocol.v &&
                                                suite.supported <= protocol.v) {
                         if (algorithmConstraints.permits(
-                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                suite.name, null)) {
+                                cryptoPrimitives, suite.name, null)) {
                             protocols.add(protocol);
                             found = true;
                             break;
