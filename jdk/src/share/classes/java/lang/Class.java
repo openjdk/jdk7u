@@ -629,6 +629,8 @@ public final
     ClassLoader getClassLoader0() { return classLoader; }
 
     // Initialized in JVM not by private constructor
+    // This field is filtered from reflection access, i.e. getDeclaredField
+    // will throw NoSuchFieldException
     private final ClassLoader classLoader;
 
     /**
@@ -2460,7 +2462,7 @@ public final
     private native String getGenericSignature();
 
     // Generic info repository; lazily initialized
-    private transient ClassRepository genericInfo;
+    private volatile transient ClassRepository genericInfo;
 
     // accessor for factory
     private GenericsFactory getFactory() {
@@ -2470,11 +2472,13 @@ public final
 
     // accessor for generic info repository
     private ClassRepository getGenericInfo() {
+        ClassRepository genericInfo = this.genericInfo;
         // lazily initialize repository if necessary
         if (genericInfo == null) {
             // create and cache generic info repository
             genericInfo = ClassRepository.make(getGenericSignature(),
                                                getFactory());
+            this.genericInfo = genericInfo;
         }
         return genericInfo; //return cached repository
     }
