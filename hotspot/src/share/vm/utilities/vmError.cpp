@@ -22,7 +22,6 @@
  *
  */
 
-#include <fcntl.h>
 #include "precompiled.hpp"
 #include "compiler/compileBroker.hpp"
 #include "gc_interface/collectedHeap.hpp"
@@ -42,6 +41,8 @@
 #include "utilities/events.hpp"
 #include "utilities/top.hpp"
 #include "utilities/vmError.hpp"
+
+#include <fcntl.h>
 
 // List of environment variables that should be reported in error log file.
 const char *env_list[] = {
