@@ -2666,9 +2666,8 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(u1* inner_classes_at
     // Inner class index
     u2 inner_class_info_index = cfs->get_u2_fast();
     check_property(
-      inner_class_info_index == 0 ||
-        (valid_cp_range(inner_class_info_index, cp_size) &&
-        is_klass_reference(cp, inner_class_info_index)),
+      (valid_cp_range(inner_class_info_index, cp_size) &&
+       is_klass_reference(cp, inner_class_info_index)),
       "inner_class_info_index %u has bad constant type in class file %s",
       inner_class_info_index, CHECK_0);
     // Outer class index
