@@ -1391,9 +1391,6 @@ public final class URL implements java.io.Serializable {
                 path = file;
         }
 
-        if (port == -1) {
-            port = 0;
-        }
         // Set the object fields.
         this.protocol = protocol;
         this.host = host;
