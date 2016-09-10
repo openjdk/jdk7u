@@ -350,6 +350,12 @@ address RetData::fixup_ret(int return_bci, methodDataHandle h_mdo) {
 }
 
 
+#ifdef CC_INTERP
+DataLayout* RetData::advance(methodDataOop mdo, int bci) {
+  return (DataLayout*) mdo->bci_to_dp(bci);
+}
+#endif // CC_INTERP
+
 #ifndef PRODUCT
 void RetData::print_data_on(outputStream* st) {
   print_shared(st, "RetData");

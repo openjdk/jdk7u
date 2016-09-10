@@ -328,6 +328,8 @@ class Parse : public GraphKit {
 
   GraphKit      _exits;         // Record all normal returns and throws here.
   bool          _wrote_final;   // Did we write a final field?
+  // Add MemBarRelease for constructors which write volatile field (PPC64).
+  PPC64_ONLY(bool _wrote_volatile;)
   bool          _count_invocations; // update and test invocation counter
   bool          _method_data_update; // update method data oop
 
@@ -368,6 +370,11 @@ class Parse : public GraphKit {
   GraphKit&     exits()               { return _exits; }
   bool          wrote_final() const   { return _wrote_final; }
   void      set_wrote_final(bool z)   { _wrote_final = z; }
+#ifdef PPC64
+  // Add MemBarRelease for constructors which write volatile field (PPC64).
+  bool          wrote_volatile() const { return _wrote_volatile; }
+  void      set_wrote_volatile(bool z) { _wrote_volatile = z; }
+#endif
   bool          count_invocations() const  { return _count_invocations; }
   bool          method_data_update() const { return _method_data_update; }
 

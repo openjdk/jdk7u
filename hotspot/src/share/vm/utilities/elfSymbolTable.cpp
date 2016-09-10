@@ -68,7 +68,11 @@ ElfSymbolTable::~ElfSymbolTable() {
   }
 }
 
+#if defined(PPC64)
+bool ElfSymbolTable::lookup(address addr, int* stringtableIndex, int* posIndex, int* offset, ElfFuncDescTable* funcDescTable) {
+#else
 bool ElfSymbolTable::lookup(address addr, int* stringtableIndex, int* posIndex, int* offset) {
+#endif
   assert(stringtableIndex, "null string table index pointer");
   assert(posIndex, "null string table offset pointer");
   assert(offset, "null offset pointer");
@@ -77,19 +81,24 @@ bool ElfSymbolTable::lookup(address addr, int* stringtableIndex, int* posIndex, 
     return false;
   }
 
-  address pc = 0;
   size_t  sym_size = sizeof(Elf_Sym);
   assert((m_shdr.sh_size % sym_size) == 0, "check size");
   int count = m_shdr.sh_size / sym_size;
   if (m_symbols != NULL) {
     for (int index = 0; index < count; index ++) {
       if (STT_FUNC == ELF_ST_TYPE(m_symbols[index].st_info)) {
+        Elf_Word st_size = m_symbols[index].st_size;
+#if defined(PPC64)
+        Elf_Word sym_fd = m_symbols[index].st_value;
+        address sym_addr = funcDescTable->lookup(sym_fd);
+#else
         address sym_addr = (address)m_symbols[index].st_value;
-        if (sym_addr < addr && (addr - sym_addr) < *offset) {
-          pc = (address)m_symbols[index].st_value;
-          *offset = (int)(addr - pc);
+#endif
+        if (sym_addr <= addr && (addr - sym_addr) < st_size) {
+          *offset = (int)(addr - sym_addr);
           *posIndex = m_symbols[index].st_name;
           *stringtableIndex = m_shdr.sh_link;
+          return true;
         }
       }
     }
@@ -105,12 +114,18 @@ bool ElfSymbolTable::lookup(address addr, int* stringtableIndex, int* posIndex, 
     for (int index = 0; index < count; index ++) {
       if (fread(&sym, sym_size, 1, m_file) == 1) {
         if (STT_FUNC == ELF_ST_TYPE(sym.st_info)) {
+          Elf_Word st_size = sym.st_size;
+#if defined(PPC64)
+          Elf_Word sym_fd = sym.st_value;
+          address sym_addr = funcDescTable->lookup(sym_fd);
+#else
           address sym_addr = (address)sym.st_value;
-          if (sym_addr < addr && (addr - sym_addr) < *offset) {
-            pc = (address)sym.st_value;
-            *offset = (int)(addr - pc);
+#endif
+          if (sym_addr <= addr && (addr - sym_addr) < st_size) {
+            *offset = (int)(addr - sym_addr);
             *posIndex = sym.st_name;
             *stringtableIndex = m_shdr.sh_link;
+            return true;
           }
         }
       } else {
@@ -122,5 +137,80 @@ bool ElfSymbolTable::lookup(address addr, int* stringtableIndex, int* posIndex, 
   }
   return true;
 }
+
+#if defined(PPC64)
+
+ElfFuncDescTable::ElfFuncDescTable(FILE* file, Elf_Shdr shdr) {
+  assert(file, "null file handle");
+  // The actual function address (i.e. function entry point) is always the
+  // first value in the function descriptor (on IA64 and PPC64 they look as follows):
+  // PPC64: [function entry point, TOC pointer, environment pointer]
+  // IA64 : [function entry point, GP (global pointer) value]
+  // Unfortunately 'shdr.sh_entsize' doesn't always seem to contain this size (it's zero on PPC64) so we can't assert
+  // assert(IA64_ONLY(2) PPC64_ONLY(3) * sizeof(address) == shdr.sh_entsize, "Size mismatch for '.opd' section entries");
+
+  m_funcDescs = NULL;
+  m_file = file;
+  m_status = NullDecoder::no_error;
+
+  // try to load the function descriptor table
+  long cur_offset = ftell(file);
+  if (cur_offset != -1) {
+    // call malloc so we can back up if memory allocation fails.
+    m_funcDescs = (address*)os::malloc(shdr.sh_size, mtInternal);
+    if (m_funcDescs) {
+      if (fseek(file, shdr.sh_offset, SEEK_SET) ||
+          fread((void*)m_funcDescs, shdr.sh_size, 1, file) != 1 ||
+          fseek(file, cur_offset, SEEK_SET)) {
+        m_status = NullDecoder::file_invalid;
+        os::free(m_funcDescs);
+        m_funcDescs = NULL;
+      }
+    }
+    if (!NullDecoder::is_error(m_status)) {
+      memcpy(&m_shdr, &shdr, sizeof(Elf_Shdr));
+    }
+  } else {
+    m_status = NullDecoder::file_invalid;
+  }
+}
+
+ElfFuncDescTable::~ElfFuncDescTable() {
+  if (m_funcDescs != NULL) {
+    os::free(m_funcDescs);
+  }
+}
+
+address ElfFuncDescTable::lookup(Elf_Word index) {
+  if (NullDecoder::is_error(m_status)) {
+    return NULL;
+  }
+
+  if (m_funcDescs != NULL) {
+    if (m_shdr.sh_size > 0 && m_shdr.sh_addr <= index && index <= m_shdr.sh_addr + m_shdr.sh_size) {
+      // Notice that 'index' is a byte-offset into the function descriptor table.
+      return m_funcDescs[(index - m_shdr.sh_addr) / sizeof(address)];
+    }
+    return NULL;
+  }
+  else {
+    long cur_pos;
+    address addr;
+    if (!(m_shdr.sh_size > 0 && m_shdr.sh_addr <= index && index <= m_shdr.sh_addr + m_shdr.sh_size)) {
+      // don't put the whole decoder in error mode if we just tried a wrong index
+      return NULL;
+    }
+    if ((cur_pos = ftell(m_file)) == -1 ||
+        fseek(m_file, m_shdr.sh_offset + index - m_shdr.sh_addr, SEEK_SET) ||
+        fread(&addr, sizeof(addr), 1, m_file) != 1 ||
+        fseek(m_file, cur_pos, SEEK_SET)) {
+      m_status = NullDecoder::file_invalid;
+      return NULL;
+    }
+    return addr;
+  }
+}
+
+#endif
 
 #endif // _WINDOWS

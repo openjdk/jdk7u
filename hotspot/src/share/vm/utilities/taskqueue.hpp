@@ -53,6 +53,9 @@
 #ifdef TARGET_OS_ARCH_linux_ppc
 # include "orderAccess_linux_ppc.inline.hpp"
 #endif
+#ifdef TARGET_OS_ARCH_aix_ppc
+# include "orderAccess_aix_ppc.inline.hpp"
+#endif
 #ifdef TARGET_OS_ARCH_bsd_x86
 # include "orderAccess_bsd_x86.inline.hpp"
 #endif
@@ -138,22 +141,32 @@ protected:
   // Internal type for indexing the queue; also used for the tag.
   typedef NOT_LP64(uint16_t) LP64_ONLY(uint32_t) idx_t;
 
+private:
   // The first free element after the last one pushed (mod N).
-  volatile uint _bottom;
+  // We keep _bottom private and DO NOT USE IT DIRECTLY.
+  volatile uint _private_bottom;
+
+protected:
+  // Access to _bottom must be ordered. Use OrderAccess.
+  inline uint get_bottom() const {
+    return OrderAccess::load_acquire((volatile juint*)&_private_bottom);
+  }
+
+  inline void set_bottom(uint new_bottom) {
+    OrderAccess::release_store(&_private_bottom, new_bottom);
+  }
 
   enum { MOD_N_MASK = N - 1 };
 
+  // Simple field access here, so no OrderAccess and no volatiles.
   class Age {
   public:
     Age(size_t data = 0)         { _data = data; }
     Age(const Age& age)          { _data = age._data; }
     Age(idx_t top, idx_t tag)    { _fields._top = top; _fields._tag = tag; }
 
-    Age   get()        const volatile { return _data; }
-    void  set(Age age) volatile       { _data = age._data; }
-
-    idx_t top()        const volatile { return _fields._top; }
-    idx_t tag()        const volatile { return _fields._tag; }
+    idx_t top() const { return _fields._top; }
+    idx_t tag() const { return _fields._tag; }
 
     // Increment top; if it wraps, increment tag also.
     void increment() {
@@ -161,15 +174,9 @@ protected:
       if (_fields._top == 0) ++_fields._tag;
     }
 
-    Age cmpxchg(const Age new_age, const Age old_age) volatile {
-      return (size_t) Atomic::cmpxchg_ptr((intptr_t)new_age._data,
-                                          (volatile intptr_t *)&_data,
-                                          (intptr_t)old_age._data);
-    }
-
     bool operator ==(const Age& other) const { return _data == other._data; }
 
-  private:
+  public:
     struct fields {
       idx_t _top;
       idx_t _tag;
@@ -180,7 +187,30 @@ protected:
     };
   };
 
-  volatile Age _age;
+
+private:
+  // Keep _age private and DO NOT USE IT DIRECTLY.
+  volatile Age _private_age;
+
+protected:
+  inline idx_t get_age_top() const {
+    return OrderAccess::load_acquire((volatile idx_t*) &(_private_age._fields._top));
+  }
+
+  inline Age get_age() {
+    size_t res = OrderAccess::load_ptr_acquire((volatile intptr_t*) &_private_age);
+    return *(Age*)(&res);
+  }
+
+  inline void set_age(Age a) {
+    OrderAccess::release_store_ptr((volatile intptr_t*) &_private_age, *(size_t*)(&a));
+  }
+
+  Age cmpxchg_age(const Age new_age, const Age old_age) volatile {
+    return (Age)(size_t)Atomic::cmpxchg_ptr((intptr_t)new_age._data,
+                                            (volatile intptr_t*) &(_private_age._data),
+                                            (intptr_t)old_age._data);
+  }
 
   // These both operate mod N.
   static uint increment_index(uint ind) {
@@ -217,26 +247,29 @@ protected:
   }
 
 public:
-  TaskQueueSuper() : _bottom(0), _age() {}
+  TaskQueueSuper() : _private_bottom(0), _private_age() {}
 
   // Return true if the TaskQueue contains/does not contain any tasks.
-  bool peek()     const { return _bottom != _age.top(); }
+  // Use getters/setters with OrderAccess when accessing _bottom and _age.
+  bool peek() {
+    return get_bottom() != get_age_top();
+  }
   bool is_empty() const { return size() == 0; }
 
   // Return an estimate of the number of elements in the queue.
   // The "careful" version admits the possibility of pop_local/pop_global
   // races.
   uint size() const {
-    return size(_bottom, _age.top());
+    return size(get_bottom(), get_age_top());
   }
 
   uint dirty_size() const {
-    return dirty_size(_bottom, _age.top());
+    return dirty_size(get_bottom(), get_age_top());
   }
 
   void set_empty() {
-    _bottom = 0;
-    _age.set(0);
+    set_bottom(0);
+    set_age(0);
   }
 
   // Maximum number of elements allowed in the queue.  This is two less
@@ -258,11 +291,11 @@ protected:
   typedef typename TaskQueueSuper<N, F>::Age Age;
   typedef typename TaskQueueSuper<N, F>::idx_t idx_t;
 
-  using TaskQueueSuper<N, F>::_bottom;
-  using TaskQueueSuper<N, F>::_age;
   using TaskQueueSuper<N, F>::increment_index;
   using TaskQueueSuper<N, F>::decrement_index;
   using TaskQueueSuper<N, F>::dirty_size;
+  using TaskQueueSuper<N, F>::get_age_top;
+  using TaskQueueSuper<N, F>::get_age;
 
 public:
   using TaskQueueSuper<N, F>::max_elems;
@@ -322,7 +355,7 @@ template<class E, MEMFLAGS F, unsigned int N>
 void GenericTaskQueue<E, F, N>::oops_do(OopClosure* f) {
   // tty->print_cr("START OopTaskQueue::oops_do");
   uint iters = size();
-  uint index = _bottom;
+  uint index = this->get_bottom();
   for (uint i = 0; i < iters; ++i) {
     index = decrement_index(index);
     // tty->print_cr("  doing entry %d," INTPTR_T " -> " INTPTR_T,
@@ -339,10 +372,10 @@ template<class E, MEMFLAGS F, unsigned int N>
 bool GenericTaskQueue<E, F, N>::push_slow(E t, uint dirty_n_elems) {
   if (dirty_n_elems == N - 1) {
     // Actually means 0, so do the push.
-    uint localBot = _bottom;
+    uint localBot = this->get_bottom();
     // g++ complains if the volatile result of the assignment is unused.
     const_cast<E&>(_elems[localBot] = t);
-    OrderAccess::release_store(&_bottom, increment_index(localBot));
+    this->set_bottom(increment_index(localBot));
     TASKQUEUE_STATS_ONLY(stats.record_push());
     return true;
   }
@@ -372,10 +405,10 @@ bool GenericTaskQueue<E, F, N>::pop_local_slow(uint localBot, Age oldAge) {
   if (localBot == oldAge.top()) {
     // No competing pop_global has yet incremented "top"; we'll try to
     // install new_age, thus claiming the element.
-    Age tempAge = _age.cmpxchg(newAge, oldAge);
+    Age tempAge = this->cmpxchg_age(newAge, oldAge);
     if (tempAge == oldAge) {
       // We win.
-      assert(dirty_size(localBot, _age.top()) != N - 1, "sanity");
+      assert(dirty_size(localBot, get_age_top()) != N - 1, "sanity");
       TASKQUEUE_STATS_ONLY(stats.record_pop_slow());
       return true;
     }
@@ -383,14 +416,14 @@ bool GenericTaskQueue<E, F, N>::pop_local_slow(uint localBot, Age oldAge) {
   // We lose; a completing pop_global gets the element.  But the queue is empty
   // and top is greater than bottom.  Fix this representation of the empty queue
   // to become the canonical one.
-  _age.set(newAge);
-  assert(dirty_size(localBot, _age.top()) != N - 1, "sanity");
+  this->set_age(newAge);
+  assert(dirty_size(localBot, get_age_top()) != N - 1, "sanity");
   return false;
 }
 
 template<class E, MEMFLAGS F, unsigned int N>
 bool GenericTaskQueue<E, F, N>::pop_global(E& t) {
-  Age oldAge = _age.get();
+  Age oldAge = get_age();
   // Architectures with weak memory model require a fence here. The
   // fence has a cumulative effect on getting age and getting bottom.
   // This way it is guaranteed that bottom is not older than age,
@@ -398,7 +431,8 @@ bool GenericTaskQueue<E, F, N>::pop_global(E& t) {
 #if !(defined SPARC || defined IA32 || defined AMD64)
   OrderAccess::fence();
 #endif
-  uint localBot = OrderAccess::load_acquire((volatile juint*)&_bottom);
+
+  uint localBot = this->get_bottom();
   uint n_elems = size(localBot, oldAge.top());
   if (n_elems == 0) {
     return false;
@@ -407,7 +441,7 @@ bool GenericTaskQueue<E, F, N>::pop_global(E& t) {
   const_cast<E&>(t = _elems[oldAge.top()]);
   Age newAge(oldAge);
   newAge.increment();
-  Age resAge = _age.cmpxchg(newAge, oldAge);
+  Age resAge = this->cmpxchg_age(newAge, oldAge);
 
   // Note that using "_bottom" here might fail, since a pop_local might
   // have decremented it.
@@ -683,15 +717,15 @@ public:
 
 template<class E, MEMFLAGS F, unsigned int N> inline bool
 GenericTaskQueue<E, F, N>::push(E t) {
-  uint localBot = _bottom;
+  uint localBot = this->get_bottom();
   assert(localBot < N, "_bottom out of range.");
-  idx_t top = _age.top();
+  idx_t top = get_age_top();
   uint dirty_n_elems = dirty_size(localBot, top);
   assert(dirty_n_elems < N, "n_elems out of range.");
   if (dirty_n_elems < max_elems()) {
     // g++ complains if the volatile result of the assignment is unused.
     const_cast<E&>(_elems[localBot] = t);
-    OrderAccess::release_store(&_bottom, increment_index(localBot));
+    this->set_bottom(increment_index(localBot));
     TASKQUEUE_STATS_ONLY(stats.record_push());
     return true;
   } else {
@@ -701,16 +735,16 @@ GenericTaskQueue<E, F, N>::push(E t) {
 
 template<class E, MEMFLAGS F, unsigned int N> inline bool
 GenericTaskQueue<E, F, N>::pop_local(E& t) {
-  uint localBot = _bottom;
+  uint localBot = this->get_bottom();
   // This value cannot be N-1.  That can only occur as a result of
   // the assignment to bottom in this method.  If it does, this method
   // resets the size to 0 before the next call (which is sequential,
   // since this is pop_local.)
-  uint dirty_n_elems = dirty_size(localBot, _age.top());
+  uint dirty_n_elems = dirty_size(localBot, get_age_top());
   assert(dirty_n_elems != N - 1, "Shouldn't be possible...");
   if (dirty_n_elems == 0) return false;
   localBot = decrement_index(localBot);
-  _bottom = localBot;
+  this->set_bottom(localBot);
   // This is necessary to prevent any read below from being reordered
   // before the store just above.
   OrderAccess::fence();
@@ -719,7 +753,7 @@ GenericTaskQueue<E, F, N>::pop_local(E& t) {
   // If there's still at least one element in the queue, based on the
   // "_bottom" and "age" we've read, then there can be no interference with
   // a "pop_global" operation, and we're done.
-  idx_t tp = _age.top();    // XXX
+  idx_t tp = get_age_top();    // XXX
   if (size(localBot, tp) > 0) {
     assert(dirty_size(localBot, tp) != N - 1, "sanity");
     TASKQUEUE_STATS_ONLY(stats.record_pop());
@@ -727,7 +761,7 @@ GenericTaskQueue<E, F, N>::pop_local(E& t) {
   } else {
     // Otherwise, the queue contained exactly one element; we take the slow
     // path.
-    return pop_local_slow(localBot, _age.get());
+    return pop_local_slow(localBot, get_age());
   }
 }
 

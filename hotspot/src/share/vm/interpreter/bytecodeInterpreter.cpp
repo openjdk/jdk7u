@@ -28,6 +28,7 @@
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/bytecodeInterpreter.hpp"
 #include "interpreter/bytecodeInterpreter.inline.hpp"
+#include "interpreter/bytecodeInterpreterProfiling.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "memory/cardTableModRefBS.hpp"
@@ -35,6 +36,8 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
+#include "prims/jvmtiThreadState.hpp"
+#include "runtime/biasedLocking.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.hpp"
@@ -64,6 +67,9 @@
 #endif
 #ifdef TARGET_OS_ARCH_linux_ppc
 # include "orderAccess_linux_ppc.inline.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_aix_ppc
+# include "orderAccess_aix_ppc.inline.hpp"
 #endif
 #ifdef TARGET_OS_ARCH_bsd_x86
 # include "orderAccess_bsd_x86.inline.hpp"
@@ -137,10 +143,11 @@
  * is no entry point to do the transition to vm so we just
  * do it by hand here.
  */
-#define VM_JAVA_ERROR_NO_JUMP(name, msg)                                          \
+#define VM_JAVA_ERROR_NO_JUMP(name, msg, note_a_trap)                             \
     DECACHE_STATE();                                                              \
     SET_LAST_JAVA_FRAME();                                                        \
     {                                                                             \
+       InterpreterRuntime::note_a_trap(THREAD, istate->method(), BCI());          \
        ThreadInVMfromJava trans(THREAD);                                          \
        Exceptions::_throw_msg(THREAD, __FILE__, __LINE__, name, msg);             \
     }                                                                             \
@@ -148,8 +155,8 @@
     CACHE_STATE();
 
 // Normal throw of a java error
-#define VM_JAVA_ERROR(name, msg)                                                  \
-    VM_JAVA_ERROR_NO_JUMP(name, msg)                                              \
+#define VM_JAVA_ERROR(name, msg, note_a_trap)                                     \
+    VM_JAVA_ERROR_NO_JUMP(name, msg, note_a_trap)                                 \
     goto handle_exception;
 
 #ifdef PRODUCT
@@ -195,6 +202,10 @@
           if (THREAD->pop_frame_pending() &&                                     \
               !THREAD->pop_frame_in_process()) {                                 \
             goto handle_Pop_Frame;                                               \
+          }                                                                      \
+          if (THREAD->jvmti_thread_state() &&                                    \
+              THREAD->jvmti_thread_state()->is_earlyret_pending()) {             \
+            goto handle_Early_Return;                                            \
           }                                                                      \
           opcode = *pc;                                                          \
         }                                                                        \
@@ -328,12 +339,30 @@
       if (UseLoopCounter) {                                                                         \
         bool do_OSR = UseOnStackReplacement;                                                        \
         BACKEDGE_COUNT->increment();                                                                \
-        if (do_OSR) do_OSR = BACKEDGE_COUNT->reached_InvocationLimit();                             \
+        if (ProfileInterpreter) {                                                                   \
+          BI_PROFILE_GET_OR_CREATE_METHOD_DATA(handle_exception);                                   \
+          /* Check for overflow against MDO count. */                                               \
+          do_OSR = do_OSR                                                                           \
+            && (mdo_last_branch_taken_count >= (uint)InvocationCounter::InterpreterBackwardBranchLimit)\
+            /* When ProfileInterpreter is on, the backedge_count comes     */                       \
+            /* from the methodDataOop, which value does not get reset on   */                       \
+            /* the call to frequency_counter_overflow().  To avoid         */                       \
+            /* excessive calls to the overflow routine while the method is */                       \
+            /* being compiled, add a second test to make sure the overflow */                       \
+            /* function is called only once every overflow_frequency.      */                       \
+            && (!(mdo_last_branch_taken_count & 1023));                                             \
+        } else {                                                                                    \
+          /* check for overflow of backedge counter */                                              \
+          do_OSR = do_OSR                                                                           \
+            && INVOCATION_COUNT->reached_BackwardBranchLimit(BACKEDGE_COUNT);                       \
+        }                                                                                           \
         if (do_OSR) {                                                                               \
           nmethod*  osr_nmethod;                                                                    \
           OSR_REQUEST(osr_nmethod, branch_pc);                                                      \
           if (osr_nmethod != NULL && osr_nmethod->osr_entry_bci() != InvalidOSREntryBci) {          \
-            intptr_t* buf = SharedRuntime::OSR_migration_begin(THREAD);                             \
+            intptr_t* buf;                                                                          \
+            /* Call OSR migration with last java frame only, no checks. */                          \
+            CALL_VM_NAKED_LJF(buf=SharedRuntime::OSR_migration_begin(THREAD));                      \
             istate->set_msg(do_osr);                                                                \
             istate->set_osr_buf((address)buf);                                                      \
             istate->set_osr_entry(osr_nmethod->osr_entry());                                        \
@@ -341,7 +370,6 @@
           }                                                                                         \
         }                                                                                           \
       }  /* UseCompiler ... */                                                                      \
-      INCR_INVOCATION_COUNT;                                                                        \
       SAFEPOINT;                                                                                    \
     }
 
@@ -374,16 +402,20 @@
 #undef CACHE_FRAME
 #define CACHE_FRAME()
 
+// BCI() returns the current bytecode-index.
+#undef  BCI
+#define BCI()           ((int)(intptr_t)(pc - (intptr_t)istate->method()->code_base()))
+
 /*
  * CHECK_NULL - Macro for throwing a NullPointerException if the object
  * passed is a null ref.
  * On some architectures/platforms it should be possible to do this implicitly
  */
 #undef CHECK_NULL
-#define CHECK_NULL(obj_)                                                 \
-    if ((obj_) == NULL) {                                                \
-        VM_JAVA_ERROR(vmSymbols::java_lang_NullPointerException(), "");  \
-    }                                                                    \
+#define CHECK_NULL(obj_)                                                                      \
+    if ((obj_) == NULL) {                                                                     \
+      VM_JAVA_ERROR(vmSymbols::java_lang_NullPointerException(), NULL, note_nullCheck_trap);  \
+    }                                                                                         \
     VERIFY_OOP(obj_)
 
 #define VMdoubleConstZero() 0.0
@@ -406,22 +438,30 @@
         CACHE_CP();     \
         CACHE_LOCALS();
 
-// Call the VM don't check for pending exceptions
-#define CALL_VM_NOCHECK(func)                                     \
-          DECACHE_STATE();                                        \
-          SET_LAST_JAVA_FRAME();                                  \
-          func;                                                   \
-          RESET_LAST_JAVA_FRAME();                                \
-          CACHE_STATE();                                          \
-          if (THREAD->pop_frame_pending() &&                      \
-              !THREAD->pop_frame_in_process()) {                  \
-            goto handle_Pop_Frame;                                \
+// Call the VM with last java frame only.
+#define CALL_VM_NAKED_LJF(func)                                       \
+          DECACHE_STATE();                                            \
+          SET_LAST_JAVA_FRAME();                                      \
+          func;                                                       \
+          RESET_LAST_JAVA_FRAME();                                    \
+          CACHE_STATE();                                              \
+
+// Call the VM. Don't check for pending exceptions.
+#define CALL_VM_NOCHECK(func)                                         \
+          CALL_VM_NAKED_LJF(func)                                     \
+          if (THREAD->pop_frame_pending() &&                          \
+              !THREAD->pop_frame_in_process()) {                      \
+            goto handle_Pop_Frame;                                    \
+          }                                                           \
+          if (THREAD->jvmti_thread_state() &&                         \
+              THREAD->jvmti_thread_state()->is_earlyret_pending()) {  \
+            goto handle_Early_Return;                                 \
           }
 
 // Call the VM and check for pending exceptions
-#define CALL_VM(func, label) {                                    \
-          CALL_VM_NOCHECK(func);                                  \
-          if (THREAD->has_pending_exception()) goto label;        \
+#define CALL_VM(func, label) {                                        \
+          CALL_VM_NOCHECK(func);                                      \
+          if (THREAD->has_pending_exception()) goto label;            \
         }
 
 /*
@@ -464,7 +504,26 @@ BytecodeInterpreter::run(interpreterState istate) {
 
 #ifdef ASSERT
   if (istate->_msg != initialize) {
-    assert(abs(istate->_stack_base - istate->_stack_limit) == (istate->_method->max_stack() + 1), "bad stack limit");
+    // We have a problem here if we are running with a pre-hsx24 JDK (for example during bootstrap)
+    // because in that case, EnableInvokeDynamic is true by default but will be later switched off
+    // if java_lang_invoke_MethodHandle::compute_offsets() detects that the JDK only has the classes
+    // for the old JSR292 implementation.
+    // This leads to a situation where 'istate->_stack_limit' always accounts for
+    // methodOopDesc::extra_stack_entries() because it is computed in
+    // CppInterpreterGenerator::generate_compute_interpreter_state() which was generated while
+    // EnableInvokeDynamic was still true. On the other hand, istate->_method->max_stack() doesn't
+    // account for extra_stack_entries() anymore because at the time when it is called
+    // EnableInvokeDynamic was already set to false.
+    // So we have a second version of the assertion which handles the case where EnableInvokeDynamic was
+    // switched off because of the wrong classes.
+    if (EnableInvokeDynamic || FLAG_IS_CMDLINE(EnableInvokeDynamic)) {
+      assert(labs(istate->_stack_base - istate->_stack_limit) == (istate->_method->max_stack() + 1), "bad stack limit");
+    }
+    else {
+      const int extra_stack_entries = 2; // MUST match the value in methodOopDesc::extra_stack_entries()
+      assert(labs(istate->_stack_base - istate->_stack_limit) == (istate->_method->max_stack() + extra_stack_entries
+                                                                                               + 1), "bad stack limit");
+    }
 #ifndef SHARK
     IA32_ONLY(assert(istate->_stack_limit == istate->_thread->last_Java_sp() + 1, "wrong"));
 #endif // !SHARK
@@ -480,8 +539,6 @@ BytecodeInterpreter::run(interpreterState istate) {
   interpreterState orig = istate;
 #endif
 
-  static volatile jbyte* _byte_map_base; // adjusted card table base for oop store barrier
-
   register intptr_t*        topOfStack = (intptr_t *)istate->stack(); /* access with STACK macros */
   register address          pc = istate->bcp();
   register jubyte opcode;
@@ -489,12 +546,9 @@ BytecodeInterpreter::run(interpreterState istate) {
   register constantPoolCacheOop  cp = istate->constants(); // method()->constants()->cache()
 #ifdef LOTS_OF_REGS
   register JavaThread*      THREAD = istate->thread();
-  register volatile jbyte*  BYTE_MAP_BASE = _byte_map_base;
 #else
 #undef THREAD
 #define THREAD istate->thread()
-#undef BYTE_MAP_BASE
-#define BYTE_MAP_BASE _byte_map_base
 #endif
 
 #ifdef USELABELS
@@ -601,6 +655,13 @@ BytecodeInterpreter::run(interpreterState istate) {
          topOfStack < istate->stack_base(),
          "Stack top out of range");
 
+#ifdef CC_INTERP_PROFILE
+  // MethodData's last branch taken count.
+  uint mdo_last_branch_taken_count = 0;
+#else
+  const uint mdo_last_branch_taken_count = 0;
+#endif
+
   switch (istate->msg()) {
     case initialize: {
       if (initialized++) ShouldNotReachHere(); // Only one initialize call
@@ -608,9 +669,6 @@ BytecodeInterpreter::run(interpreterState istate) {
 #ifdef VM_JVMTI
       _jvmti_interp_events = JvmtiExport::can_post_interpreter_events();
 #endif
-      BarrierSet* bs = Universe::heap()->barrier_set();
-      assert(bs->kind() == BarrierSet::CardTableModRef, "Wrong barrier set kind");
-      _byte_map_base = (volatile jbyte*)(((CardTableModRefBS*)bs)->byte_map_base);
       return;
     }
     break;
@@ -623,15 +681,12 @@ BytecodeInterpreter::run(interpreterState istate) {
           METHOD->increment_interpreter_invocation_count();
         }
         INCR_INVOCATION_COUNT;
-        if (INVOCATION_COUNT->reached_InvocationLimit()) {
-            CALL_VM((void)InterpreterRuntime::frequency_counter_overflow(THREAD, NULL), handle_exception);
-
-            // We no longer retry on a counter overflow
-
-            // istate->set_msg(retry_method);
-            // THREAD->clr_do_not_unlock();
-            // return;
+        if (INVOCATION_COUNT->reached_InvocationLimit(BACKEDGE_COUNT)) {
+          CALL_VM((void)InterpreterRuntime::frequency_counter_overflow(THREAD, NULL), handle_exception);
+          // We no longer retry on a counter overflow
         }
+        // Get or create profile data. Check for pending (async) exceptions.
+        BI_PROFILE_GET_OR_CREATE_METHOD_DATA(handle_exception);
         SAFEPOINT;
       }
 
@@ -653,7 +708,6 @@ BytecodeInterpreter::run(interpreterState istate) {
       }
 #endif // HACK
 
-
       // lock method if synchronized
       if (METHOD->is_synchronized()) {
           // oop rcvr = locals[0].j.r;
@@ -665,99 +719,86 @@ BytecodeInterpreter::run(interpreterState istate) {
             VERIFY_OOP(rcvr);
           }
           // The initial monitor is ours for the taking
+          // Monitor not filled in frame manager any longer as this caused race condition with biased locking.
           BasicObjectLock* mon = &istate->monitor_base()[-1];
-          oop monobj = mon->obj();
-          assert(mon->obj() == rcvr, "method monitor mis-initialized");
+          mon->set_obj(rcvr);
+          bool success = false;
+          uintptr_t epoch_mask_in_place = (uintptr_t)markOopDesc::epoch_mask_in_place;
+          markOop mark = rcvr->mark();
+          intptr_t hash = (intptr_t) markOopDesc::no_hash;
+          // implies UseBiasedLocking
+          if (mark->has_bias_pattern()) {
+            uintptr_t thread_ident;
+            uintptr_t anticipated_bias_locking_value;
+            thread_ident = (uintptr_t)istate->thread();
+            anticipated_bias_locking_value =
+              (((uintptr_t)rcvr->klass()->klass_part()->prototype_header() | thread_ident) ^ (uintptr_t)mark) &
+              ~((uintptr_t) markOopDesc::age_mask_in_place);
 
-          bool success = UseBiasedLocking;
-          if (UseBiasedLocking) {
-            markOop mark = rcvr->mark();
-            if (mark->has_bias_pattern()) {
-              // The bias pattern is present in the object's header. Need to check
-              // whether the bias owner and the epoch are both still current.
-              intptr_t xx = ((intptr_t) THREAD) ^ (intptr_t) mark;
-              xx = (intptr_t) rcvr->klass()->klass_part()->prototype_header() ^ xx;
-              intptr_t yy = (xx & ~((int) markOopDesc::age_mask_in_place));
-              if (yy != 0 ) {
-                // At this point we know that the header has the bias pattern and
-                // that we are not the bias owner in the current epoch. We need to
-                // figure out more details about the state of the header in order to
-                // know what operations can be legally performed on the object's
-                // header.
-
-                // If the low three bits in the xor result aren't clear, that means
-                // the prototype header is no longer biased and we have to revoke
-                // the bias on this object.
-
-                if (yy & markOopDesc::biased_lock_mask_in_place == 0 ) {
-                  // Biasing is still enabled for this data type. See whether the
-                  // epoch of the current bias is still valid, meaning that the epoch
-                  // bits of the mark word are equal to the epoch bits of the
-                  // prototype header. (Note that the prototype header's epoch bits
-                  // only change at a safepoint.) If not, attempt to rebias the object
-                  // toward the current thread. Note that we must be absolutely sure
-                  // that the current epoch is invalid in order to do this because
-                  // otherwise the manipulations it performs on the mark word are
-                  // illegal.
-                  if (yy & markOopDesc::epoch_mask_in_place == 0) {
-                    // The epoch of the current bias is still valid but we know nothing
-                    // about the owner; it might be set or it might be clear. Try to
-                    // acquire the bias of the object using an atomic operation. If this
-                    // fails we will go in to the runtime to revoke the object's bias.
-                    // Note that we first construct the presumed unbiased header so we
-                    // don't accidentally blow away another thread's valid bias.
-                    intptr_t unbiased = (intptr_t) mark & (markOopDesc::biased_lock_mask_in_place |
-                                                           markOopDesc::age_mask_in_place |
-                                                           markOopDesc::epoch_mask_in_place);
-                    if (Atomic::cmpxchg_ptr((intptr_t)THREAD | unbiased, (intptr_t*) rcvr->mark_addr(), unbiased) != unbiased) {
-                      CALL_VM(InterpreterRuntime::monitorenter(THREAD, mon), handle_exception);
-                    }
-                  } else {
-                    try_rebias:
-                    // At this point we know the epoch has expired, meaning that the
-                    // current "bias owner", if any, is actually invalid. Under these
-                    // circumstances _only_, we are allowed to use the current header's
-                    // value as the comparison value when doing the cas to acquire the
-                    // bias in the current epoch. In other words, we allow transfer of
-                    // the bias from one thread to another directly in this situation.
-                    xx = (intptr_t) rcvr->klass()->klass_part()->prototype_header() | (intptr_t) THREAD;
-                    if (Atomic::cmpxchg_ptr((intptr_t)THREAD | (intptr_t) rcvr->klass()->klass_part()->prototype_header(),
-                                            (intptr_t*) rcvr->mark_addr(),
-                                            (intptr_t) mark) != (intptr_t) mark) {
-                      CALL_VM(InterpreterRuntime::monitorenter(THREAD, mon), handle_exception);
-                    }
-                  }
-                } else {
-                  try_revoke_bias:
-                  // The prototype mark in the klass doesn't have the bias bit set any
-                  // more, indicating that objects of this data type are not supposed
-                  // to be biased any more. We are going to try to reset the mark of
-                  // this object to the prototype value and fall through to the
-                  // CAS-based locking scheme. Note that if our CAS fails, it means
-                  // that another thread raced us for the privilege of revoking the
-                  // bias of this particular object, so it's okay to continue in the
-                  // normal locking code.
-                  //
-                  xx = (intptr_t) rcvr->klass()->klass_part()->prototype_header() | (intptr_t) THREAD;
-                  if (Atomic::cmpxchg_ptr(rcvr->klass()->klass_part()->prototype_header(),
-                                          (intptr_t*) rcvr->mark_addr(),
-                                          mark) == mark) {
-                    // (*counters->revoked_lock_entry_count_addr())++;
-                  success = false;
-                  }
-                }
+            if (anticipated_bias_locking_value == 0) {
+              // already biased towards this thread, nothing to do
+              if (PrintBiasedLockingStatistics) {
+                (* BiasedLocking::biased_lock_entry_count_addr())++;
               }
-            } else {
-              cas_label:
-              success = false;
+              success = true;
+            }
+            else if ((anticipated_bias_locking_value & markOopDesc::biased_lock_mask_in_place) != 0) {
+              // try revoke bias
+              markOop header = rcvr->klass()->klass_part()->prototype_header();
+              if (hash != markOopDesc::no_hash) {
+                header = header->copy_set_hash(hash);
+              }
+              if (Atomic::cmpxchg_ptr(header, rcvr->mark_addr(), mark) == mark) {
+                if (PrintBiasedLockingStatistics)
+                  (*BiasedLocking::revoked_lock_entry_count_addr())++;
+              }
+            }
+            else if ((anticipated_bias_locking_value & epoch_mask_in_place) !=0) {
+              // try rebias
+              markOop new_header = (markOop) ( (intptr_t) rcvr->klass()->klass_part()->prototype_header() | thread_ident);
+              if (hash != markOopDesc::no_hash) {
+                new_header = new_header->copy_set_hash(hash);
+              }
+              if (Atomic::cmpxchg_ptr((void*)new_header, rcvr->mark_addr(), mark) == mark) {
+                if (PrintBiasedLockingStatistics)
+                  (* BiasedLocking::rebiased_lock_entry_count_addr())++;
+              }
+              else {
+                CALL_VM(InterpreterRuntime::monitorenter(THREAD, mon), handle_exception);
+              }
+              success = true;
+            }
+            else {
+              // Try to bias towards thread in case object is anonymously biased.
+              markOop header = (markOop) ((uintptr_t) mark &
+                                          ((uintptr_t)markOopDesc::biased_lock_mask_in_place |
+                                           (uintptr_t)markOopDesc::age_mask_in_place | epoch_mask_in_place));
+              if (hash != markOopDesc::no_hash) {
+                header = header->copy_set_hash(hash);
+              }
+              markOop new_header = (markOop) ((uintptr_t) header | thread_ident);
+              // Debugging hint.
+              DEBUG_ONLY(mon->lock()->set_displaced_header((markOop) (uintptr_t) 0xdeaddead);)
+              if (Atomic::cmpxchg_ptr((void*)new_header, rcvr->mark_addr(), header) == header) {
+                if (PrintBiasedLockingStatistics)
+                  (* BiasedLocking::anonymously_biased_lock_entry_count_addr())++;
+              }
+              else {
+                CALL_VM(InterpreterRuntime::monitorenter(THREAD, mon), handle_exception);
+              }
+              success = true;
             }
           }
+
+          // Traditional lightweight locking.
           if (!success) {
             markOop displaced = rcvr->mark()->set_unlocked();
             mon->lock()->set_displaced_header(displaced);
-            if (Atomic::cmpxchg_ptr(mon, rcvr->mark_addr(), displaced) != displaced) {
+            // UseHeavyMonitors support in CC_INTERP.
+            bool call_vm = UseHeavyMonitors;
+            if (call_vm || Atomic::cmpxchg_ptr(mon, rcvr->mark_addr(), displaced) != displaced) {
               // Is it simple recursive case?
-              if (THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
+              if (!call_vm && THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
                 mon->lock()->set_displaced_header(NULL);
               } else {
                 CALL_VM(InterpreterRuntime::monitorenter(THREAD, mon), handle_exception);
@@ -785,9 +826,18 @@ BytecodeInterpreter::run(interpreterState istate) {
     case popping_frame: {
       // returned from a java call to pop the frame, restart the call
       // clear the message so we don't confuse ourselves later
-      ShouldNotReachHere();  // we don't return this.
+      // Commented out ShouldNotReachHere() below, because we do reach
+      // here when the frame manager calls the interpreter loop after
+      // popping the top frame.
+      // ShouldNotReachHere();  // we don't return this.
       assert(THREAD->pop_frame_in_process(), "wrong frame pop state");
       istate->set_msg(no_request);
+      if (_compiling) {
+        // Set MDX back to the ProfileData of the invoke bytecode that will be
+        // restarted.
+        SET_MDX(NULL);
+        BI_PROFILE_GET_OR_CREATE_METHOD_DATA(handle_exception);
+      }
       THREAD->clr_pop_frame_in_process();
       goto run;
     }
@@ -813,10 +863,19 @@ BytecodeInterpreter::run(interpreterState istate) {
       if (THREAD->pop_frame_pending() && !THREAD->pop_frame_in_process()) {
         goto handle_Pop_Frame;
       }
+      if (THREAD->jvmti_thread_state() &&
+          THREAD->jvmti_thread_state()->is_earlyret_pending()) {
+        goto handle_Early_Return;
+      }
 
       if (THREAD->has_pending_exception()) goto handle_exception;
       // Update the pc by the saved amount of the invoke bytecode size
       UPDATE_PC(istate->bcp_advance());
+
+      if (_compiling) {
+        // Get or create profile data. Check for pending (async) exceptions.
+        BI_PROFILE_GET_OR_CREATE_METHOD_DATA(handle_exception);
+      }
       goto run;
     }
 
@@ -824,6 +883,11 @@ BytecodeInterpreter::run(interpreterState istate) {
       // Returned from an opcode that will reexecute. Deopt was
       // a result of a PopFrame request.
       //
+
+      if (_compiling) {
+        // Get or create profile data. Check for pending (async) exceptions.
+        BI_PROFILE_GET_OR_CREATE_METHOD_DATA(handle_exception);
+      }
       goto run;
     }
 
@@ -846,6 +910,11 @@ BytecodeInterpreter::run(interpreterState istate) {
       }
       UPDATE_PC(Bytecodes::length_at(METHOD, pc));
       if (THREAD->has_pending_exception()) goto handle_exception;
+
+      if (_compiling) {
+        // Get or create profile data. Check for pending (async) exceptions.
+        BI_PROFILE_GET_OR_CREATE_METHOD_DATA(handle_exception);
+      }
       goto run;
     }
     case got_monitors: {
@@ -858,15 +927,87 @@ BytecodeInterpreter::run(interpreterState istate) {
       BasicObjectLock* entry = (BasicObjectLock*) istate->stack_base();
       assert(entry->obj() == NULL, "Frame manager didn't allocate the monitor");
       entry->set_obj(lockee);
+      bool success = false;
+      uintptr_t epoch_mask_in_place = (uintptr_t)markOopDesc::epoch_mask_in_place;
 
-      markOop displaced = lockee->mark()->set_unlocked();
-      entry->lock()->set_displaced_header(displaced);
-      if (Atomic::cmpxchg_ptr(entry, lockee->mark_addr(), displaced) != displaced) {
-        // Is it simple recursive case?
-        if (THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
-          entry->lock()->set_displaced_header(NULL);
-        } else {
-          CALL_VM(InterpreterRuntime::monitorenter(THREAD, entry), handle_exception);
+      markOop mark = lockee->mark();
+      intptr_t hash = (intptr_t) markOopDesc::no_hash;
+      // implies UseBiasedLocking
+      if (mark->has_bias_pattern()) {
+        uintptr_t thread_ident;
+        uintptr_t anticipated_bias_locking_value;
+        thread_ident = (uintptr_t)istate->thread();
+        anticipated_bias_locking_value =
+          (((uintptr_t)lockee->klass()->klass_part()->prototype_header() | thread_ident) ^ (uintptr_t)mark) &
+          ~((uintptr_t) markOopDesc::age_mask_in_place);
+
+        if  (anticipated_bias_locking_value == 0) {
+          // already biased towards this thread, nothing to do
+          if (PrintBiasedLockingStatistics) {
+            (* BiasedLocking::biased_lock_entry_count_addr())++;
+          }
+          success = true;
+        }
+        else if ((anticipated_bias_locking_value & markOopDesc::biased_lock_mask_in_place) != 0) {
+          // try revoke bias
+          markOop header = lockee->klass()->klass_part()->prototype_header();
+          if (hash != markOopDesc::no_hash) {
+            header = header->copy_set_hash(hash);
+          }
+          if (Atomic::cmpxchg_ptr(header, lockee->mark_addr(), mark) == mark) {
+            if (PrintBiasedLockingStatistics)
+              (*BiasedLocking::revoked_lock_entry_count_addr())++;
+          }
+        }
+        else if ((anticipated_bias_locking_value & epoch_mask_in_place) !=0) {
+          // try rebias
+          markOop new_header = (markOop) ( (intptr_t) lockee->klass()->klass_part()->prototype_header() | thread_ident);
+          if (hash != markOopDesc::no_hash) {
+                new_header = new_header->copy_set_hash(hash);
+          }
+          if (Atomic::cmpxchg_ptr((void*)new_header, lockee->mark_addr(), mark) == mark) {
+            if (PrintBiasedLockingStatistics)
+              (* BiasedLocking::rebiased_lock_entry_count_addr())++;
+          }
+          else {
+            CALL_VM(InterpreterRuntime::monitorenter(THREAD, entry), handle_exception);
+          }
+          success = true;
+        }
+        else {
+          // try to bias towards thread in case object is anonymously biased
+          markOop header = (markOop) ((uintptr_t) mark & ((uintptr_t)markOopDesc::biased_lock_mask_in_place |
+                                                          (uintptr_t)markOopDesc::age_mask_in_place | epoch_mask_in_place));
+          if (hash != markOopDesc::no_hash) {
+            header = header->copy_set_hash(hash);
+          }
+          markOop new_header = (markOop) ((uintptr_t) header | thread_ident);
+          // debugging hint
+          DEBUG_ONLY(entry->lock()->set_displaced_header((markOop) (uintptr_t) 0xdeaddead);)
+          if (Atomic::cmpxchg_ptr((void*)new_header, lockee->mark_addr(), header) == header) {
+            if (PrintBiasedLockingStatistics)
+              (* BiasedLocking::anonymously_biased_lock_entry_count_addr())++;
+          }
+          else {
+            CALL_VM(InterpreterRuntime::monitorenter(THREAD, entry), handle_exception);
+          }
+          success = true;
+        }
+      }
+
+      // traditional lightweight locking
+      if (!success) {
+        markOop displaced = lockee->mark()->set_unlocked();
+        entry->lock()->set_displaced_header(displaced);
+        // UseHeavyMonitors support in CC_INTERP.
+        bool call_vm = UseHeavyMonitors;
+        if (call_vm || Atomic::cmpxchg_ptr(entry, lockee->mark_addr(), displaced) != displaced) {
+          // Is it simple recursive case?
+          if (!call_vm && THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
+            entry->lock()->set_displaced_header(NULL);
+          } else {
+            CALL_VM(InterpreterRuntime::monitorenter(THREAD, entry), handle_exception);
+          }
         }
       }
       UPDATE_PC_AND_TOS(1, -1);
@@ -1027,6 +1168,11 @@ run:
           uint16_t reg = Bytes::get_Java_u2(pc + 2);
 
           opcode = pc[1];
+
+          // Wide and it's sub-bytecode are counted as separate instructions. If we
+          // don't account for this here, the bytecode trace skips the next bytecode.
+          DO_UPDATE_INSTRUCTION_COUNT(opcode);
+
           switch(opcode) {
               case Bytecodes::_aload:
                   VERIFY_OOP(LOCALS_OBJECT(reg));
@@ -1070,10 +1216,13 @@ run:
                   UPDATE_PC_AND_CONTINUE(6);
               }
               case Bytecodes::_ret:
+                  // Profile ret.
+                  BI_PROFILE_UPDATE_RET(/*bci=*/((int)(intptr_t)(LOCALS_ADDR(reg))));
+                  // Now, update the pc.
                   pc = istate->method()->code_base() + (intptr_t)(LOCALS_ADDR(reg));
                   UPDATE_PC_AND_CONTINUE(0);
               default:
-                  VM_JAVA_ERROR(vmSymbols::java_lang_InternalError(), "undefined opcode");
+                  VM_JAVA_ERROR(vmSymbols::java_lang_InternalError(), "undefined opcode", note_no_trap);
           }
       }
 
@@ -1154,7 +1303,7 @@ run:
       CASE(_i##opcname):                                                \
           if (test && (STACK_INT(-1) == 0)) {                           \
               VM_JAVA_ERROR(vmSymbols::java_lang_ArithmeticException(), \
-                            "/ by zero");                               \
+                            "/ by zero", note_div0Check_trap);          \
           }                                                             \
           SET_STACK_INT(VMint##opname(STACK_INT(-2),                    \
                                       STACK_INT(-1)),                   \
@@ -1166,7 +1315,7 @@ run:
             jlong l1 = STACK_LONG(-1);                                  \
             if (VMlongEqz(l1)) {                                        \
               VM_JAVA_ERROR(vmSymbols::java_lang_ArithmeticException(), \
-                            "/ by long zero");                          \
+                            "/ by long zero", note_div0Check_trap);     \
             }                                                           \
           }                                                             \
           /* First long at (-1,-2) next long at (-3,-4) */              \
@@ -1379,17 +1528,23 @@ run:
 
 #define COMPARISON_OP(name, comparison)                                      \
       CASE(_if_icmp##name): {                                                \
-          int skip = (STACK_INT(-2) comparison STACK_INT(-1))                \
+          const bool cmp = (STACK_INT(-2) comparison STACK_INT(-1));         \
+          int skip = cmp                                                     \
                       ? (int16_t)Bytes::get_Java_u2(pc + 1) : 3;             \
           address branch_pc = pc;                                            \
+          /* Profile branch. */                                              \
+          BI_PROFILE_UPDATE_BRANCH(/*is_taken=*/cmp);                        \
           UPDATE_PC_AND_TOS(skip, -2);                                       \
           DO_BACKEDGE_CHECKS(skip, branch_pc);                               \
           CONTINUE;                                                          \
       }                                                                      \
       CASE(_if##name): {                                                     \
-          int skip = (STACK_INT(-1) comparison 0)                            \
+          const bool cmp = (STACK_INT(-1) comparison 0);                     \
+          int skip = cmp                                                     \
                       ? (int16_t)Bytes::get_Java_u2(pc + 1) : 3;             \
           address branch_pc = pc;                                            \
+          /* Profile branch. */                                              \
+          BI_PROFILE_UPDATE_BRANCH(/*is_taken=*/cmp);                        \
           UPDATE_PC_AND_TOS(skip, -1);                                       \
           DO_BACKEDGE_CHECKS(skip, branch_pc);                               \
           CONTINUE;                                                          \
@@ -1398,9 +1553,12 @@ run:
 #define COMPARISON_OP2(name, comparison)                                     \
       COMPARISON_OP(name, comparison)                                        \
       CASE(_if_acmp##name): {                                                \
-          int skip = (STACK_OBJECT(-2) comparison STACK_OBJECT(-1))          \
+          const bool cmp = (STACK_OBJECT(-2) comparison STACK_OBJECT(-1));   \
+          int skip = cmp                                                     \
                        ? (int16_t)Bytes::get_Java_u2(pc + 1) : 3;            \
           address branch_pc = pc;                                            \
+          /* Profile branch. */                                              \
+          BI_PROFILE_UPDATE_BRANCH(/*is_taken=*/cmp);                        \
           UPDATE_PC_AND_TOS(skip, -2);                                       \
           DO_BACKEDGE_CHECKS(skip, branch_pc);                               \
           CONTINUE;                                                          \
@@ -1408,9 +1566,12 @@ run:
 
 #define NULL_COMPARISON_NOT_OP(name)                                         \
       CASE(_if##name): {                                                     \
-          int skip = (!(STACK_OBJECT(-1) == NULL))                           \
+          const bool cmp = (!(STACK_OBJECT(-1) == NULL));                    \
+          int skip = cmp                                                     \
                       ? (int16_t)Bytes::get_Java_u2(pc + 1) : 3;             \
           address branch_pc = pc;                                            \
+          /* Profile branch. */                                              \
+          BI_PROFILE_UPDATE_BRANCH(/*is_taken=*/cmp);                        \
           UPDATE_PC_AND_TOS(skip, -1);                                       \
           DO_BACKEDGE_CHECKS(skip, branch_pc);                               \
           CONTINUE;                                                          \
@@ -1418,9 +1579,12 @@ run:
 
 #define NULL_COMPARISON_OP(name)                                             \
       CASE(_if##name): {                                                     \
-          int skip = ((STACK_OBJECT(-1) == NULL))                            \
+          const bool cmp = ((STACK_OBJECT(-1) == NULL));                     \
+          int skip = cmp                                                     \
                       ? (int16_t)Bytes::get_Java_u2(pc + 1) : 3;             \
           address branch_pc = pc;                                            \
+          /* Profile branch. */                                              \
+          BI_PROFILE_UPDATE_BRANCH(/*is_taken=*/cmp);                        \
           UPDATE_PC_AND_TOS(skip, -1);                                       \
           DO_BACKEDGE_CHECKS(skip, branch_pc);                               \
           CONTINUE;                                                          \
@@ -1443,9 +1607,14 @@ run:
           int32_t  high = Bytes::get_Java_u4((address)&lpc[2]);
           int32_t  skip;
           key -= low;
-          skip = ((uint32_t) key > (uint32_t)(high - low))
-                      ? Bytes::get_Java_u4((address)&lpc[0])
-                      : Bytes::get_Java_u4((address)&lpc[key + 3]);
+          if (((uint32_t) key > (uint32_t)(high - low))) {
+            key = -1;
+            skip = Bytes::get_Java_u4((address)&lpc[0]);
+          } else {
+            skip = Bytes::get_Java_u4((address)&lpc[key + 3]);
+          }
+          // Profile switch.
+          BI_PROFILE_UPDATE_SWITCH(/*switch_index=*/key);
           // Does this really need a full backedge check (osr?)
           address branch_pc = pc;
           UPDATE_PC_AND_TOS(skip, -1);
@@ -1459,14 +1628,21 @@ run:
           jint* lpc  = (jint*)VMalignWordUp(pc+1);
           int32_t  key  = STACK_INT(-1);
           int32_t  skip = Bytes::get_Java_u4((address) lpc); /* default amount */
+          // Remember index.
+          int      index = -1;
+          int      newindex = 0;
           int32_t  npairs = Bytes::get_Java_u4((address) &lpc[1]);
           while (--npairs >= 0) {
               lpc += 2;
               if (key == (int32_t)Bytes::get_Java_u4((address)lpc)) {
                   skip = Bytes::get_Java_u4((address)&lpc[1]);
+                  index = newindex;
                   break;
               }
+              newindex += 1;
           }
+          // Profile switch.
+          BI_PROFILE_UPDATE_SWITCH(/*switch_index=*/index);
           address branch_pc = pc;
           UPDATE_PC_AND_TOS(skip, -1);
           DO_BACKEDGE_CHECKS(skip, branch_pc);
@@ -1551,7 +1727,7 @@ run:
       if ((uint32_t)index >= (uint32_t)arrObj->length()) {                     \
           sprintf(message, "%d", index);                                       \
           VM_JAVA_ERROR(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), \
-                        message);                                              \
+                        message, note_rangeCheck_trap);                        \
       }
 
       /* 32-bit loads. These handle conversion from < 32-bit types */
@@ -1577,8 +1753,18 @@ run:
           ARRAY_LOADTO32(T_INT, jint,   "%d",   STACK_INT, 0);
       CASE(_faload):
           ARRAY_LOADTO32(T_FLOAT, jfloat, "%f",   STACK_FLOAT, 0);
-      CASE(_aaload):
-          ARRAY_LOADTO32(T_OBJECT, oop,   INTPTR_FORMAT, STACK_OBJECT, 0);
+      CASE(_aaload): {
+        // Decode compressed oop.
+        if (UseCompressedOops) {
+          ARRAY_INTRO(-2);
+          address oopAdr = ((address) arrObj->base(T_OBJECT)) + index * sizeof(narrowOop);
+          oop decodedOop =  oopDesc::decode_heap_oop(*(narrowOop*)(oopAdr));
+          SET_STACK_OBJECT(decodedOop, -2);
+          UPDATE_PC_AND_TOS_AND_CONTINUE(1, -1);
+        } else {
+          ARRAY_LOADTO32(T_OBJECT, oop, INTPTR_FORMAT, STACK_OBJECT, 0);
+        }
+      }
       CASE(_baload):
           ARRAY_LOADTO32(T_BYTE, jbyte,  "%d",   STACK_INT, 0);
       CASE(_caload):
@@ -1630,14 +1816,19 @@ run:
             // Seems way more expensive now that we must dispatch
             //
             if (rhsKlassOop != elemKlassOop && !rhsKlassOop->klass_part()->is_subtype_of(elemKlassOop)) { // ebx->is...
-              VM_JAVA_ERROR(vmSymbols::java_lang_ArrayStoreException(), "");
+              // Decrement counter if subtype check failed.
+              BI_PROFILE_SUBTYPECHECK_FAILED(rhsKlassOop);
+              VM_JAVA_ERROR(vmSymbols::java_lang_ArrayStoreException(), "", note_arrayCheck_trap);
             }
+            // Profile checkcast with null_seen and receiver.
+            BI_PROFILE_UPDATE_CHECKCAST(/*null_seen=*/false, rhsKlassOop);
+          } else {
+            // Profile checkcast with null_seen and receiver.
+            BI_PROFILE_UPDATE_CHECKCAST(/*null_seen=*/true, NULL);
           }
-          oop* elem_loc = (oop*)(((address) arrObj->base(T_OBJECT)) + index * sizeof(oop));
-          // *(oop*)(((address) arrObj->base(T_OBJECT)) + index * sizeof(oop)) = rhsObject;
-          *elem_loc = rhsObject;
-          // Mark the card
-          OrderAccess::release_store(&BYTE_MAP_BASE[(uintptr_t)elem_loc >> CardTableModRefBS::card_shift], 0);
+          // G1GC port. Use accessor instead of storing manually.
+          // Takes care of write barriers internally and replaces the code above.
+          ((objArrayOopDesc *) arrObj)->obj_at_put(index, rhsObject);
           UPDATE_PC_AND_TOS_AND_CONTINUE(1, -3);
       }
       CASE(_bastore): {
@@ -1689,14 +1880,88 @@ run:
         }
         if (entry != NULL) {
           entry->set_obj(lockee);
-          markOop displaced = lockee->mark()->set_unlocked();
-          entry->lock()->set_displaced_header(displaced);
-          if (Atomic::cmpxchg_ptr(entry, lockee->mark_addr(), displaced) != displaced) {
-            // Is it simple recursive case?
-            if (THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
-              entry->lock()->set_displaced_header(NULL);
-            } else {
-              CALL_VM(InterpreterRuntime::monitorenter(THREAD, entry), handle_exception);
+          int success = false;
+          uintptr_t epoch_mask_in_place = (uintptr_t)markOopDesc::epoch_mask_in_place;
+
+          markOop mark = lockee->mark();
+          intptr_t hash = (intptr_t) markOopDesc::no_hash;
+          // implies UseBiasedLocking
+          if (mark->has_bias_pattern()) {
+            uintptr_t thread_ident;
+            uintptr_t anticipated_bias_locking_value;
+            thread_ident = (uintptr_t)istate->thread();
+            anticipated_bias_locking_value =
+              (((uintptr_t)lockee->klass()->klass_part()->prototype_header() | thread_ident) ^ (uintptr_t)mark) &
+              ~((uintptr_t) markOopDesc::age_mask_in_place);
+
+            if  (anticipated_bias_locking_value == 0) {
+              // already biased towards this thread, nothing to do
+              if (PrintBiasedLockingStatistics) {
+                (* BiasedLocking::biased_lock_entry_count_addr())++;
+              }
+              success = true;
+            }
+            else if ((anticipated_bias_locking_value & markOopDesc::biased_lock_mask_in_place) != 0) {
+              // try revoke bias
+              markOop header = lockee->klass()->klass_part()->prototype_header();
+              if (hash != markOopDesc::no_hash) {
+                header = header->copy_set_hash(hash);
+              }
+              if (Atomic::cmpxchg_ptr(header, lockee->mark_addr(), mark) == mark) {
+                if (PrintBiasedLockingStatistics)
+                  (*BiasedLocking::revoked_lock_entry_count_addr())++;
+              }
+            }
+            else if ((anticipated_bias_locking_value & epoch_mask_in_place) !=0) {
+              // try rebias
+              markOop new_header = (markOop) ( (intptr_t) lockee->klass()->klass_part()->prototype_header() | thread_ident);
+              if (hash != markOopDesc::no_hash) {
+                new_header = new_header->copy_set_hash(hash);
+              }
+              if (Atomic::cmpxchg_ptr((void*)new_header, lockee->mark_addr(), mark) == mark) {
+                if (PrintBiasedLockingStatistics)
+                  (* BiasedLocking::rebiased_lock_entry_count_addr())++;
+              }
+              else {
+                CALL_VM(InterpreterRuntime::monitorenter(THREAD, entry), handle_exception);
+              }
+              success = true;
+            }
+            else {
+              // try to bias towards thread in case object is anonymously biased
+              markOop header = (markOop) ((uintptr_t) mark & ((uintptr_t)markOopDesc::biased_lock_mask_in_place |
+                                                              (uintptr_t)markOopDesc::age_mask_in_place |
+                                                              epoch_mask_in_place));
+              if (hash != markOopDesc::no_hash) {
+                header = header->copy_set_hash(hash);
+              }
+              markOop new_header = (markOop) ((uintptr_t) header | thread_ident);
+              // debugging hint
+              DEBUG_ONLY(entry->lock()->set_displaced_header((markOop) (uintptr_t) 0xdeaddead);)
+              if (Atomic::cmpxchg_ptr((void*)new_header, lockee->mark_addr(), header) == header) {
+                if (PrintBiasedLockingStatistics)
+                  (* BiasedLocking::anonymously_biased_lock_entry_count_addr())++;
+              }
+              else {
+                CALL_VM(InterpreterRuntime::monitorenter(THREAD, entry), handle_exception);
+              }
+              success = true;
+            }
+          }
+
+          // traditional lightweight locking
+          if (!success) {
+            markOop displaced = lockee->mark()->set_unlocked();
+            entry->lock()->set_displaced_header(displaced);
+            // UseHeavyMonitors support in CC_INTERP
+            bool call_vm = UseHeavyMonitors;
+            if (call_vm || Atomic::cmpxchg_ptr(entry, lockee->mark_addr(), displaced) != displaced) {
+              // Is it simple recursive case?
+              if (!call_vm && THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
+                entry->lock()->set_displaced_header(NULL);
+              } else {
+                CALL_VM(InterpreterRuntime::monitorenter(THREAD, entry), handle_exception);
+              }
             }
           }
           UPDATE_PC_AND_TOS_AND_CONTINUE(1, -1);
@@ -1718,12 +1983,16 @@ run:
             BasicLock* lock = most_recent->lock();
             markOop header = lock->displaced_header();
             most_recent->set_obj(NULL);
-            // If it isn't recursive we either must swap old header or call the runtime
-            if (header != NULL) {
-              if (Atomic::cmpxchg_ptr(header, lockee->mark_addr(), lock) != lock) {
-                // restore object for the slow case
-                most_recent->set_obj(lockee);
-                CALL_VM(InterpreterRuntime::monitorexit(THREAD, most_recent), handle_exception);
+            if (!lockee->mark()->has_bias_pattern()) {
+              // UseHeavyMonitors support in CC_INTERP
+              bool call_vm = UseHeavyMonitors;
+              // If it isn't recursive we either must swap old header or call the runtime
+              if (header != NULL || call_vm) {
+                if (call_vm || Atomic::cmpxchg_ptr(header, lockee->mark_addr(), lock) != lock) {
+                  // restore object for the slow case
+                  most_recent->set_obj(lockee);
+                  CALL_VM(InterpreterRuntime::monitorexit(THREAD, most_recent), handle_exception);
+                }
               }
             }
             UPDATE_PC_AND_TOS_AND_CONTINUE(1, -1);
@@ -1795,6 +2064,9 @@ run:
           TosState tos_type = cache->flag_state();
           int field_offset = cache->f2_as_index();
           if (cache->is_volatile()) {
+            // Support ordering of "Independent Reads of Independent Writes" (see Parse::do_get_xxx).
+            // Solution: implement volatile read as fence-load-acquire.
+            PPC64_ONLY(OrderAccess::fence();)
             if (tos_type == atos) {
               VERIFY_OOP(obj->obj_field_acquire(field_offset));
               SET_STACK_OBJECT(obj->obj_field_acquire(field_offset), -1);
@@ -1910,7 +2182,6 @@ run:
             } else if (tos_type == atos) {
               VERIFY_OOP(STACK_OBJECT(-1));
               obj->release_obj_field_put(field_offset, STACK_OBJECT(-1));
-              OrderAccess::release_store(&BYTE_MAP_BASE[(uintptr_t)obj >> CardTableModRefBS::card_shift], 0);
             } else if (tos_type == btos) {
               obj->release_byte_field_put(field_offset, STACK_INT(-1));
             } else if (tos_type == ztos) {
@@ -1933,8 +2204,12 @@ run:
               obj->int_field_put(field_offset, STACK_INT(-1));
             } else if (tos_type == atos) {
               VERIFY_OOP(STACK_OBJECT(-1));
-              obj->obj_field_put(field_offset, STACK_OBJECT(-1));
-              OrderAccess::release_store(&BYTE_MAP_BASE[(uintptr_t)obj >> CardTableModRefBS::card_shift], 0);
+              // On IA64 we perform all stores of references with release semantics.
+              // This guarantees that everybody using this reference sees a fully
+              // initialized object. On PPC64 we emit a storestore barrier after
+              // initialization and upon method return.
+              IA64_ONLY(obj->release_obj_field_put(field_offset, STACK_OBJECT(-1)));
+              NOT_IA64( obj->obj_field_put        (field_offset, STACK_OBJECT(-1)));
             } else if (tos_type == btos) {
               obj->byte_field_put(field_offset, STACK_INT(-1));
             } else if (tos_type == ztos) {
@@ -1974,10 +2249,14 @@ run:
             if (UseTLAB) {
               result = (oop) THREAD->tlab().allocate(obj_size);
             }
+            // Disable non-TLAB-based fast-path, because profiling requires that all
+            // allocations go through InterpreterRuntime::_new() if THREAD->tlab().allocate
+            // returns NULL.
+#ifndef CC_INTERP_PROFILE
             if (result == NULL) {
               need_zero = true;
               // Try allocate in shared eden
-        retry:
+            retry:
               HeapWord* compare_to = *Universe::heap()->top_addr();
               HeapWord* new_top = compare_to + obj_size;
               if (new_top <= *Universe::heap()->end_addr()) {
@@ -1987,6 +2266,7 @@ run:
                 result = (oop) compare_to;
               }
             }
+#endif
             if (result != NULL) {
               // Initialize object (if nonzero size and need) and then the header
               if (need_zero ) {
@@ -2003,6 +2283,10 @@ run:
               }
               result->set_klass_gap(0);
               result->set_klass(k_entry);
+              // Must prevent reordering of stores for object initialization
+              // with stores that publish the new object.
+              // On IA64 the publishing stores are performed with release semantics.
+              NOT_IA64(OrderAccess::storestore());
               SET_STACK_OBJECT(result, 0);
               UPDATE_PC_AND_TOS_AND_CONTINUE(3, 1);
             }
@@ -2011,6 +2295,10 @@ run:
         // Slow case allocation
         CALL_VM(InterpreterRuntime::_new(THREAD, METHOD->constants(), index),
                 handle_exception);
+        // Must prevent reordering of stores for object initialization
+        // with stores that publish the new object.
+        // On IA64 the publishing stores are performed with release semantics.
+        NOT_IA64(OrderAccess::storestore());
         SET_STACK_OBJECT(THREAD->vm_result(), 0);
         THREAD->set_vm_result(NULL);
         UPDATE_PC_AND_TOS_AND_CONTINUE(3, 1);
@@ -2020,6 +2308,10 @@ run:
         jint size = STACK_INT(-1);
         CALL_VM(InterpreterRuntime::anewarray(THREAD, METHOD->constants(), index, size),
                 handle_exception);
+        // Must prevent reordering of stores for object initialization
+        // with stores that publish the new object.
+        // On IA64 the publishing stores are performed with release semantics.
+        NOT_IA64(OrderAccess::storestore());
         SET_STACK_OBJECT(THREAD->vm_result(), -1);
         THREAD->set_vm_result(NULL);
         UPDATE_PC_AND_CONTINUE(3);
@@ -2034,6 +2326,10 @@ run:
         //adjust pointer to start of stack element
         CALL_VM(InterpreterRuntime::multianewarray(THREAD, dimarray),
                 handle_exception);
+        // Must prevent reordering of stores for object initialization
+        // with stores that publish the new object.
+        // On IA64 the publishing stores are performed with release semantics.
+        NOT_IA64(OrderAccess::storestore());
         SET_STACK_OBJECT(THREAD->vm_result(), -dims);
         THREAD->set_vm_result(NULL);
         UPDATE_PC_AND_TOS_AND_CONTINUE(4, -(dims-1));
@@ -2042,10 +2338,6 @@ run:
           if (STACK_OBJECT(-1) != NULL) {
             VERIFY_OOP(STACK_OBJECT(-1));
             u2 index = Bytes::get_Java_u2(pc+1);
-            if (ProfileInterpreter) {
-              // needs Profile_checkcast QQQ
-              ShouldNotReachHere();
-            }
             // Constant pool may have actual klass or unresolved klass. If it is
             // unresolved we must resolve it
             if (METHOD->constants()->tag_at(index).is_unresolved_klass()) {
@@ -2059,25 +2351,29 @@ run:
             //
             if (objKlassOop != klassOf &&
                 !objKlassOop->klass_part()->is_subtype_of(klassOf)) {
+
+              // Decrement counter at checkcast.
+              BI_PROFILE_SUBTYPECHECK_FAILED(objKlassOop);
               ResourceMark rm(THREAD);
               const char* objName = Klass::cast(objKlassOop)->external_name();
               const char* klassName = Klass::cast(klassOf)->external_name();
               char* message = SharedRuntime::generate_class_cast_message(
                 objName, klassName);
-              VM_JAVA_ERROR(vmSymbols::java_lang_ClassCastException(), message);
+              VM_JAVA_ERROR(vmSymbols::java_lang_ClassCastException(), message, note_classCheck_trap);
             }
+            // Profile checkcast with null_seen and receiver.
+            BI_PROFILE_UPDATE_CHECKCAST(/*null_seen=*/false, objKlassOop);
           } else {
-            if (UncommonNullCast) {
-//              istate->method()->set_null_cast_seen();
-// [RGV] Not sure what to do here!
-
-            }
+            // Profile checkcast with null_seen and receiver.
+            BI_PROFILE_UPDATE_CHECKCAST(/*null_seen=*/true, NULL);
           }
           UPDATE_PC_AND_CONTINUE(3);
 
       CASE(_instanceof):
           if (STACK_OBJECT(-1) == NULL) {
             SET_STACK_INT(0, -1);
+            // Profile instanceof with null_seen and receiver.
+            BI_PROFILE_UPDATE_INSTANCEOF(/*null_seen=*/true, NULL);
           } else {
             VERIFY_OOP(STACK_OBJECT(-1));
             u2 index = Bytes::get_Java_u2(pc+1);
@@ -2096,7 +2392,11 @@ run:
               SET_STACK_INT(1, -1);
             } else {
               SET_STACK_INT(0, -1);
+              // Decrement counter at checkcast.
+              BI_PROFILE_SUBTYPECHECK_FAILED(objKlassOop);
             }
+            // Profile instanceof with null_seen and receiver.
+            BI_PROFILE_UPDATE_INSTANCEOF(/*null_seen=*/false, objKlassOop);
           }
           UPDATE_PC_AND_CONTINUE(3);
 
@@ -2242,6 +2542,9 @@ run:
         istate->set_callee_entry_point(method->from_interpreted_entry());
         istate->set_bcp_advance(5);
 
+        // Invokedynamic has got a call counter, just like an invokestatic -> increment!
+        BI_PROFILE_UPDATE_CALL();
+
         UPDATE_PC_AND_RETURN(0); // I'll be back...
       }
       CASE(_invokehandle): {
@@ -2275,6 +2578,9 @@ run:
         istate->set_callee_entry_point(method->from_interpreted_entry());
         istate->set_bcp_advance(3);
 
+        // Invokehandle has got a call counter, just like a final call -> increment!
+        BI_PROFILE_UPDATE_FINALCALL();
+
         UPDATE_PC_AND_RETURN(0); // I'll be back...
       }
 
@@ -2302,14 +2608,18 @@ run:
           CHECK_NULL(STACK_OBJECT(-(cache->parameter_size())));
           if (cache->is_vfinal()) {
             callee = cache->f2_as_vfinal_method();
+            // Profile 'special case of invokeinterface' final call.
+            BI_PROFILE_UPDATE_FINALCALL();
           } else {
             // get receiver
             int parms = cache->parameter_size();
             // Same comments as invokevirtual apply here
-            VERIFY_OOP(STACK_OBJECT(-parms));
-            instanceKlass* rcvrKlass = (instanceKlass*)
-                                 STACK_OBJECT(-parms)->klass()->klass_part();
+            oop rcvr = STACK_OBJECT(-parms);
+            VERIFY_OOP(rcvr);
+            instanceKlass* rcvrKlass = (instanceKlass*)rcvr->klass()->klass_part();
             callee = (methodOop) rcvrKlass->start_of_vtable()[ cache->f2_as_index()];
+            // Profile 'special case of invokeinterface' virtual call.
+            BI_PROFILE_UPDATE_VIRTUALCALL(rcvr->klass());
           }
           istate->set_callee(callee);
           istate->set_callee_entry_point(callee->from_interpreted_entry());
@@ -2340,14 +2650,17 @@ run:
         // interface.  The link resolver checks this but only for the first
         // time this interface is called.
         if (i == int2->itable_length()) {
-          VM_JAVA_ERROR(vmSymbols::java_lang_IncompatibleClassChangeError(), "");
+          VM_JAVA_ERROR(vmSymbols::java_lang_IncompatibleClassChangeError(), "", note_no_trap);
         }
         int mindex = cache->f2_as_index();
         itableMethodEntry* im = ki->first_method_entry(rcvr->klass());
         callee = im[mindex].method();
         if (callee == NULL) {
-          VM_JAVA_ERROR(vmSymbols::java_lang_AbstractMethodError(), "");
+          VM_JAVA_ERROR(vmSymbols::java_lang_AbstractMethodError(), "", note_no_trap);
         }
+
+        // Profile virtual call.
+        BI_PROFILE_UPDATE_VIRTUALCALL(rcvr->klass());
 
         istate->set_callee(callee);
         istate->set_callee_entry_point(callee->from_interpreted_entry());
@@ -2380,8 +2693,11 @@ run:
           methodOop callee;
           if ((Bytecodes::Code)opcode == Bytecodes::_invokevirtual) {
             CHECK_NULL(STACK_OBJECT(-(cache->parameter_size())));
-            if (cache->is_vfinal()) callee = cache->f2_as_vfinal_method();
-            else {
+            if (cache->is_vfinal()) {
+              callee = cache->f2_as_vfinal_method();
+              // Profile final call.
+              BI_PROFILE_UPDATE_FINALCALL();
+            } else {
               // get receiver
               int parms = cache->parameter_size();
               // this works but needs a resourcemark and seems to create a vtable on every call:
@@ -2390,8 +2706,9 @@ run:
               // this fails with an assert
               // instanceKlass* rcvrKlass = instanceKlass::cast(STACK_OBJECT(-parms)->klass());
               // but this works
-              VERIFY_OOP(STACK_OBJECT(-parms));
-              instanceKlass* rcvrKlass = (instanceKlass*) STACK_OBJECT(-parms)->klass()->klass_part();
+              oop rcvr = STACK_OBJECT(-parms);
+              VERIFY_OOP(rcvr);
+              instanceKlass* rcvrKlass = (instanceKlass*) rcvr->klass()->klass_part();
               /*
                 Executing this code in java.lang.String:
                     public String(char value[]) {
@@ -2409,12 +2726,17 @@ run:
 
               */
               callee = (methodOop) rcvrKlass->start_of_vtable()[ cache->f2_as_index()];
+              // Profile virtual call.
+              BI_PROFILE_UPDATE_VIRTUALCALL(rcvr->klass());
             }
           } else {
             if ((Bytecodes::Code)opcode == Bytecodes::_invokespecial) {
               CHECK_NULL(STACK_OBJECT(-(cache->parameter_size())));
             }
             callee = cache->f1_as_method();
+
+            // Profile call.
+            BI_PROFILE_UPDATE_CALL();
           }
 
           istate->set_callee(callee);
@@ -2436,6 +2758,10 @@ run:
         jint size = STACK_INT(-1);
         CALL_VM(InterpreterRuntime::newarray(THREAD, atype, size),
                 handle_exception);
+        // Must prevent reordering of stores for object initialization
+        // with stores that publish the new object.
+        // On IA64 the publishing stores are performed with release semantics.
+        NOT_IA64(OrderAccess::storestore());
         SET_STACK_OBJECT(THREAD->vm_result(), -1);
         THREAD->set_vm_result(NULL);
 
@@ -2466,6 +2792,8 @@ run:
       CASE(_goto):
       {
           int16_t offset = (int16_t)Bytes::get_Java_u2(pc + 1);
+          // Profile jump.
+          BI_PROFILE_UPDATE_JUMP();
           address branch_pc = pc;
           UPDATE_PC(offset);
           DO_BACKEDGE_CHECKS(offset, branch_pc);
@@ -2482,6 +2810,8 @@ run:
       CASE(_goto_w):
       {
           int32_t offset = Bytes::get_Java_u4(pc + 1);
+          // Profile jump.
+          BI_PROFILE_UPDATE_JUMP();
           address branch_pc = pc;
           UPDATE_PC(offset);
           DO_BACKEDGE_CHECKS(offset, branch_pc);
@@ -2491,6 +2821,9 @@ run:
       /* return from a jsr or jsr_w */
 
       CASE(_ret): {
+          // Profile ret.
+          BI_PROFILE_UPDATE_RET(/*bci=*/((int)(intptr_t)(LOCALS_ADDR(pc[1]))));
+          // now, update the pc
           pc = istate->method()->code_base() + (intptr_t)(LOCALS_ADDR(pc[1]));
           UPDATE_PC_AND_CONTINUE(0);
       }
@@ -2567,11 +2900,14 @@ run:
         tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")", except_oop->print_value_string(), except_oop());
         tty->print_cr(" thrown in interpreter method <%s>", METHOD->print_value_string());
         tty->print_cr(" at bci %d, continuing at %d for thread " INTPTR_FORMAT,
-                      pc - (intptr_t)METHOD->code_base(),
+                      istate->bcp() - (intptr_t)METHOD->code_base(),
                       continuation_bci, THREAD);
       }
       // for AbortVMOnException flag
       NOT_PRODUCT(Exceptions::debug_check_abort(except_oop));
+
+      // Update profiling data.
+      BI_PROFILE_ALIGN_TO_CURRENT_BCI();
       goto run;
     }
     if (TraceExceptions) {
@@ -2580,7 +2916,7 @@ run:
       tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")", except_oop->print_value_string(), except_oop());
       tty->print_cr(" thrown in interpreter method <%s>", METHOD->print_value_string());
       tty->print_cr(" at bci %d, unwinding for thread " INTPTR_FORMAT,
-                    pc  - (intptr_t) METHOD->code_base(),
+                    istate->bcp() - (intptr_t)METHOD->code_base(),
                     THREAD);
     }
     // for AbortVMOnException flag
@@ -2589,8 +2925,6 @@ run:
     THREAD->set_pending_exception(except_oop(), NULL, 0);
     goto handle_return;
   }  /* handle_exception: */
-
-
 
   // Return from an interpreter invocation with the result of the interpretation
   // on the top of the Java Stack (or a pending exception)
@@ -2608,12 +2942,63 @@ handle_Pop_Frame:
   // Let interpreter (only) see the we're in the process of popping a frame
   THREAD->set_pop_frame_in_process();
 
+  goto handle_return;
+
+// ForceEarlyReturn ends a method, and returns to the caller with a return value
+// given by the invoker of the early return.
+handle_Early_Return:
+
+  istate->set_msg(early_return);
+
+  // Clear expression stack.
+  topOfStack = istate->stack_base() - Interpreter::stackElementWords;
+
+  // Push the value to be returned.
+  switch (istate->method()->result_type()) {
+    case T_BOOLEAN:
+    case T_SHORT:
+    case T_BYTE:
+    case T_CHAR:
+    case T_INT:
+      SET_STACK_INT(THREAD->jvmti_thread_state()->earlyret_value().i, 0);
+      MORE_STACK(1);
+      break;
+    case T_LONG:
+      SET_STACK_LONG(THREAD->jvmti_thread_state()->earlyret_value().j, 1);
+      MORE_STACK(2);
+      break;
+    case T_FLOAT:
+      SET_STACK_FLOAT(THREAD->jvmti_thread_state()->earlyret_value().f, 0);
+      MORE_STACK(1);
+      break;
+    case T_DOUBLE:
+      SET_STACK_DOUBLE(THREAD->jvmti_thread_state()->earlyret_value().d, 1);
+      MORE_STACK(2);
+      break;
+    case T_ARRAY:
+    case T_OBJECT:
+      SET_STACK_OBJECT(THREAD->jvmti_thread_state()->earlyret_oop(), 0);
+      MORE_STACK(1);
+      break;
+  }
+
+  THREAD->jvmti_thread_state()->clr_earlyret_value();
+  THREAD->jvmti_thread_state()->set_earlyret_oop(NULL);
+  THREAD->jvmti_thread_state()->clr_earlyret_pending();
+
 handle_return:
   {
+    // A storestore barrier is required to order initialization of
+    // final fields with publishing the reference to the object that
+    // holds the field. Without the barrier the value of final fields
+    // can be observed to change. On IA64 the publishing stores are
+    // performed with release semantics.
+    NOT_IA64(OrderAccess::storestore());
+
     DECACHE_STATE();
 
-    bool suppress_error = istate->msg() == popping_frame;
-    bool suppress_exit_event = THREAD->has_pending_exception() || suppress_error;
+    bool suppress_error = istate->msg() == popping_frame || istate->msg() == early_return;
+    bool suppress_exit_event = THREAD->has_pending_exception() || istate->msg() == popping_frame;
     Handle original_exception(THREAD, THREAD->pending_exception());
     Handle illegal_state_oop(THREAD, NULL);
 
@@ -2674,15 +3059,18 @@ handle_return:
           BasicLock* lock = end->lock();
           markOop header = lock->displaced_header();
           end->set_obj(NULL);
-          // If it isn't recursive we either must swap old header or call the runtime
-          if (header != NULL) {
-            if (Atomic::cmpxchg_ptr(header, lockee->mark_addr(), lock) != lock) {
-              // restore object for the slow case
-              end->set_obj(lockee);
-              {
-                // Prevent any HandleMarkCleaner from freeing our live handles
-                HandleMark __hm(THREAD);
-                CALL_VM_NOCHECK(InterpreterRuntime::monitorexit(THREAD, end));
+
+          if (!lockee->mark()->has_bias_pattern()) {
+            // If it isn't recursive we either must swap old header or call the runtime
+            if (header != NULL) {
+              if (Atomic::cmpxchg_ptr(header, lockee->mark_addr(), lock) != lock) {
+                // restore object for the slow case
+                end->set_obj(lockee);
+                {
+                  // Prevent any HandleMarkCleaner from freeing our live handles
+                  HandleMark __hm(THREAD);
+                  CALL_VM_NOCHECK(InterpreterRuntime::monitorexit(THREAD, end));
+                }
               }
             }
           }
@@ -2727,7 +3115,7 @@ handle_return:
           oop rcvr = base->obj();
           if (rcvr == NULL) {
             if (!suppress_error) {
-              VM_JAVA_ERROR_NO_JUMP(vmSymbols::java_lang_NullPointerException(), "");
+              VM_JAVA_ERROR_NO_JUMP(vmSymbols::java_lang_NullPointerException(), NULL, note_nullCheck_trap);
               illegal_state_oop = THREAD->pending_exception();
               THREAD->clear_pending_exception();
             }
@@ -2735,19 +3123,23 @@ handle_return:
             BasicLock* lock = base->lock();
             markOop header = lock->displaced_header();
             base->set_obj(NULL);
-            // If it isn't recursive we either must swap old header or call the runtime
-            if (header != NULL) {
-              if (Atomic::cmpxchg_ptr(header, rcvr->mark_addr(), lock) != lock) {
-                // restore object for the slow case
-                base->set_obj(rcvr);
-                {
-                  // Prevent any HandleMarkCleaner from freeing our live handles
-                  HandleMark __hm(THREAD);
-                  CALL_VM_NOCHECK(InterpreterRuntime::monitorexit(THREAD, base));
-                }
-                if (THREAD->has_pending_exception()) {
-                  if (!suppress_error) illegal_state_oop = THREAD->pending_exception();
-                  THREAD->clear_pending_exception();
+
+            if (!rcvr->mark()->has_bias_pattern()) {
+              base->set_obj(NULL);
+              // If it isn't recursive we either must swap old header or call the runtime
+              if (header != NULL) {
+                if (Atomic::cmpxchg_ptr(header, rcvr->mark_addr(), lock) != lock) {
+                  // restore object for the slow case
+                  base->set_obj(rcvr);
+                  {
+                    // Prevent any HandleMarkCleaner from freeing our live handles
+                    HandleMark __hm(THREAD);
+                    CALL_VM_NOCHECK(InterpreterRuntime::monitorexit(THREAD, base));
+                  }
+                  if (THREAD->has_pending_exception()) {
+                    if (!suppress_error) illegal_state_oop = THREAD->pending_exception();
+                    THREAD->clear_pending_exception();
+                  }
                 }
               }
             }
@@ -2755,6 +3147,8 @@ handle_return:
         }
       }
     }
+    // Clear the do_not_unlock flag now.
+    THREAD->clr_do_not_unlock();
 
     //
     // Notify jvmti/jvmdi
@@ -2799,7 +3193,7 @@ handle_return:
     // A pending exception that was pending prior to a possible popping frame
     // overrides the popping frame.
     //
-    assert(!suppress_error || suppress_error && illegal_state_oop() == NULL, "Error was not suppressed");
+    assert(!suppress_error || (suppress_error && illegal_state_oop() == NULL), "Error was not suppressed");
     if (illegal_state_oop() != NULL || original_exception() != NULL) {
       // inform the frame manager we have no result
       istate->set_msg(throwing_exception);
@@ -2807,7 +3201,6 @@ handle_return:
         THREAD->set_pending_exception(illegal_state_oop(), NULL, 0);
       else
         THREAD->set_pending_exception(original_exception(), NULL, 0);
-      istate->set_return_kind((Bytecodes::Code)opcode);
       UPDATE_PC_AND_RETURN(0);
     }
 
@@ -2826,13 +3219,13 @@ handle_return:
                                 LOCALS_SLOT(METHOD->size_of_parameters() - 1));
         THREAD->set_popframe_condition_bit(JavaThread::popframe_force_deopt_reexecution_bit);
       }
-      THREAD->clr_pop_frame_in_process();
+    } else {
+      // Don't overwrite the message 'popping_frame'.
+      istate->set_msg(return_from_method);
     }
 
     // Normal return
     // Advance the pc and return to frame manager
-    istate->set_msg(return_from_method);
-    istate->set_return_kind((Bytecodes::Code)opcode);
     UPDATE_PC_AND_RETURN(1);
   } /* handle_return: */
 
@@ -3119,16 +3512,16 @@ BytecodeInterpreter::print() {
   tty->print_cr("&native_fresult: " INTPTR_FORMAT, (uintptr_t) &this->_native_fresult);
   tty->print_cr("native_lresult: " INTPTR_FORMAT, (uintptr_t) this->_native_lresult);
 #endif
-#if defined(IA64) && !defined(ZERO)
+#if defined(IA64) && !defined(ZERO) && !defined(AIX)
   tty->print_cr("last_Java_fp: " INTPTR_FORMAT, (uintptr_t) this->_last_Java_fp);
-#endif // IA64 && !ZERO
+#endif
   tty->print_cr("self_link: " INTPTR_FORMAT, (uintptr_t) this->_self_link);
 }
 
 extern "C" {
-    void PI(uintptr_t arg) {
-        ((BytecodeInterpreter*)arg)->print();
-    }
+  void PI(uintptr_t arg) {
+    ((BytecodeInterpreter*)arg)->print();
+  }
 }
 #endif // PRODUCT
 

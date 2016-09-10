@@ -25,9 +25,9 @@
 
 
 // Adapters
-enum /* platform_dependent_constants */ {
-  adapter_code_size = sizeof(ZeroEntry) * (Interpreter::method_handle_invoke_LAST - Interpreter::method_handle_invoke_FIRST + 1)
-};
+static unsigned int adapter_code_size() {
+  return sizeof(ZeroEntry) * (Interpreter::method_handle_invoke_LAST - Interpreter::method_handle_invoke_FIRST + 1);
+}
 
 private:
   static oop popFromStack(TRAPS);

@@ -313,7 +313,10 @@ class methodOopDesc : public oopDesc {
     return _method_data;
   }
   void set_method_data(methodDataOop data)       {
-    oop_store_without_check((oop*)&_method_data, (oop)data);
+    // The store into method must be released. On platforms without
+    // total store order (TSO) the reference may become visible before
+    // the initialization of data otherwise.
+    oop_store_without_check((volatile oop*)&_method_data, (oop)data);
   }
 
   // invocation counter

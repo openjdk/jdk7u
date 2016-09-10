@@ -37,6 +37,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "thread_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "thread_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "thread_bsd.inline.hpp"
 #endif
@@ -146,14 +149,20 @@ G1SATBCardTableLoggingModRefBS(MemRegion whole_heap,
 
 void
 G1SATBCardTableLoggingModRefBS::write_ref_field_work(void* field,
-                                                     oop new_val) {
+                                                     oop new_val,
+                                                     bool release) {
   volatile jbyte* byte = byte_for(field);
   if (*byte == g1_young_gen) {
     return;
   }
   OrderAccess::storeload();
   if (*byte != dirty_card) {
-    *byte = dirty_card;
+    // Perform a releasing store if requested.
+    if (release) {
+      OrderAccess::release_store((volatile jbyte*) byte, dirty_card);
+    } else {
+      *byte = dirty_card;
+    }
     Thread* thr = Thread::current();
     if (thr->is_Java_thread()) {
       JavaThread* jt = (JavaThread*)thr;

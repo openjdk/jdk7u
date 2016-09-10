@@ -311,6 +311,8 @@ public:
   void defineEvalConstant(FILE *fp, InstructForm &node);
   // Generator for Emit methods for instructions
   void defineEmit        (FILE *fp, InstructForm &node);
+  // Generator for lateExpand methods for instructions.
+  void defineLateExpand(FILE *fp, InstructForm &node);
 
   // Define a MachOper encode method
   void define_oper_interface(FILE *fp, OperandForm &oper, FormDict &globals,

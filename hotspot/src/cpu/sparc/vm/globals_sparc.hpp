@@ -78,6 +78,11 @@ define_pd_global(intx, CMSYoungGenPerWorker, 16*M);  // default max size of CMS 
 
 #define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct) \
                                                                             \
+  develop(bool, TrapBasedNullChecks, false,                                 \
+          "Not supported on this platform.")                                \
+  develop(bool, TrapBasedRangeChecks, false,                                \
+          "Not supported on this platform.")                                \
+                                                                            \
   product(intx, UseVIS, 99,                                                 \
           "Highest supported VIS instructions set on Sparc")                \
                                                                             \

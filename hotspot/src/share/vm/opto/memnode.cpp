@@ -873,7 +873,7 @@ bool LoadNode::is_immutable_value(Node* adr) {
 
 //----------------------------LoadNode::make-----------------------------------
 // Polymorphic factory method:
-Node *LoadNode::make( PhaseGVN& gvn, Node *ctl, Node *mem, Node *adr, const TypePtr* adr_type, const Type *rt, BasicType bt ) {
+Node *LoadNode::make(PhaseGVN& gvn, Node *ctl, Node *mem, Node *adr, const TypePtr* adr_type, const Type *rt, BasicType bt, Sem sem) {
   Compile* C = gvn.C;
 
   // sanity check the alias category against the created node type
@@ -889,34 +889,34 @@ Node *LoadNode::make( PhaseGVN& gvn, Node *ctl, Node *mem, Node *adr, const Type
           rt->isa_oopptr() || is_immutable_value(adr),
           "raw memory operations should have control edge");
   switch (bt) {
-  case T_BOOLEAN: return new (C) LoadUBNode(ctl, mem, adr, adr_type, rt->is_int()    );
-  case T_BYTE:    return new (C) LoadBNode (ctl, mem, adr, adr_type, rt->is_int()    );
-  case T_INT:     return new (C) LoadINode (ctl, mem, adr, adr_type, rt->is_int()    );
-  case T_CHAR:    return new (C) LoadUSNode(ctl, mem, adr, adr_type, rt->is_int()    );
-  case T_SHORT:   return new (C) LoadSNode (ctl, mem, adr, adr_type, rt->is_int()    );
-  case T_LONG:    return new (C) LoadLNode (ctl, mem, adr, adr_type, rt->is_long()   );
-  case T_FLOAT:   return new (C) LoadFNode (ctl, mem, adr, adr_type, rt              );
-  case T_DOUBLE:  return new (C) LoadDNode (ctl, mem, adr, adr_type, rt              );
-  case T_ADDRESS: return new (C) LoadPNode (ctl, mem, adr, adr_type, rt->is_ptr()    );
+  case T_BOOLEAN: return new (C) LoadUBNode(ctl, mem, adr, adr_type, rt->is_int(),         sem);
+  case T_BYTE:    return new (C) LoadBNode (ctl, mem, adr, adr_type, rt->is_int(),         sem);
+  case T_INT:     return new (C) LoadINode (ctl, mem, adr, adr_type, rt->is_int(),         sem);
+  case T_CHAR:    return new (C) LoadUSNode(ctl, mem, adr, adr_type, rt->is_int(),         sem);
+  case T_SHORT:   return new (C) LoadSNode (ctl, mem, adr, adr_type, rt->is_int(),         sem);
+  case T_LONG:    return new (C) LoadLNode (ctl, mem, adr, adr_type, rt->is_long(), false, sem);
+  case T_FLOAT:   return new (C) LoadFNode (ctl, mem, adr, adr_type, rt,                   sem);
+  case T_DOUBLE:  return new (C) LoadDNode (ctl, mem, adr, adr_type, rt,                   sem);
+  case T_ADDRESS: return new (C) LoadPNode (ctl, mem, adr, adr_type, rt->is_ptr(),         sem);
   case T_OBJECT:
 #ifdef _LP64
     if (adr->bottom_type()->is_ptr_to_narrowoop()) {
-      Node* load  = gvn.transform(new (C) LoadNNode(ctl, mem, adr, adr_type, rt->make_narrowoop()));
+      Node* load  = gvn.transform(new (C) LoadNNode(ctl, mem, adr, adr_type, rt->make_narrowoop(), sem));
       return new (C) DecodeNNode(load, load->bottom_type()->make_ptr());
     } else
 #endif
     {
       assert(!adr->bottom_type()->is_ptr_to_narrowoop(), "should have got back a narrow oop");
-      return new (C) LoadPNode(ctl, mem, adr, adr_type, rt->is_oopptr());
+      return new (C) LoadPNode(ctl, mem, adr, adr_type, rt->is_oopptr(), sem);
     }
   }
   ShouldNotReachHere();
   return (LoadNode*)NULL;
 }
 
-LoadLNode* LoadLNode::make_atomic(Compile *C, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, const Type* rt) {
+LoadLNode* LoadLNode::make_atomic(Compile *C, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, const Type* rt, Sem sem) {
   bool require_atomic = true;
-  return new (C) LoadLNode(ctl, mem, adr, adr_type, rt->is_long(), require_atomic);
+  return new (C) LoadLNode(ctl, mem, adr, adr_type, rt->is_long(), require_atomic, sem);
 }
 
 
@@ -2220,20 +2220,21 @@ Node* LoadRangeNode::Identity( PhaseTransform *phase ) {
 //=============================================================================
 //---------------------------StoreNode::make-----------------------------------
 // Polymorphic factory method:
-StoreNode* StoreNode::make( PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, Node* val, BasicType bt ) {
+StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, Node* val, BasicType bt, Sem sem) {
+  assert((sem == unordered || sem == release), "unexpected");
   Compile* C = gvn.C;
   assert( C->get_alias_index(adr_type) != Compile::AliasIdxRaw ||
           ctl != NULL, "raw memory operations should have control edge");
 
   switch (bt) {
   case T_BOOLEAN: val = gvn.transform(new (C) AndINode(val, gvn.intcon(0x1))); // Fall through to T_BYTE case
-  case T_BYTE:    return new (C) StoreBNode(ctl, mem, adr, adr_type, val);
-  case T_INT:     return new (C) StoreINode(ctl, mem, adr, adr_type, val);
+  case T_BYTE:    return new (C) StoreBNode(ctl, mem, adr, adr_type, val, sem);
+  case T_INT:     return new (C) StoreINode(ctl, mem, adr, adr_type, val, sem);
   case T_CHAR:
-  case T_SHORT:   return new (C) StoreCNode(ctl, mem, adr, adr_type, val);
-  case T_LONG:    return new (C) StoreLNode(ctl, mem, adr, adr_type, val);
-  case T_FLOAT:   return new (C) StoreFNode(ctl, mem, adr, adr_type, val);
-  case T_DOUBLE:  return new (C) StoreDNode(ctl, mem, adr, adr_type, val);
+  case T_SHORT:   return new (C) StoreCNode(ctl, mem, adr, adr_type, val, sem);
+  case T_LONG:    return new (C) StoreLNode(ctl, mem, adr, adr_type, val, false, sem);
+  case T_FLOAT:   return new (C) StoreFNode(ctl, mem, adr, adr_type, val, sem);
+  case T_DOUBLE:  return new (C) StoreDNode(ctl, mem, adr, adr_type, val, sem);
   case T_ADDRESS:
   case T_OBJECT:
 #ifdef _LP64
@@ -2241,20 +2242,20 @@ StoreNode* StoreNode::make( PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, cons
         (UseCompressedOops && val->bottom_type()->isa_klassptr() &&
          adr->bottom_type()->isa_rawptr())) {
       val = gvn.transform(new (C) EncodePNode(val, val->bottom_type()->make_narrowoop()));
-      return new (C) StoreNNode(ctl, mem, adr, adr_type, val);
+      return new (C) StoreNNode(ctl, mem, adr, adr_type, val, sem);
     } else
 #endif
     {
-      return new (C) StorePNode(ctl, mem, adr, adr_type, val);
+      return new (C) StorePNode(ctl, mem, adr, adr_type, val, sem);
     }
   }
   ShouldNotReachHere();
   return (StoreNode*)NULL;
 }
 
-StoreLNode* StoreLNode::make_atomic(Compile *C, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, Node* val) {
+StoreLNode* StoreLNode::make_atomic(Compile *C, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, Node* val, Sem sem) {
   bool require_atomic = true;
-  return new (C) StoreLNode(ctl, mem, adr, adr_type, val, require_atomic);
+  return new (C) StoreLNode(ctl, mem, adr, adr_type, val, require_atomic, sem);
 }
 
 
@@ -2696,7 +2697,7 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
     Node* adr = new (C) AddPNode(dest, dest, phase->MakeConX(offset));
     adr = phase->transform(adr);
     const TypePtr* atp = TypeRawPtr::BOTTOM;
-    mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT);
+    mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT, StoreNode::unordered);
     mem = phase->transform(mem);
     offset += BytesPerInt;
   }
@@ -2757,7 +2758,7 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
     Node* adr = new (C) AddPNode(dest, dest, phase->MakeConX(done_offset));
     adr = phase->transform(adr);
     const TypePtr* atp = TypeRawPtr::BOTTOM;
-    mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT);
+    mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT, StoreNode::unordered);
     mem = phase->transform(mem);
     done_offset += BytesPerInt;
   }
@@ -3599,14 +3600,14 @@ InitializeNode::coalesce_subword_stores(intptr_t header_size,
       ++new_long;
       off[nst] = offset;
       st[nst++] = StoreNode::make(*phase, ctl, zmem, adr, atp,
-                                  phase->longcon(con), T_LONG);
+                                  phase->longcon(con), T_LONG, StoreNode::unordered);
     } else {
       // Omit either if it is a zero.
       if (con0 != 0) {
         ++new_int;
         off[nst]  = offset;
         st[nst++] = StoreNode::make(*phase, ctl, zmem, adr, atp,
-                                    phase->intcon(con0), T_INT);
+                                    phase->intcon(con0), T_INT, StoreNode::unordered);
       }
       if (con1 != 0) {
         ++new_int;
@@ -3614,7 +3615,7 @@ InitializeNode::coalesce_subword_stores(intptr_t header_size,
         adr = make_raw_address(offset, phase);
         off[nst]  = offset;
         st[nst++] = StoreNode::make(*phase, ctl, zmem, adr, atp,
-                                    phase->intcon(con1), T_INT);
+                                    phase->intcon(con1), T_INT, StoreNode::unordered);
       }
     }
 

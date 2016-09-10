@@ -139,7 +139,7 @@ class SharedRuntime: AllStatic {
   static double dabs(double f);
 #endif
 
-#if defined(__SOFTFP__) || defined(PPC)
+#if defined(__SOFTFP__) || defined(PPC32)
   static double dsqrt(double f);
 #endif
 
@@ -355,7 +355,28 @@ class SharedRuntime: AllStatic {
                                                           const VMRegPair* regs) NOT_DEBUG_RETURN;
 
   // Ditto except for calling C
-  static int c_calling_convention(const BasicType *sig_bt, VMRegPair *regs, int total_args_passed);
+  //
+  // C argument in register AND stack slot.
+  // Some architectures require that an argument must be passed in a register
+  // AND in a stack slot. These architectures provide a second VMRegPair array
+  // to be filled by the c_calling_convention method. On other architectures,
+  // NULL is being passed as the second VMRegPair array, so arguments are either
+  // passed in a register OR in a stack slot.
+  static int c_calling_convention(const BasicType *sig_bt, VMRegPair *regs, VMRegPair *regs2,
+                                  int total_args_passed);
+
+  // Querry whether this platforms requires that 32 bit integers are
+  // passed as 64 bit wide entities in C calls. (This is the case on PPC
+  // and z/Arch.)
+  static bool c_calling_convention_requires_ints_as_longs();
+  // Compute the new number of arguments in the signature if 32 bit ints
+  // must be converted to longs.
+  static int  convert_ints_to_longints_argcnt(int in_args_count, BasicType* in_sig_bt);
+  // Adapt a method's signature if it contains 32 bit integers that must
+  // be converted to longs.
+  static void convert_ints_to_longints(int i2l_argcnt, int& in_args_count,
+                                       BasicType*& in_sig_bt,
+                                       VMRegPair*& in_regs );
 
   // Generate I2C and C2I adapters. These adapters are simple argument marshalling
   // blobs. Unlike adapters in the tiger and earlier releases the code in these
@@ -369,7 +390,7 @@ class SharedRuntime: AllStatic {
   // location for the interpreter to record. This is used by the frame code
   // to correct the sender code to match up with the stack pointer when the
   // thread left the compiled code. In addition it allows the interpreter
-  // to remove the space the c2i adapter allocated to do it argument conversion.
+  // to remove the space the c2i adapter allocated to do its argument conversion.
 
   // Although a c2i blob will always run interpreted even if compiled code is
   // present if we see that compiled code is present the compiled call site

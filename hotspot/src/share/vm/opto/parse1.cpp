@@ -390,6 +390,8 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   _expected_uses = expected_uses;
   _depth = 1 + (caller->has_method() ? caller->depth() : 0);
   _wrote_final = false;
+  // Add MemBarRelease for constructors which write volatile field (PPC64).
+  PPC64_ONLY(_wrote_volatile = false;)
   _entry_bci = InvocationEntryBci;
   _tf = NULL;
   _block = NULL;
@@ -934,7 +936,10 @@ void Parse::do_exits() {
   Node* iophi = _exits.i_o();
   _exits.set_i_o(gvn().transform(iophi));
 
-  if (wrote_final()) {
+  // Add MemBarRelease for constructors which write volatile field (PPC64).
+  // Intention is to avoid that other threads can observe initial values even though the
+  // constructor has set the volatile field. Java programmers wouldn't like it and we wanna be nice.
+  if (wrote_final() PPC64_ONLY(|| (wrote_volatile() && method()->is_initializer()))) {
     // This method (which must be a constructor by the rules of Java)
     // wrote a final.  The effects of all initializations must be
     // committed to memory before any code after the constructor

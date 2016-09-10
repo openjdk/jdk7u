@@ -26,9 +26,9 @@
 // These definitions are inlined into class MethodHandles.
 
 // Adapters
-enum /* platform_dependent_constants */ {
-  adapter_code_size = NOT_LP64(23000 DEBUG_ONLY(+ 40000)) LP64_ONLY(35000 DEBUG_ONLY(+ 50000))
-};
+static unsigned int adapter_code_size() {
+  return NOT_LP64(23000 DEBUG_ONLY(+ 40000)) LP64_ONLY(35000 DEBUG_ONLY(+ 50000));
+}
 
 // Additional helper methods for MethodHandles code generation:
 public:

@@ -119,7 +119,7 @@ bool ElfFile::load_tables() {
         m_status = NullDecoder::file_invalid;
         return false;
       }
-      // string table
+      // string tables
       if (shdr.sh_type == SHT_STRTAB) {
         ElfStringTable* table = new (std::nothrow) ElfStringTable(m_file, shdr, index);
         if (table == NULL) {
@@ -127,7 +127,9 @@ bool ElfFile::load_tables() {
           return false;
         }
         add_string_table(table);
-      } else if (shdr.sh_type == SHT_SYMTAB || shdr.sh_type == SHT_DYNSYM) {
+      }
+      // symbol tables
+      else if (shdr.sh_type == SHT_SYMTAB || shdr.sh_type == SHT_DYNSYM) {
         ElfSymbolTable* table = new (std::nothrow) ElfSymbolTable(m_file, shdr);
         if (table == NULL) {
           m_status = NullDecoder::out_of_memory;
@@ -136,6 +138,35 @@ bool ElfFile::load_tables() {
         add_symbol_table(table);
       }
     }
+
+#if defined(PPC64)
+    // Now read the .opd section wich contains the PPC64 function descriptor table.
+    // This is only possible after we have successfully read in the string tables in te previous loop.
+    m_funcDesc_table = NULL;
+    // Reset the file pointer
+    if (fseek(m_file, m_elfHdr.e_shoff, SEEK_SET)) {
+      m_status = NullDecoder::file_invalid;
+      return false;
+    }
+    for (int index = 0; index < m_elfHdr.e_shnum; index ++) {
+      if (fread((void*)&shdr, sizeof(Elf_Shdr), 1, m_file) != 1) {
+        m_status = NullDecoder::file_invalid;
+        return false;
+      }
+      if (m_elfHdr.e_shstrndx != SHN_UNDEF && shdr.sh_type == SHT_PROGBITS) {
+        ElfStringTable* string_table = get_string_table(m_elfHdr.e_shstrndx);
+        if (string_table == NULL) {
+          m_status = NullDecoder::file_invalid;
+          return false;
+        }
+        char buf[8]; // We only want to read ".opd"
+        if (string_table->string_at(shdr.sh_name, buf, sizeof(buf)) && !strncmp(".opd", buf, 4)) {
+          m_funcDesc_table = new (std::nothrow) ElfFuncDescTable(m_file, shdr);
+        }
+      }
+    }
+#endif
+
   }
   return true;
 }
@@ -151,8 +182,13 @@ bool ElfFile::decode(address addr, char* buf, int buflen, int* offset) {
   int off = INT_MAX;
   bool found_symbol = false;
   while (symbol_table != NULL) {
+#if defined(PPC64)
+    if (symbol_table->lookup(addr, &string_table_index, &pos_in_string_table, &off, m_funcDesc_table)) {
+#else
     if (symbol_table->lookup(addr, &string_table_index, &pos_in_string_table, &off)) {
+#endif
       found_symbol = true;
+      break;
     }
     symbol_table = symbol_table->m_next;
   }

@@ -294,6 +294,8 @@ address CodeSection::target(Label& L, address branch_pc) {
 }
 
 void CodeSection::relocate(address at, RelocationHolder const& spec, int format) {
+  // Do not relocate in scratch buffers.
+  if (scratch_emit()) return;
   Relocation* reloc = spec.reloc();
   relocInfo::relocType rtype = (relocInfo::relocType) reloc->type();
   if (rtype == relocInfo::none)  return;
@@ -665,7 +667,18 @@ void CodeBuffer::relocate_code_to(CodeBuffer* dest) const {
 
     // Make the new code copy use the old copy's relocations:
     dest_cs->initialize_locs_from(cs);
+  }
 
+  // Do relocation after all sections are copied.
+  // This is necessary if the code uses constants in stubs, which are
+  // relocated when the corresponding instruction in the code (e.g., a
+  // call) is relocated. Stubs are placed behind the main code
+  // section, so that section has to be copied before relocating.
+  for (int n = (int) SECT_FIRST; n < (int)SECT_LIMIT; n++) {
+    // pull code out of each section
+    const CodeSection* cs = code_section(n);
+    if (cs->is_empty()) continue;  // skip trivial section
+    CodeSection* dest_cs = dest->code_section(n);
     { // Repair the pc relative information in the code after the move
       RelocIterator iter(dest_cs);
       while (iter.next()) {
@@ -825,9 +838,7 @@ void CodeBuffer::expand(CodeSection* which_cs, csize_t amount) {
 void CodeBuffer::take_over_code_from(CodeBuffer* cb) {
   // Must already have disposed of the old blob somehow.
   assert(blob() == NULL, "must be empty");
-#ifdef ASSERT
 
-#endif
   // Take the new blob away from cb.
   set_blob(cb->blob());
   // Take over all the section pointers.

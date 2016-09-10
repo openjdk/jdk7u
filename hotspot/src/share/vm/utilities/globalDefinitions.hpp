@@ -38,6 +38,9 @@
 #ifdef TARGET_COMPILER_sparcWorks
 # include "utilities/globalDefinitions_sparcWorks.hpp"
 #endif
+#ifdef TARGET_COMPILER_xlc
+# include "utilities/globalDefinitions_xlc.hpp"
+#endif
 
 #include "utilities/macros.hpp"
 
@@ -46,6 +49,9 @@
 
 //----------------------------------------------------------------------------------------------------
 // Constants
+
+// "Word" here means the processor's register size (as opposed to a
+// double-byte (16 bits) or a JVM word (32 bits)).
 
 const int LogBytesPerShort   = 1;
 const int LogBytesPerInt     = 2;

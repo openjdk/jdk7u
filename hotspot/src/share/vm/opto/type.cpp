@@ -1971,6 +1971,7 @@ const TypeVect* TypeVect::make(const Type *elem, uint length) {
   switch (Matcher::vector_ideal_reg(size)) {
   case Op_VecS:
     return (TypeVect*)(new TypeVectS(elem, length))->hashcons();
+  case Op_RegL:
   case Op_VecD:
   case Op_RegD:
     return (TypeVect*)(new TypeVectD(elem, length))->hashcons();

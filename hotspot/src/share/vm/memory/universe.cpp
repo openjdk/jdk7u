@@ -89,6 +89,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "thread_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "thread_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "thread_bsd.inline.hpp"
 #endif
@@ -878,7 +881,7 @@ char* Universe::preferred_heap_base(size_t heap_size, size_t alignment, NARROW_O
       // the correct no-access prefix.
       // The final value will be set in initialize_heap() below.
       Universe::set_narrow_oop_base((address)NarrowOopHeapMax);
-#ifdef _WIN64
+#if defined(_WIN64) || defined(AIX)
       if (UseLargePages) {
         // Cannot allocate guard pages for implicit checks in indexed
         // addressing mode when large pages are specified on windows.
@@ -956,6 +959,11 @@ jint Universe::initialize_heap() {
       // Can't reserve heap below 32Gb.
       Universe::set_narrow_oop_base(Universe::heap()->base() - os::vm_page_size());
       Universe::set_narrow_oop_shift(LogMinObjAlignmentInBytes);
+#ifdef AIX
+      // There is no protected page before the heap. This assures all oops
+      // are decoded so that NULL is preserverd, so this page will not be accessed.
+      Universe::set_narrow_oop_use_implicit_null_checks(false);
+#endif
       if (verbose) {
         tty->print(", %s: "PTR_FORMAT,
             narrow_oop_mode_to_string(HeapBasedNarrowOop),
@@ -1428,7 +1436,7 @@ void Universe::verify(VerifyOption option, const char* prefix, bool silent) {
 static uintptr_t _verify_oop_data[2]   = {0, (uintptr_t)-1};
 static uintptr_t _verify_klass_data[2] = {0, (uintptr_t)-1};
 
-
+#ifndef PRODUCT
 static void calculate_verify_data(uintptr_t verify_data[2],
                                   HeapWord* low_boundary,
                                   HeapWord* high_boundary) {
@@ -1465,7 +1473,6 @@ static void calculate_verify_data(uintptr_t verify_data[2],
 
 
 // Oop verification (see MacroAssembler::verify_oop)
-#ifndef PRODUCT
 
 uintptr_t Universe::verify_oop_mask() {
   MemRegion m = heap()->reserved_region();

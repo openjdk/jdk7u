@@ -47,6 +47,11 @@
 #include <thread.h>
 #endif
 
+// We use our own dladdr() implementation on AIX since there is no dladdr.
+#ifdef AIX
+#include "porting_aix.hpp"
+#endif
+
 #ifdef __APPLE__
 #define JVM_DLL "libjvm.dylib"
 #define JAVA_DLL "libjava.dylib"
@@ -58,6 +63,12 @@
 #endif
 
 #ifndef GAMMA   /* launcher.make defines ARCH */
+
+// We must use LIBPATH on AIX.
+#ifdef AIX
+#define LD_LIBRARY_PATH "LIBPATH"
+#endif
+
 /*
  * If a processor / os combination has the ability to run binaries of
  * two data models and cohabitation of jre/jdk bits with both data
@@ -1887,7 +1898,7 @@ jlong_format_specifier() {
 int
 ContinueInNewThread(int (JNICALL *continuation)(void *), jlong stack_size, void * args) {
     int rslt;
-#if defined(__linux__) || defined(_ALLBSD_SOURCE)
+#if defined(__linux__) || defined(AIX) || defined(_ALLBSD_SOURCE)
     pthread_t tid;
     pthread_attr_t attr;
     pthread_attr_init(&attr);

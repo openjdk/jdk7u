@@ -96,6 +96,7 @@ public:
   char          *_size;            // Size of instruction
   InsEncode     *_insencode;       // Encoding class instruction belongs to
   InsEncode     *_constant;        // Encoding class constant value belongs to
+  bool           _is_lateExpand;   // Indicates that encoding just does a lateExpand.
   Attribute     *_attribs;         // List of Attribute rules
   Predicate     *_predicate;       // Predicate test for this instruction
   FormDict       _effects;         // Dictionary of effect rules
@@ -133,6 +134,8 @@ public:
   virtual uint        num_defs_or_kills();
   // This instruction has an expand rule?
   virtual bool        expands() const ;
+  // This instruction has a late expand rule?
+  virtual bool        lateExpands() const;
   // Return this instruction's first peephole rule, or NULL
   virtual Peephole   *peepholes() const;
   // Add a peephole rule to this instruction

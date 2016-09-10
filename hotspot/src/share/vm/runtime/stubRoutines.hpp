@@ -117,6 +117,9 @@ class StubRoutines: AllStatic {
 #ifdef TARGET_ARCH_MODEL_ppc
 # include "stubRoutines_ppc.hpp"
 #endif
+#ifdef TARGET_ARCH_MODEL_ppc_64
+# include "stubRoutines_ppc_64.hpp"
+#endif
 
 
   static jint    _verify_oop_count;
@@ -218,6 +221,19 @@ class StubRoutines: AllStatic {
   static double (*_intrinsic_cos)(double);
   static double (*_intrinsic_tan)(double);
 
+#ifdef SAFEFETCH_STUBS
+  // On platforms where the compiler does not properly support inline
+  // assembly safefetch can be implemented as stub routines. This also
+  // allows to use a single implementation if an architecture is
+  // supported on several os platforms.
+  static address _safefetch32_entry;
+  static address _safefetch32_fault_pc;
+  static address _safefetch32_continuation_pc;
+  static address _safefetchN_entry;
+  static address _safefetchN_fault_pc;
+  static address _safefetchN_continuation_pc;
+#endif
+
  public:
   // Initialization/Testing
   static void    initialize1();                            // must happen before universe::genesis
@@ -238,7 +254,9 @@ class StubRoutines: AllStatic {
   static jint    verify_oop_count()                        { return _verify_oop_count; }
   static jint*   verify_oop_count_addr()                   { return &_verify_oop_count; }
   // a subroutine for debugging the GC
-  static address verify_oop_subroutine_entry_address()    { return (address)&_verify_oop_subroutine_entry; }
+  static address verify_oop_subroutine_entry_address()     { return (address)&_verify_oop_subroutine_entry; }
+  // We need this address to lazily jump to in interpreter.
+  static address throw_StackOverflowError_entry_address()  { return (address)&_throw_StackOverflowError_entry; }
 
   static address catch_exception_entry()                   { return _catch_exception_entry; }
 
@@ -375,6 +393,32 @@ class StubRoutines: AllStatic {
     return _intrinsic_tan(d);
   }
 
+#ifdef SAFEFETCH_STUBS
+  typedef int      (*SafeFetch32Stub)(int*      adr, int      errValue);
+  typedef intptr_t (*SafeFetchNStub) (intptr_t* adr, intptr_t errValue);
+
+  static SafeFetch32Stub SafeFetch32_stub() { return CAST_TO_FN_PTR(SafeFetch32Stub, _safefetch32_entry); }
+  static SafeFetchNStub  SafeFetchN_stub()  { return CAST_TO_FN_PTR(SafeFetchNStub,  _safefetchN_entry); }
+
+  static bool is_safefetch_fault(address pc) {
+    return pc != NULL &&
+          (pc == _safefetch32_fault_pc ||
+           pc == _safefetchN_fault_pc);
+  }
+
+  static address continuation_for_safefetch_fault(address pc) {
+    assert(_safefetch32_continuation_pc != NULL &&
+           _safefetchN_continuation_pc  != NULL,
+           "not initialized");
+
+    if (pc == _safefetch32_fault_pc) return _safefetch32_continuation_pc;
+    if (pc == _safefetchN_fault_pc)  return _safefetchN_continuation_pc;
+
+    ShouldNotReachHere();
+    return NULL;
+  }
+#endif
+
   //
   // Default versions of the above arraycopy functions for platforms which do
   // not have specialized versions
@@ -393,5 +437,20 @@ class StubRoutines: AllStatic {
   static void arrayof_oop_copy       (HeapWord* src, HeapWord* dest, size_t count);
   static void arrayof_oop_copy_uninit(HeapWord* src, HeapWord* dest, size_t count);
 };
+
+#ifdef SAFEFETCH_STUBS
+  static int SafeFetch32(int* adr, int errValue) {
+    return StubRoutines::SafeFetch32_stub()(adr, errValue);
+  }
+  static intptr_t SafeFetchN(intptr_t* adr, intptr_t errValue) {
+    return StubRoutines::SafeFetchN_stub()(adr, errValue);
+  }
+  static bool CanUseSafeFetch32() { return StubRoutines::SafeFetch32_stub() ? true : false; }
+  static bool CanUseSafeFetchN()  { return StubRoutines::SafeFetchN_stub() ? true : false; }
+#else
+  // Declared as extern "C" in os.hpp.
+  static bool CanUseSafeFetch32() { return true; }
+  static bool CanUseSafeFetchN()  { return true; }
+#endif
 
 #endif // SHARE_VM_RUNTIME_STUBROUTINES_HPP

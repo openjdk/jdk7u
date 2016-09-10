@@ -277,6 +277,48 @@ void InterpreterRuntime::note_trap(JavaThread* thread, int reason, TRAPS) {
   }
 }
 
+#ifdef CC_INTERP
+// As legacy note_trap, but we have more arguments.
+IRT_ENTRY(void, InterpreterRuntime::note_trap(JavaThread* thread, int reason, methodOop method, int trap_bci))
+  methodHandle trap_method(method);
+
+  // START derived from note_trap
+  // passed as arg: methodHandle trap_method(thread, method(thread));
+  if (trap_method.not_null()) {
+    methodDataHandle trap_mdo(thread, trap_method->method_data());
+    if (trap_mdo.is_null()) {
+      methodOopDesc::build_interpreter_method_data(trap_method, THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+        assert((PENDING_EXCEPTION->is_a(SystemDictionary::OutOfMemoryError_klass())), "we expect only an OOM error here");
+        CLEAR_PENDING_EXCEPTION;
+      }
+      trap_mdo = trap_method->method_data();
+      // and fall through...
+    }
+    if (trap_mdo.not_null()) {
+      // Update per-method count of trap events. The interpreter
+      // is updating the MDO to simulate the effect of compiler traps.
+      // Passed as arg int trap_bci = trap_method->bci_from(bcp(thread));
+      Deoptimization::update_method_data_from_interpreter(trap_mdo, trap_bci, reason);
+    }
+  }
+  // END derived from note_trap
+IRT_END
+
+// Class Deoptimization is not visible in BytecodeInterpreter, so we need a wrapper
+// for each exception.
+void InterpreterRuntime::note_nullCheck_trap(JavaThread* thread, methodOop method, int trap_bci)
+  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_null_check, method, trap_bci); }
+void InterpreterRuntime::note_div0Check_trap(JavaThread* thread, methodOop method, int trap_bci)
+  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_div0_check, method, trap_bci); }
+void InterpreterRuntime::note_rangeCheck_trap(JavaThread* thread, methodOop method, int trap_bci)
+  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_range_check, method, trap_bci); }
+void InterpreterRuntime::note_classCheck_trap(JavaThread* thread, methodOop method, int trap_bci)
+  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_class_check, method, trap_bci); }
+void InterpreterRuntime::note_arrayCheck_trap(JavaThread* thread, methodOop method, int trap_bci)
+  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_array_check, method, trap_bci); }
+#endif // CC_INTERP
+
 static Handle get_preinitialized_exception(klassOop k, TRAPS) {
   // get klass
   instanceKlass* klass = instanceKlass::cast(k);

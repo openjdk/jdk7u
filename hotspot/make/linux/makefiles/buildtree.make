@@ -408,6 +408,7 @@ DATA_MODE/sparc   = 32
 DATA_MODE/sparcv9 = 64
 DATA_MODE/amd64   = 64
 DATA_MODE/ia64    = 64
+DATA_MODE/ppc64   = 64
 DATA_MODE/zero    = $(ARCH_DATA_MODEL)
 
 JAVA_FLAG/32 = -d32
@@ -415,6 +416,9 @@ JAVA_FLAG/64 = -d64
 
 WRONG_DATA_MODE_MSG = \
 	echo "JAVA_HOME must point to a $(DATA_MODE)-bit OpenJDK."
+
+WRONG_JDK_MSG = \
+	echo "JAVA_HOME must point to a HotSpot based JDK \\\(genuine Sun/Oracle or OpenJDK\\\)."
 
 CROSS_COMPILING_MSG = \
 	echo "Cross compiling for ARCH $(CROSS_COMPILE_ARCH), skipping gamma run."
@@ -449,6 +453,14 @@ test_gamma:  $(BUILDTREE_MAKE) $(GAMMADIR)/make/test/Queens.java
 	echo "\$${JAVA_HOME}/bin/java $(JAVA_FLAG) -fullversion > /dev/null 2>&1"; \
 	echo "if [ \$$? -ne 0 ]; then "; \
 	echo "  $(WRONG_DATA_MODE_MSG)"; \
+	echo "  exit 0"; \
+	echo "fi"; \
+	echo ""; \
+	echo "# 'gamma' only runs with HotSpot based JDKs (genuine Sun/Oracle or OpenJDK)"; \
+	echo ""; \
+	echo "\$${JAVA_HOME}/bin/java $(JAVA_FLAG) -version 2>&1 | grep -E 'OpenJDK|HotSpot' > /dev/null"; \
+	echo "if [ \$$? -ne 0 ]; then "; \
+	echo "  $(WRONG_JDK_MSG)"; \
 	echo "  exit 0"; \
 	echo "fi"; \
 	echo ""; \

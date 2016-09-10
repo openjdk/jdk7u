@@ -126,6 +126,15 @@ ifeq ($(JVM_VARIANTS),)
   endif
 endif
 
+# PPC64
+ifeq ($(ARCH), ppc64)
+  ARCH_DATA_MODEL  = 64
+  MAKE_ARGS        += LP64=1
+  PLATFORM         = linux-ppc64
+  VM_PLATFORM      = linux_ppc64
+  HS_ARCH          = ppc
+endif
+
 # determine if HotSpot is being built in JDK6 or earlier version
 JDK6_OR_EARLIER=0
 ifeq "$(shell expr \( '$(JDK_MAJOR_VERSION)' != '' \& '$(JDK_MINOR_VERSION)' != '' \& '$(JDK_MICRO_VERSION)' != '' \))" "1"
@@ -291,6 +300,7 @@ ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
   endif
 endif
 ADD_SA_BINARIES/ppc   = 
+ADD_SA_BINARIES/ppc64 = 
 ADD_SA_BINARIES/ia64  = 
 ADD_SA_BINARIES/arm   = 
 ADD_SA_BINARIES/zero  = 

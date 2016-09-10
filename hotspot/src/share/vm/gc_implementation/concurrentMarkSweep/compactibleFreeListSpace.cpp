@@ -999,6 +999,13 @@ size_t CompactibleFreeListSpace::block_size(const HeapWord* p) const {
     if (FreeChunk::indicatesFreeChunk(p)) {
       volatile FreeChunk* fc = (volatile FreeChunk*)p;
       size_t res = fc->size();
+
+      // Bugfix for systems with weak memory model (PPC64/IA64). The
+      // block's free bit was set and we have read the size of the
+      // block. Acquire and check the free bit again. If the block is
+      // still free, the read size is correct.
+      OrderAccess::acquire();
+
       // If the object is still a free chunk, return the size, else it
       // has been allocated so try again.
       if (FreeChunk::indicatesFreeChunk(p)) {
@@ -1013,6 +1020,12 @@ size_t CompactibleFreeListSpace::block_size(const HeapWord* p) const {
         oop o = (oop)p;
         assert(o->is_parsable(), "Should be parsable");
         assert(o->is_oop(true /* ignore mark word */), "Should be an oop.");
+
+        // Bugfix for systems with weak memory model (PPC64/IA64).
+        // The object o may be an array. Acquire to make sure that the array
+        // size (third word) is consistent.
+        OrderAccess::acquire();
+
         size_t res = o->size_given_klass(k->klass_part());
         res = adjustObjectSize(res);
         assert(res != 0, "Block size should not be 0");
@@ -1042,6 +1055,13 @@ const {
     if (FreeChunk::indicatesFreeChunk(p)) {
       volatile FreeChunk* fc = (volatile FreeChunk*)p;
       size_t res = fc->size();
+
+      // Bugfix for systems with weak memory model (PPC64/IA64). The
+      // free bit of the block was set and we have read the size of
+      // the block. Acquire and check the free bit again. If the
+      // block is still free, the read size is correct.
+      OrderAccess::acquire();
+
       if (FreeChunk::indicatesFreeChunk(p)) {
         assert(res != 0, "Block size should not be 0");
         assert(loops == 0, "Should be 0");
@@ -1057,6 +1077,12 @@ const {
         assert(k->is_oop(), "Should really be klass oop.");
         oop o = (oop)p;
         assert(o->is_oop(), "Should be an oop");
+
+        // Bugfix for systems with weak memory model (PPC64/IA64).
+        // The object o may be an array. Acquire to make sure that the array
+        // size (third word) is consistent.
+        OrderAccess::acquire();
+
         size_t res = o->size_given_klass(k->klass_part());
         res = adjustObjectSize(res);
         assert(res != 0, "Block size should not be 0");

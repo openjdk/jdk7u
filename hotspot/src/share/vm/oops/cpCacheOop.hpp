@@ -135,7 +135,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
 
   void set_bytecode_1(Bytecodes::Code code);
   void set_bytecode_2(Bytecodes::Code code);
-  void set_f1(oop f1)                            {
+  void set_f1(oop f1) {
     oop existing_f1 = _f1; // read once
     assert(existing_f1 == NULL || existing_f1 == f1, "illegal field change");
     oop_store(&_f1, f1);
@@ -307,17 +307,25 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
                                                    return ((uintx)_indices >> secondary_cp_index_shift); }
   int primary_entry_indices() const              { assert(!is_secondary_entry(), "must be main entry");
                                                    return _indices; }
+  int primary_entry_indices_ord() const          { assert(!is_secondary_entry(), "must be main entry");
+                                                   return (intx)OrderAccess::load_ptr_acquire(&_indices); }
   int constant_pool_index() const                { return (primary_entry_indices() & main_cp_index_mask); }
-  Bytecodes::Code bytecode_1() const             { return Bytecodes::cast((primary_entry_indices() >> bytecode_1_shift)
+  Bytecodes::Code bytecode_1() const             { return Bytecodes::cast((primary_entry_indices_ord() >> bytecode_1_shift)
                                                                           & bytecode_1_mask); }
-  Bytecodes::Code bytecode_2() const             { return Bytecodes::cast((primary_entry_indices() >> bytecode_2_shift)
+  Bytecodes::Code bytecode_2() const             { return Bytecodes::cast((primary_entry_indices_ord() >> bytecode_2_shift)
                                                                           & bytecode_2_mask); }
-  methodOop f1_as_method() const                 { oop f1 = _f1; assert(f1 == NULL || f1->is_method(), ""); return methodOop(f1); }
-  klassOop  f1_as_klass() const                  { oop f1 = _f1; assert(f1 == NULL || f1->is_klass(), ""); return klassOop(f1); }
+  oop       f1_ord() const                       {return (oop) OrderAccess::load_ptr_acquire(&_f1); }
+  methodOop f1_as_method() const                 { oop f1 = f1_ord(); assert(f1 == NULL || f1->is_method(), ""); return methodOop(f1); }
+  klassOop  f1_as_klass() const                  { oop f1 = f1_ord(); assert(f1 == NULL || f1->is_klass(), ""); return klassOop(f1); }
   oop       f1_as_klass_mirror() const           { oop f1 = f1_as_instance(); return f1; }  // i.e., return a java_mirror
-  oop       f1_as_instance() const               { oop f1 = _f1; assert(f1 == NULL || f1->is_instance() || f1->is_array(), ""); return f1; }
+  oop       f1_as_instance() const               { oop f1 = f1_ord(); assert(f1 == NULL || f1->is_instance() || f1->is_array(), ""); return f1; }
   oop       f1_appendix() const                  { assert(has_appendix(), ""); return f1_as_instance(); }
-  bool      is_f1_null() const                   { oop f1 = _f1; return f1 == NULL; }  // classifies a CPC entry as unbound
+  // Use the accessor f1() to acquire _f1's value. This is needed for
+  // example in BytecodeInterpreter::run(), where is_f1_null() is
+  // called to check if an invokedynamic call is resolved. This load
+  // of _f1 must be ordered with the loads performed by
+  // cache->main_entry_index().
+  bool      is_f1_null() const                   { oop f1 = f1_ord(); return f1 == NULL; }  // classifies a CPC entry as unbound
   int       f2_as_index() const                  { assert(!is_vfinal(), ""); return (int) _f2; }
   methodOop f2_as_vfinal_method() const          { assert(is_vfinal(), ""); return methodOop(_f2); }
   int  field_index() const                       { assert(is_field_entry(),  ""); return (_flags & field_index_mask); }

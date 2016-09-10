@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -463,8 +463,9 @@ static int pipeline_res_mask_initializer(
   uint resources_used_exclusively = 0;
 
   for (pipeclass->_resUsage.reset();
-       (piperesource = (const PipeClassResourceForm *)pipeclass->_resUsage.iter()) != NULL; )
+       (piperesource = (const PipeClassResourceForm*)pipeclass->_resUsage.iter()) != NULL; ) {
     element_count++;
+  }
 
   // Pre-compute the string length
   int templen;
@@ -482,8 +483,8 @@ static int pipeline_res_mask_initializer(
   for (i = rescount; i > 0; i /= 10)
     maskdigit++;
 
-  static const char * pipeline_use_cycle_mask = "Pipeline_Use_Cycle_Mask";
-  static const char * pipeline_use_element    = "Pipeline_Use_Element";
+  static const char* pipeline_use_cycle_mask = "Pipeline_Use_Cycle_Mask";
+  static const char* pipeline_use_element    = "Pipeline_Use_Element";
 
   templen = 1 +
     (int)(strlen(pipeline_use_cycle_mask) + (int)strlen(pipeline_use_element) +
@@ -496,11 +497,12 @@ static int pipeline_res_mask_initializer(
   templen = 0;
 
   for (pipeclass->_resUsage.reset();
-       (piperesource = (const PipeClassResourceForm *)pipeclass->_resUsage.iter()) != NULL; ) {
+       (piperesource = (const PipeClassResourceForm*)pipeclass->_resUsage.iter()) != NULL; ) {
     int used_mask = pipeline->_resdict[piperesource->_resource]->is_resource()->mask();
 
-    if (!used_mask)
+    if (!used_mask) {
       fprintf(stderr, "*** used_mask is 0 ***\n");
+    }
 
     resources_used |= used_mask;
 
@@ -509,8 +511,9 @@ static int pipeline_res_mask_initializer(
     for (lb =  0; (used_mask & (1 << lb)) == 0; lb++);
     for (ub = 31; (used_mask & (1 << ub)) == 0; ub--);
 
-    if (lb == ub)
+    if (lb == ub) {
       resources_used_exclusively |= used_mask;
+    }
 
     int formatlen =
       sprintf(&resource_mask[templen], "  %s(0x%0*x, %*d, %*d, %s %s(",
@@ -526,7 +529,7 @@ static int pipeline_res_mask_initializer(
 
     int cycles = piperesource->_cycles;
     uint stage          = pipeline->_stages.index(piperesource->_stage);
-    if (NameList::Not_in_list == stage) {
+    if ((uint)NameList::Not_in_list == stage) {
       fprintf(stderr,
               "pipeline_res_mask_initializer: "
               "semantic error: "
@@ -534,8 +537,8 @@ static int pipeline_res_mask_initializer(
               piperesource->_stage);
       exit(1);
     }
-    uint upper_limit    = stage+cycles-1;
-    uint lower_limit    = stage-1;
+    uint upper_limit    = stage + cycles - 1;
+    uint lower_limit    = stage - 1;
     uint upper_idx      = upper_limit >> 5;
     uint lower_idx      = lower_limit >> 5;
     uint upper_position = upper_limit & 0x1f;
@@ -543,7 +546,7 @@ static int pipeline_res_mask_initializer(
 
     uint mask = (((uint)1) << upper_position) - 1;
 
-    while ( upper_idx > lower_idx ) {
+    while (upper_idx > lower_idx) {
       res_mask[upper_idx--] |= mask;
       mask = (uint)-1;
     }
@@ -565,8 +568,9 @@ static int pipeline_res_mask_initializer(
   }
 
   resource_mask[templen] = 0;
-  if (last_comma)
+  if (last_comma) {
     last_comma[0] = ' ';
+  }
 
   // See if the same string is in the table
   int ndx = pipeline_res_mask.index(resource_mask);
@@ -580,7 +584,7 @@ static int pipeline_res_mask_initializer(
       fprintf(fp_cpp, "static const Pipeline_Use_Element pipeline_res_mask_%03d[%d] = {\n%s};\n\n",
         ndx+1, element_count, resource_mask);
 
-    char * args = new char [9 + 2*masklen + maskdigit];
+    char* args = new char [9 + 2*masklen + maskdigit];
 
     sprintf(args, "0x%0*x, 0x%0*x, %*d",
       masklen, resources_used,
@@ -589,8 +593,9 @@ static int pipeline_res_mask_initializer(
 
     pipeline_res_args.addName(args);
   }
-  else
+  else {
     delete [] resource_mask;
+  }
 
   delete [] res_mask;
 //delete [] res_masks;
@@ -1565,6 +1570,13 @@ void ArchDesc::defineExpand(FILE *fp, InstructForm *node) {
       new_id = expand_instr->name();
 
       InstructForm* expand_instruction = (InstructForm*)globalAD->globalNames()[new_id];
+
+      if (!expand_instruction) {
+        globalAD->syntax_err(node->_linenum, "In %s: instruction %s used in expand not declared\n",
+                             node->_ident, new_id);
+        continue;
+      }
+
       if (expand_instruction->has_temps()) {
         globalAD->syntax_err(node->_linenum, "In %s: expand rules using instructs with TEMPs aren't supported: %s",
                              node->_ident, new_id);
@@ -1623,6 +1635,13 @@ void ArchDesc::defineExpand(FILE *fp, InstructForm *node) {
         // Use 'parameter' at current position in list of new instruction's formals
         // instead of 'opid' when looking up info internal to new_inst
         const char *parameter = formal_lst->iter();
+        if (!parameter) {
+          globalAD->syntax_err(node->_linenum, "Operand %s of expand instruction %s has"
+                               " no equivalent in new instruction %s.",
+                               opid, node->_ident, new_inst->_ident);
+          assert(0, "Wrong expand");
+        }
+
         // Check for an operand which is created in the expand rule
         if ((exp_pos = node->_exprule->_newopers.index(opid)) != -1) {
           new_pos = new_inst->operand_position(parameter,Component::USE);
@@ -1787,7 +1806,7 @@ void ArchDesc::defineExpand(FILE *fp, InstructForm *node) {
       // Skip first unique operands.
       for( i = 1; i < cur_num_opnds; i++ ) {
         comp = node->_components.iter();
-        if( (int)i != node->unique_opnds_idx(i) ) {
+        if (i != node->unique_opnds_idx(i)) {
           break;
         }
         new_num_opnds++;
@@ -1795,7 +1814,7 @@ void ArchDesc::defineExpand(FILE *fp, InstructForm *node) {
       // Replace not unique operands with next unique operands.
       for( ; i < cur_num_opnds; i++ ) {
         comp = node->_components.iter();
-        int j = node->unique_opnds_idx(i);
+        uint j = node->unique_opnds_idx(i);
         // unique_opnds_idx(i) is unique if unique_opnds_idx(j) is not unique.
         if( j != node->unique_opnds_idx(j) ) {
           fprintf(fp,"  set_opnd_array(%d, opnd_array(%d)->clone(C)); // %s\n",
@@ -2100,16 +2119,21 @@ public:
         if (strcmp(rep_var,"$reg") == 0 || reg_conversion(rep_var) != NULL) {
           _reg_status  = LITERAL_ACCESSED;
         } else {
+          _AD.syntax_err(_encoding._linenum,
+                         "Invalid access to literal register parameter '%s' in %s.\n",
+                         rep_var, _encoding._name);
           assert( false, "invalid access to literal register parameter");
         }
       }
       // literal constant parameters must be accessed as a 'constant' field
-      if ( _constant_status != LITERAL_NOT_SEEN ) {
-        assert( _constant_status == LITERAL_SEEN, "Must have seen constant literal before now");
-        if( strcmp(rep_var,"$constant") == 0 ) {
-          _constant_status  = LITERAL_ACCESSED;
+      if (_constant_status != LITERAL_NOT_SEEN) {
+        assert(_constant_status == LITERAL_SEEN, "Must have seen constant literal before now");
+        if (strcmp(rep_var,"$constant") == 0) {
+          _constant_status = LITERAL_ACCESSED;
         } else {
-          assert( false, "invalid access to literal constant parameter");
+          _AD.syntax_err(_encoding._linenum,
+                         "Invalid access to literal constant parameter '%s' in %s.\n",
+                         rep_var, _encoding._name);
         }
       }
     } // end replacement and/or subfield
@@ -2492,9 +2516,114 @@ void ArchDesc::defineSize(FILE *fp, InstructForm &inst) {
   fprintf(fp, "  return (VerifyOops ? MachNode::size(ra_) : %s);\n", inst._size);
 
   // (3) and (4)
-  fprintf(fp,"}\n");
+  fprintf(fp,"}\n\n");
 }
 
+// Emit late expand function.
+void ArchDesc::defineLateExpand(FILE *fp, InstructForm &inst) {
+  InsEncode *ins_encode = inst._insencode;
+
+  // Output instruction's lateExpand prototype.
+  fprintf(fp, "void  %sNode::lateExpand(GrowableArray <Node *> *nodes, PhaseRegAlloc *ra_) {\n",
+          inst._ident);
+
+  assert((_encode != NULL) && (ins_encode != NULL), "You must define an encode section.");
+
+  // Output each operand's offset into the array of registers.
+  inst.index_temps(fp, _globalNames);
+
+  // Output variables "unsigned idx_<par_name>", Node *n_<par_name> and "MachOpnd *op_<par_name>"
+  // for each parameter <par_name> specified in the encoding.
+  ins_encode->reset();
+  const char *ec_name = ins_encode->encode_class_iter();
+  assert(ec_name != NULL, "late expand must specify an encoding");
+
+  EncClass *encoding = _encode->encClass(ec_name);
+  if (encoding == NULL) {
+    fprintf(stderr, "User did not define contents of this encode_class: %s\n", ec_name);
+    abort();
+  }
+  if (ins_encode->current_encoding_num_args() != encoding->num_args()) {
+    globalAD->syntax_err(ins_encode->_linenum, "In %s: passing %d arguments to %s but expecting %d",
+                         inst._ident, ins_encode->current_encoding_num_args(),
+                         ec_name, encoding->num_args());
+  }
+
+  fprintf(fp, "  // Access to ins and operands for late expand.\n");
+  const int buflen = 2000;
+  char idxbuf[buflen]; char *ib = idxbuf; sprintf(ib, "");
+  char nbuf  [buflen]; char *nb = nbuf;   sprintf(nb, "");
+  char opbuf [buflen]; char *ob = opbuf;  sprintf(ob, "");
+
+  encoding->_parameter_type.reset();
+  encoding->_parameter_name.reset();
+  const char *type = encoding->_parameter_type.iter();
+  const char *name = encoding->_parameter_name.iter();
+  int param_no = 0;
+  for (; (type != NULL) && (name != NULL);
+       (type = encoding->_parameter_type.iter()), (name = encoding->_parameter_name.iter())) {
+    const char* arg_name = ins_encode->rep_var_name(inst, param_no);
+    int idx = inst.operand_position_format(arg_name);
+    if (strcmp(arg_name, "constanttablebase") == 0) {
+      ib += sprintf(ib, "  unsigned idx_%-5s = mach_constant_base_node_input(); \t// %s, \t%s\n",
+                    name, type, arg_name);
+      nb += sprintf(nb, "  Node    *n_%-7s = lookup(idx_%s);\n", name, name);
+      // There is no operand for the constanttablebase.
+    } else if (inst.is_noninput_operand(idx)) {
+      globalAD->syntax_err(inst._linenum,
+                           "In %s: you can not pass the non-input %s to a late expand encoding.\n",
+                           inst._ident, arg_name);
+    } else {
+      ib += sprintf(ib, "  unsigned idx_%-5s = idx%d; \t// %s, \t%s\n",
+                    name, idx, type, arg_name);
+      nb += sprintf(nb, "  Node    *n_%-7s = lookup(idx_%s);\n", name, name);
+      ob += sprintf(ob, "  %sOper *op_%s = (%sOper *)opnd_array(%d);\n", type, name, type, idx);
+    }
+    param_no++;
+  }
+  assert(ib < &idxbuf[buflen-1] && nb < &nbuf[buflen-1] && ob < &opbuf[buflen-1], "buffer overflow");
+
+  fprintf(fp, "%s", idxbuf);
+  fprintf(fp, "  Node    *n_region  = lookup(0);\n");
+  fprintf(fp, "%s%s", nbuf, opbuf);
+  fprintf(fp, "  Compile *C = ra_->C;\n");
+
+  // Output this instruction's encodings.
+  fprintf(fp, "  {");
+  const char *ec_code    = NULL;
+  const char *ec_rep_var = NULL;
+  assert(encoding == _encode->encClass(ec_name), "");
+
+  DefineEmitState pending(fp, *this, *encoding, *ins_encode, inst);
+  encoding->_code.reset();
+  encoding->_rep_vars.reset();
+  // Process list of user-defined strings,
+  // and occurrences of replacement variables.
+  // Replacement Vars are pushed into a list and then output.
+  while ((ec_code = encoding->_code.iter()) != NULL) {
+    if (! encoding->_code.is_signal(ec_code)) {
+      // Emit pending code.
+      pending.emit();
+      pending.clear();
+      // Emit this code section.
+      fprintf(fp, "%s", ec_code);
+    } else {
+      // A replacement variable or one of its subfields.
+      // Obtain replacement variable from list.
+      ec_rep_var = encoding->_rep_vars.iter();
+      pending.add_rep_var(ec_rep_var);
+    }
+  }
+  // Emit pending code.
+  pending.emit();
+  pending.clear();
+  fprintf(fp, "  }\n");
+
+  fprintf(fp, "}\n\n");
+
+  ec_name = ins_encode->encode_class_iter();
+  assert(ec_name == NULL, "Late expand may only have one encoding.");
+}
 // defineEmit -----------------------------------------------------------------
 void ArchDesc::defineEmit(FILE* fp, InstructForm& inst) {
   InsEncode* encode = inst._insencode;
@@ -2845,7 +2974,7 @@ void ArchDesc::define_oper_interface(FILE *fp, OperandForm &oper, FormDict &glob
   } else if ( (strcmp(name,"disp") == 0) ) {
     fprintf(fp,"(PhaseRegAlloc *ra_, const Node *node, int idx) const { \n");
   } else {
-    fprintf(fp,"() const { \n");
+    fprintf(fp, "() const {\n");
   }
 
   // Check for hexadecimal value OR replacement variable
@@ -2895,6 +3024,8 @@ void ArchDesc::define_oper_interface(FILE *fp, OperandForm &oper, FormDict &glob
     // Hex value
     fprintf(fp,"    return %s;\n", encoding);
   } else {
+    globalAD->syntax_err(oper._linenum, "In operand %s: Do not support this encode constant: '%s' for %s.",
+                         oper._ident, encoding, name);
     assert( false, "Do not support octal or decimal encode constants");
   }
   fprintf(fp,"  }\n");
@@ -3146,7 +3277,15 @@ void ArchDesc::defineClasses(FILE *fp) {
     // Ensure this is a machine-world instruction
     if ( instr->ideal_only() ) continue;
 
-    if (instr->_insencode)         defineEmit        (fp, *instr);
+    if (instr->_insencode) {
+      if (instr->lateExpands()) {
+        // Don't write this to _CPP_EXPAND_file, as the code generated calls C-code
+        // from code sections in ad file that is dumped to fp.
+        defineLateExpand(fp, *instr);
+      } else {
+        defineEmit(fp, *instr);
+      }
+    }
     if (instr->is_mach_constant()) defineEvalConstant(fp, *instr);
     if (instr->_size)              defineSize        (fp, *instr);
 

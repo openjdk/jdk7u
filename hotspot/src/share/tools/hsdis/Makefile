@@ -74,6 +74,7 @@ CFLAGS/i386	+= -m32
 CFLAGS/sparc	+= -m32
 CFLAGS/sparcv9	+= -m64
 CFLAGS/amd64	+= -m64
+CFLAGS/ppc64	+= -m64
 CFLAGS		+= $(CFLAGS/$(ARCH))
 CFLAGS		+= -fPIC
 OS		= linux

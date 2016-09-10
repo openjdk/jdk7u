@@ -33,6 +33,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
 #endif
@@ -59,6 +62,9 @@
 #endif
 #ifdef TARGET_OS_ARCH_linux_ppc
 # include "atomic_linux_ppc.inline.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_aix_ppc
+# include "atomic_aix_ppc.inline.hpp"
 #endif
 #ifdef TARGET_OS_ARCH_bsd_x86
 # include "atomic_bsd_x86.inline.hpp"

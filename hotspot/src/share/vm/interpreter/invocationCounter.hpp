@@ -98,13 +98,17 @@ class InvocationCounter VALUE_OBJ_CLASS_SPEC {
 
   // Test counter using scaled limits like the asm interpreter would do rather than doing
   // the shifts to normalize the counter.
-
-  bool   reached_InvocationLimit() const         { return _counter >= (unsigned int) InterpreterInvocationLimit; }
-  bool   reached_BackwardBranchLimit() const     { return _counter >= (unsigned int) InterpreterBackwardBranchLimit; }
+  // Checks sum of invocation_counter and backedge_counter as the template interpreter does.
+  bool reached_InvocationLimit(InvocationCounter *back_edge_count) const {
+    return (_counter & count_mask) + (back_edge_count->_counter & count_mask) >= (unsigned int) InterpreterInvocationLimit;
+  }
+  bool reached_BackwardBranchLimit(InvocationCounter *back_edge_count) const {
+    return (_counter & count_mask) + (back_edge_count->_counter & count_mask) >= (unsigned int) InterpreterBackwardBranchLimit;
+  }
 
   // Do this just like asm interpreter does for max speed
-  bool   reached_ProfileLimit(InvocationCounter *back_edge_count) const {
-    return (_counter && count_mask) + back_edge_count->_counter >= (unsigned int) InterpreterProfileLimit;
+  bool reached_ProfileLimit(InvocationCounter *back_edge_count) const {
+    return (_counter & count_mask) + (back_edge_count->_counter & count_mask) >= (unsigned int) InterpreterProfileLimit;
   }
 
   void increment()                               { _counter += count_increment; }

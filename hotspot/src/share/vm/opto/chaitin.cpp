@@ -382,9 +382,9 @@ void PhaseChaitin::Register_Allocate() {
 
   // If we spill, split and recycle the entire thing
   while( spills ) {
-    if( _trip_cnt++ > 24 ) {
+    if( _trip_cnt++ > (24 PPC64_ONLY(+23)) ) {
       DEBUG_ONLY( dump_for_spill_split_recycle(); )
-      if( _trip_cnt > 27 ) {
+      if( _trip_cnt > (27 PPC64_ONLY(+23))) {
         C->record_method_not_compilable("failed spill-split-recycle sanity check");
         return;
       }
@@ -622,7 +622,7 @@ void PhaseChaitin::gather_lrg_masks( bool after_aggressive ) {
         // processes as vector in RA.
         if (RegMask::is_vector(ireg))
           lrg._is_vector = 1;
-        assert(n_type->isa_vect() == NULL || lrg._is_vector || ireg == Op_RegD,
+        assert(n_type->isa_vect() == NULL || lrg._is_vector || ireg == Op_RegD || ireg == Op_RegL,
                "vector must be in vector registers");
 
         // Check for bound register masks
@@ -819,7 +819,7 @@ void PhaseChaitin::gather_lrg_masks( bool after_aggressive ) {
         int kreg = n->in(k)->ideal_reg();
         bool is_vect = RegMask::is_vector(kreg);
         assert(n->in(k)->bottom_type()->isa_vect() == NULL ||
-               is_vect || kreg == Op_RegD,
+               is_vect || kreg == Op_RegD || kreg == Op_RegL,
                "vector must be in vector registers");
         if (lrgmask.is_bound(kreg))
           lrg._is_bound = 1;

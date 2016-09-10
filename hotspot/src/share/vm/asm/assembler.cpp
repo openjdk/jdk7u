@@ -100,11 +100,11 @@ void AbstractAssembler::end_a_stub() {
   set_code_section(code()->insts());
 }
 
-// Inform CodeBuffer that incoming code and relocation will be for stubs
+// Inform CodeBuffer that incoming code and relocation will be for consts
 address AbstractAssembler::start_a_const(int required_space, int required_align) {
   CodeBuffer*  cb = code();
   CodeSection* cs = cb->consts();
-  assert(_code_section == cb->insts(), "not in insts?");
+  assert(_code_section == cb->insts() || _code_section == cb->stubs(), "not in insts/stubs?");
   sync();
   address end = cs->end();
   int pad = -(intptr_t)end & (required_align-1);
@@ -121,13 +121,12 @@ address AbstractAssembler::start_a_const(int required_space, int required_align)
 }
 
 // Inform CodeBuffer that incoming code and relocation will be code
-// Should not be called if start_a_const() returned NULL
-void AbstractAssembler::end_a_const() {
+// in section cs (insts or stubs).
+void AbstractAssembler::end_a_const(CodeSection* cs) {
   assert(_code_section == code()->consts(), "not in consts?");
   sync();
-  set_code_section(code()->insts());
+  set_code_section(cs);
 }
-
 
 void AbstractAssembler::flush() {
   sync();
@@ -178,7 +177,7 @@ void AbstractAssembler::bind(Label& L) {
 void AbstractAssembler::generate_stack_overflow_check( int frame_size_in_bytes) {
   if (UseStackBanging) {
     // Each code entry causes one stack bang n pages down the stack where n
-    // is configurable by StackBangPages.  The setting depends on the maximum
+    // is configurable by StackShadowPages.  The setting depends on the maximum
     // depth of VM call stack or native before going back into java code,
     // since only java code can raise a stack overflow exception using the
     // stack banging mechanism.  The VM and native code does not detect stack
@@ -210,6 +209,7 @@ void AbstractAssembler::generate_stack_overflow_check( int frame_size_in_bytes) 
 
 void Label::add_patch_at(CodeBuffer* cb, int branch_loc) {
   assert(_loc == -1, "Label is unbound");
+  if (cb->insts()->scratch_emit()) return; // Avoid patch attempts in already destroyed scratch buffer.
   if (_patch_index < PatchCacheSize) {
     _patches[_patch_index] = branch_loc;
   } else {
@@ -277,6 +277,7 @@ struct DelayedConstant {
   bool match(BasicType t, value_fn_t cfn) {
     return type == t && value_fn == cfn;
   }
+  static void update(DelayedConstant* dcon);
   static void update_all();
 };
 
@@ -294,6 +295,8 @@ DelayedConstant* DelayedConstant::add(BasicType type,
       // (cmpxchg not because this is multi-threaded but because I'm paranoid)
       if (Atomic::cmpxchg_ptr(CAST_FROM_FN_PTR(void*, cfn), &dcon->value_fn, NULL) == NULL) {
         dcon->type = type;
+        // Initialize value in case the constant is generated after the call to update_all().
+        update(dcon);
         return dcon;
       }
     }
@@ -304,16 +307,20 @@ DelayedConstant* DelayedConstant::add(BasicType type,
   return NULL;
 }
 
+void DelayedConstant::update(DelayedConstant* dcon) {
+  typedef int     (*int_fn_t)();
+  typedef address (*address_fn_t)();
+  switch (dcon->type) {
+  case T_INT:     dcon->value = (intptr_t) ((int_fn_t)    dcon->value_fn)(); break;
+  case T_ADDRESS: dcon->value = (intptr_t) ((address_fn_t)dcon->value_fn)(); break;
+  }
+}
+
 void DelayedConstant::update_all() {
   for (int i = 0; i < DC_LIMIT; i++) {
     DelayedConstant* dcon = &delayed_constants[i];
     if (dcon->value_fn != NULL && dcon->value == 0) {
-      typedef int     (*int_fn_t)();
-      typedef address (*address_fn_t)();
-      switch (dcon->type) {
-      case T_INT:     dcon->value = (intptr_t) ((int_fn_t)    dcon->value_fn)(); break;
-      case T_ADDRESS: dcon->value = (intptr_t) ((address_fn_t)dcon->value_fn)(); break;
-      }
+      update(dcon);
     }
   }
 }

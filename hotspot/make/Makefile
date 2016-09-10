@@ -85,6 +85,7 @@ endif
 # Typical C1/C2 targets made available with this Makefile
 C1_VM_TARGETS=product1 fastdebug1 optimized1 jvmg1
 C2_VM_TARGETS=product  fastdebug  optimized  jvmg
+CORE_VM_TARGETS=productcore fastdebugcore optimizedcore jvmgcore
 ZERO_VM_TARGETS=productzero fastdebugzero optimizedzero jvmgzero
 SHARK_VM_TARGETS=productshark fastdebugshark optimizedshark jvmgshark
 
@@ -127,6 +128,12 @@ all_fastdebugshark: fastdebugshark docs export_fastdebug
 all_debugshark:     jvmgshark docs export_debug
 all_optimizedshark: optimizedshark docs export_optimized
 
+allcore:           all_productcore all_fastdebugcore
+all_productcore:   productcore docs export_product
+all_fastdebugcore: fastdebugcore docs export_fastdebug
+all_debugcore:     jvmgcore docs export_debug
+all_optimizedcore: optimizedcore docs export_optimized
+
 # Do everything
 world:         all create_jdk
 
@@ -150,6 +157,10 @@ $(C1_VM_TARGETS):
 $(C2_VM_TARGETS):
 	$(CD) $(GAMMADIR)/make; \
 	$(MAKE) BUILD_FLAVOR=$@ VM_TARGET=$@ generic_build2 $(ALT_OUT)
+
+$(CORE_VM_TARGETS):
+	$(CD) $(GAMMADIR)/make; \
+	$(MAKE) VM_TARGET=$@ generic_buildcore $(ALT_OUT)
 
 $(ZERO_VM_TARGETS):
 	$(CD) $(GAMMADIR)/make; \
@@ -202,6 +213,12 @@ else
 	    $(MAKE) -f $(ABS_OS_MAKEFILE) \
 		      $(MAKE_ARGS) $(VM_TARGET)
 endif
+
+generic_buildcore:
+	$(MKDIR) -p $(OUTPUTDIR)
+	$(CD) $(OUTPUTDIR); \
+		$(MAKE) -f $(ABS_OS_MAKEFILE) \
+			$(MAKE_ARGS) $(VM_TARGET)
 
 generic_buildzero:
 	$(MKDIR) -p $(OUTPUTDIR)
@@ -257,10 +274,12 @@ C1_BASE_DIR=$(OUTPUTDIR)/$(VM_PLATFORM)_compiler1
 C2_BASE_DIR=$(OUTPUTDIR)/$(VM_PLATFORM)_compiler2
 ZERO_BASE_DIR=$(OUTPUTDIR)/$(VM_PLATFORM)_zero
 SHARK_BASE_DIR=$(OUTPUTDIR)/$(VM_PLATFORM)_shark
+CORE_BASE_DIR=$(OUTPUTDIR)/$(VM_PLATFORM)_core
 C1_DIR=$(C1_BASE_DIR)/$(VM_SUBDIR)
 C2_DIR=$(C2_BASE_DIR)/$(VM_SUBDIR)
 ZERO_DIR=$(ZERO_BASE_DIR)/$(VM_SUBDIR)
 SHARK_DIR=$(SHARK_BASE_DIR)/$(VM_SUBDIR)
+CORE_DIR=$(CORE_BASE_DIR)/$(VM_SUBDIR)
 
 ifeq ($(JVM_VARIANT_SERVER), true)
     MISC_DIR=$(C2_DIR)
@@ -277,6 +296,10 @@ endif
 ifeq ($(JVM_VARIANT_ZERO), true)
     MISC_DIR=$(ZERO_DIR)
     GEN_DIR=$(ZERO_BASE_DIR)/generated
+endif
+ifeq ($(JVM_VARIANT_CORE), true)
+  MISC_DIR=$(CORE_DIR)
+  GEN_DIR=$(CORE_BASE_DIR)/generated
 endif
 
 # Bin files (windows)
@@ -385,6 +408,20 @@ ifneq ($(OSNAME),windows)
         $(EXPORT_SERVER_DIR)/%.debuginfo:		$(ZERO_DIR)/%.debuginfo
 		$(install-file)
         $(EXPORT_SERVER_DIR)/%.diz:			$(ZERO_DIR)/%.diz
+		$(install-file)
+    endif
+    ifeq ($(JVM_VARIANT_CORE), true)
+        $(EXPORT_JRE_LIB_ARCH_DIR)/%.$(LIBRARY_SUFFIX): $(CORE_DIR)/%.$(LIBRARY_SUFFIX)
+		$(install-file)
+        $(EXPORT_SERVER_DIR)/%.$(LIBRARY_SUFFIX):       $(CORE_DIR)/%.$(LIBRARY_SUFFIX)
+		$(install-file)
+        $(EXPORT_JRE_LIB_ARCH_DIR)/%.debuginfo: 	$(CORE_DIR)/%.debuginfo
+		$(install-file)
+        $(EXPORT_SERVER_DIR)/%.debuginfo:       	$(CORE_DIR)/%.debuginfo
+		$(install-file)
+        $(EXPORT_JRE_LIB_ARCH_DIR)/%.diz: 		$(CORE_DIR)/%.diz
+		$(install-file)
+        $(EXPORT_SERVER_DIR)/%.diz:       		$(CORE_DIR)/%.diz
 		$(install-file)
     endif
 endif

@@ -134,20 +134,35 @@ public:
 //------------------------------LoadNode---------------------------------------
 // Load value; requires Memory and Address
 class LoadNode : public MemNode {
+public:
+  typedef enum { unordered = 0, acquire } Sem;
+
+private:
+  // On platforms with weak memory ordering (e.g., PPC, Ia64) we distinguish
+  // loads that can be reordered, and such requiring acquire semantics to
+  // adhere to the Java specification.  The required behaviour is stored in
+  // this field.
+  const Sem _sem;
+
 protected:
-  virtual uint cmp( const Node &n ) const;
+  virtual uint cmp(const Node &n) const;
   virtual uint size_of() const; // Size is bigger
   const Type* const _type;      // What kind of value is loaded?
 public:
 
-  LoadNode( Node *c, Node *mem, Node *adr, const TypePtr* at, const Type *rt )
-    : MemNode(c,mem,adr,at), _type(rt) {
+  LoadNode(Node *c, Node *mem, Node *adr, const TypePtr* at, const Type *rt, Sem sem = LoadNode::unordered)
+    : MemNode(c,mem,adr,at), _type(rt), _sem(sem) {
     init_class_id(Class_Load);
+  }
+  inline bool is_unordered() const { return !is_acquire(); }
+  inline bool is_acquire() const {
+    assert(_sem == unordered || _sem == acquire, "unexpected");
+    return _sem == acquire;
   }
 
   // Polymorphic factory method:
-  static Node* make( PhaseGVN& gvn, Node *c, Node *mem, Node *adr,
-                     const TypePtr* at, const Type *rt, BasicType bt );
+   static Node* make(PhaseGVN& gvn, Node *c, Node *mem, Node *adr,
+                     const TypePtr* at, const Type *rt, BasicType bt, Sem sem = LoadNode::unordered);
 
   virtual uint hash()   const;  // Check the type
 
@@ -221,8 +236,8 @@ protected:
 // Load a byte (8bits signed) from memory
 class LoadBNode : public LoadNode {
 public:
-  LoadBNode( Node *c, Node *mem, Node *adr, const TypePtr* at, const TypeInt *ti = TypeInt::BYTE )
-    : LoadNode(c,mem,adr,at,ti) {}
+  LoadBNode(Node *c, Node *mem, Node *adr, const TypePtr* at, const TypeInt *ti = TypeInt::BYTE, Sem sem = LoadNode::unordered)
+    : LoadNode(c, mem, adr, at, ti, sem) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegI; }
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
@@ -235,8 +250,8 @@ public:
 // Load a unsigned byte (8bits unsigned) from memory
 class LoadUBNode : public LoadNode {
 public:
-  LoadUBNode(Node* c, Node* mem, Node* adr, const TypePtr* at, const TypeInt* ti = TypeInt::UBYTE )
-    : LoadNode(c, mem, adr, at, ti) {}
+  LoadUBNode(Node* c, Node* mem, Node* adr, const TypePtr* at, const TypeInt* ti = TypeInt::UBYTE , Sem sem = LoadNode::unordered)
+    : LoadNode(c, mem, adr, at, ti, sem) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegI; }
   virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
@@ -249,8 +264,8 @@ public:
 // Load an unsigned short/char (16bits unsigned) from memory
 class LoadUSNode : public LoadNode {
 public:
-  LoadUSNode( Node *c, Node *mem, Node *adr, const TypePtr* at, const TypeInt *ti = TypeInt::CHAR )
-    : LoadNode(c,mem,adr,at,ti) {}
+  LoadUSNode(Node *c, Node *mem, Node *adr, const TypePtr* at, const TypeInt *ti = TypeInt::CHAR, Sem sem = LoadNode::unordered)
+    : LoadNode(c, mem, adr, at, ti, sem) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegI; }
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
@@ -263,8 +278,8 @@ public:
 // Load a short (16bits signed) from memory
 class LoadSNode : public LoadNode {
 public:
-  LoadSNode( Node *c, Node *mem, Node *adr, const TypePtr* at, const TypeInt *ti = TypeInt::SHORT )
-    : LoadNode(c,mem,adr,at,ti) {}
+  LoadSNode(Node *c, Node *mem, Node *adr, const TypePtr* at, const TypeInt *ti = TypeInt::SHORT, Sem sem = LoadNode::unordered)
+    : LoadNode(c, mem, adr, at, ti, sem) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegI; }
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
@@ -277,8 +292,8 @@ public:
 // Load an integer from memory
 class LoadINode : public LoadNode {
 public:
-  LoadINode( Node *c, Node *mem, Node *adr, const TypePtr* at, const TypeInt *ti = TypeInt::INT )
-    : LoadNode(c,mem,adr,at,ti) {}
+  LoadINode(Node *c, Node *mem, Node *adr, const TypePtr* at, const TypeInt *ti = TypeInt::INT, Sem sem = LoadNode::unordered)
+    : LoadNode(c, mem, adr, at, ti, sem) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegI; }
   virtual int store_Opcode() const { return Op_StoreI; }
@@ -309,18 +324,16 @@ class LoadLNode : public LoadNode {
   const bool _require_atomic_access;  // is piecewise load forbidden?
 
 public:
-  LoadLNode( Node *c, Node *mem, Node *adr, const TypePtr* at,
-             const TypeLong *tl = TypeLong::LONG,
-             bool require_atomic_access = false )
-    : LoadNode(c,mem,adr,at,tl)
-    , _require_atomic_access(require_atomic_access)
-  {}
+  LoadLNode(Node *c, Node *mem, Node *adr, const TypePtr* at, const TypeLong *tl = TypeLong::LONG,
+             bool require_atomic_access = false, Sem sem = LoadNode::unordered)
+    : LoadNode(c, mem, adr, at, tl, sem), _require_atomic_access(require_atomic_access) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegL; }
   virtual int store_Opcode() const { return Op_StoreL; }
   virtual BasicType memory_type() const { return T_LONG; }
   bool require_atomic_access() { return _require_atomic_access; }
-  static LoadLNode* make_atomic(Compile *C, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, const Type* rt);
+  static LoadLNode* make_atomic(Compile *C, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type,
+                                const Type* rt, Sem sem = LoadNode::unordered);
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const {
     LoadNode::dump_spec(st);
@@ -333,8 +346,8 @@ public:
 // Load a long from unaligned memory
 class LoadL_unalignedNode : public LoadLNode {
 public:
-  LoadL_unalignedNode( Node *c, Node *mem, Node *adr, const TypePtr* at )
-    : LoadLNode(c,mem,adr,at) {}
+  LoadL_unalignedNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Sem sem = LoadNode::unordered)
+    : LoadLNode(c, mem, adr, at, TypeLong::LONG, false, sem) {}
   virtual int Opcode() const;
 };
 
@@ -342,8 +355,8 @@ public:
 // Load a float (64 bits) from memory
 class LoadFNode : public LoadNode {
 public:
-  LoadFNode( Node *c, Node *mem, Node *adr, const TypePtr* at, const Type *t = Type::FLOAT )
-    : LoadNode(c,mem,adr,at,t) {}
+  LoadFNode(Node *c, Node *mem, Node *adr, const TypePtr* at, const Type *t = Type::FLOAT, Sem sem = LoadNode::unordered)
+    : LoadNode(c, mem, adr, at, t, sem) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegF; }
   virtual int store_Opcode() const { return Op_StoreF; }
@@ -354,8 +367,8 @@ public:
 // Load a double (64 bits) from memory
 class LoadDNode : public LoadNode {
 public:
-  LoadDNode( Node *c, Node *mem, Node *adr, const TypePtr* at, const Type *t = Type::DOUBLE )
-    : LoadNode(c,mem,adr,at,t) {}
+  LoadDNode(Node *c, Node *mem, Node *adr, const TypePtr* at, const Type *t = Type::DOUBLE, Sem sem = LoadNode::unordered)
+    : LoadNode(c, mem, adr, at, t, sem) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegD; }
   virtual int store_Opcode() const { return Op_StoreD; }
@@ -366,8 +379,8 @@ public:
 // Load a double from unaligned memory
 class LoadD_unalignedNode : public LoadDNode {
 public:
-  LoadD_unalignedNode( Node *c, Node *mem, Node *adr, const TypePtr* at )
-    : LoadDNode(c,mem,adr,at) {}
+  LoadD_unalignedNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Sem sem = LoadNode::unordered)
+    : LoadDNode(c, mem, adr, at, Type::DOUBLE, sem) {}
   virtual int Opcode() const;
 };
 
@@ -375,8 +388,8 @@ public:
 // Load a pointer from memory (either object or array)
 class LoadPNode : public LoadNode {
 public:
-  LoadPNode( Node *c, Node *mem, Node *adr, const TypePtr *at, const TypePtr* t )
-    : LoadNode(c,mem,adr,at,t) {}
+  LoadPNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypePtr* t, Sem sem = LoadNode::unordered)
+    : LoadNode(c, mem, adr, at, t, sem) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegP; }
   virtual int store_Opcode() const { return Op_StoreP; }
@@ -388,8 +401,8 @@ public:
 // Load a narrow oop from memory (either object or array)
 class LoadNNode : public LoadNode {
 public:
-  LoadNNode( Node *c, Node *mem, Node *adr, const TypePtr *at, const Type* t )
-    : LoadNode(c,mem,adr,at,t) {}
+  LoadNNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const Type* t, Sem sem = LoadNode::unordered)
+    : LoadNode(c, mem, adr, at, t, sem) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
   virtual int store_Opcode() const { return Op_StoreN; }
@@ -400,8 +413,8 @@ public:
 // Load a Klass from an object
 class LoadKlassNode : public LoadPNode {
 public:
-  LoadKlassNode( Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeKlassPtr *tk )
-    : LoadPNode(c,mem,adr,at,tk) {}
+  LoadKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeKlassPtr *tk, Sem sem = LoadNode::unordered)
+    : LoadPNode(c, mem, adr, at, tk, sem) {}
   virtual int Opcode() const;
   virtual const Type *Value( PhaseTransform *phase ) const;
   virtual Node *Identity( PhaseTransform *phase );
@@ -416,8 +429,8 @@ public:
 // Load a narrow Klass from an object.
 class LoadNKlassNode : public LoadNNode {
 public:
-  LoadNKlassNode( Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeNarrowOop *tk )
-    : LoadNNode(c,mem,adr,at,tk) {}
+  LoadNKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeNarrowOop *tk, Sem sem = LoadNode::unordered)
+    : LoadNNode(c, mem, adr, at, tk, sem) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
   virtual int store_Opcode() const { return Op_StoreN; }
@@ -432,6 +445,16 @@ public:
 //------------------------------StoreNode--------------------------------------
 // Store value; requires Store, Address and Value
 class StoreNode : public MemNode {
+public:
+  typedef enum { unordered = 0, release } Sem;
+private:
+  // On platforms with weak memory ordering (e.g., PPC, Ia64) we distinguish
+  // stores that can be reordered, and such requiring release semantics to
+  // adhere to the Java specification.  The required behaviour is stored in
+  // this field.
+  const Sem _sem;
+  // Needed for proper cloning.
+  virtual uint size_of() const { return sizeof(*this); }
 protected:
   virtual uint cmp( const Node &n ) const;
   virtual bool depends_only_on_test() const { return false; }
@@ -440,18 +463,44 @@ protected:
   Node *Ideal_sign_extended_input(PhaseGVN *phase, int  num_bits);
 
 public:
-  StoreNode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val )
-    : MemNode(c,mem,adr,at,val) {
+  // We must ensure that stores of object references will be visible
+  // only after the object's initialization. So the callers of this
+  // procedure must indicate that the store requires `release'
+  // semantics, if the stored value is an object reference that might
+  // point to a new object and may become externally visible.
+  StoreNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Sem sem)
+    : MemNode(c, mem, adr, at, val), _sem(sem) {
     init_class_id(Class_Store);
   }
-  StoreNode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Node *oop_store )
-    : MemNode(c,mem,adr,at,val,oop_store) {
+  StoreNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Node *oop_store, Sem sem)
+    : MemNode(c, mem, adr, at, val, oop_store), _sem(sem) {
     init_class_id(Class_Store);
   }
 
-  // Polymorphic factory method:
-  static StoreNode* make( PhaseGVN& gvn, Node *c, Node *mem, Node *adr,
-                          const TypePtr* at, Node *val, BasicType bt );
+  inline bool is_unordered() const { return !is_release(); }
+  inline bool is_release() const {
+    assert((_sem == unordered || _sem == release), "unexpected");
+    return _sem == release;
+  }
+
+  // Conservatively release stores of object references in order to
+  // ensure visibility of object initialization.
+  static inline Sem release_if_reference(const BasicType t) {
+    const Sem s = (t == T_ARRAY ||
+                   t == T_ADDRESS || // Might be the address of an object reference (`boxing').
+                   t == T_OBJECT) ? release : unordered;
+    return s;
+  }
+
+  // Polymorphic factory method
+  //
+  // We must ensure that stores of object references will be visible
+  // only after the object's initialization. So the callers of this
+  // procedure must indicate that the store requires `release'
+  // semantics, if the stored value is an object reference that might
+  // point to a new object and may become externally visible.
+  static StoreNode* make(PhaseGVN& gvn, Node *c, Node *mem, Node *adr,
+                         const TypePtr* at, Node *val, BasicType bt, Sem sem);
 
   virtual uint hash() const;    // Check the type
 
@@ -482,7 +531,8 @@ public:
 // Store byte to memory
 class StoreBNode : public StoreNode {
 public:
-  StoreBNode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val ) : StoreNode(c,mem,adr,at,val) {}
+  StoreBNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Sem sem = StoreNode::unordered)
+    : StoreNode(c, mem, adr, at, val, sem) {}
   virtual int Opcode() const;
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual BasicType memory_type() const { return T_BYTE; }
@@ -492,7 +542,8 @@ public:
 // Store char/short to memory
 class StoreCNode : public StoreNode {
 public:
-  StoreCNode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val ) : StoreNode(c,mem,adr,at,val) {}
+  StoreCNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Sem sem = StoreNode::unordered)
+    : StoreNode(c, mem, adr, at, val, sem) {}
   virtual int Opcode() const;
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual BasicType memory_type() const { return T_CHAR; }
@@ -502,7 +553,8 @@ public:
 // Store int to memory
 class StoreINode : public StoreNode {
 public:
-  StoreINode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val ) : StoreNode(c,mem,adr,at,val) {}
+  StoreINode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Sem sem = StoreNode::unordered)
+    : StoreNode(c, mem, adr, at, val, sem) {}
   virtual int Opcode() const;
   virtual BasicType memory_type() const { return T_INT; }
 };
@@ -519,15 +571,12 @@ class StoreLNode : public StoreNode {
   const bool _require_atomic_access;  // is piecewise store forbidden?
 
 public:
-  StoreLNode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val,
-              bool require_atomic_access = false )
-    : StoreNode(c,mem,adr,at,val)
-    , _require_atomic_access(require_atomic_access)
-  {}
+  StoreLNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, bool require_atomic_access = false, Sem sem = StoreNode::unordered)
+    : StoreNode(c, mem, adr, at, val, sem), _require_atomic_access(require_atomic_access) {}
   virtual int Opcode() const;
   virtual BasicType memory_type() const { return T_LONG; }
   bool require_atomic_access() { return _require_atomic_access; }
-  static StoreLNode* make_atomic(Compile *C, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, Node* val);
+  static StoreLNode* make_atomic(Compile *C, Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type, Node* val, Sem sem);
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const {
     StoreNode::dump_spec(st);
@@ -540,7 +589,8 @@ public:
 // Store float to memory
 class StoreFNode : public StoreNode {
 public:
-  StoreFNode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val ) : StoreNode(c,mem,adr,at,val) {}
+  StoreFNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Sem sem = StoreNode::unordered)
+    : StoreNode(c, mem, adr, at, val, sem) {}
   virtual int Opcode() const;
   virtual BasicType memory_type() const { return T_FLOAT; }
 };
@@ -549,7 +599,8 @@ public:
 // Store double to memory
 class StoreDNode : public StoreNode {
 public:
-  StoreDNode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val ) : StoreNode(c,mem,adr,at,val) {}
+  StoreDNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Sem sem = StoreNode::unordered)
+    : StoreNode(c, mem, adr, at, val, sem) {}
   virtual int Opcode() const;
   virtual BasicType memory_type() const { return T_DOUBLE; }
 };
@@ -558,7 +609,8 @@ public:
 // Store pointer to memory
 class StorePNode : public StoreNode {
 public:
-  StorePNode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val ) : StoreNode(c,mem,adr,at,val) {}
+  StorePNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Sem sem = StoreNode::unordered)
+    : StoreNode(c, mem, adr, at, val, sem) {}
   virtual int Opcode() const;
   virtual BasicType memory_type() const { return T_ADDRESS; }
 };
@@ -567,7 +619,8 @@ public:
 // Store narrow oop to memory
 class StoreNNode : public StoreNode {
 public:
-  StoreNNode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val ) : StoreNode(c,mem,adr,at,val) {}
+  StoreNNode(Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Sem sem = StoreNode::unordered)
+    : StoreNode(c, mem, adr, at, val, sem) {}
   virtual int Opcode() const;
   virtual BasicType memory_type() const { return T_NARROWOOP; }
 };
@@ -588,7 +641,7 @@ class StoreCMNode : public StoreNode {
 
 public:
   StoreCMNode( Node *c, Node *mem, Node *adr, const TypePtr* at, Node *val, Node *oop_store, int oop_alias_idx ) :
-    StoreNode(c,mem,adr,at,val,oop_store),
+    StoreNode(c, mem, adr, at, val, oop_store, StoreNode::release),
     _oop_alias_idx(oop_alias_idx) {
     assert(_oop_alias_idx >= Compile::AliasIdxRaw ||
            _oop_alias_idx == Compile::AliasIdxBot && Compile::current()->AliasLevel() == 0,
@@ -608,8 +661,8 @@ public:
 // On PowerPC and friends it's a real load-locked.
 class LoadPLockedNode : public LoadPNode {
 public:
-  LoadPLockedNode( Node *c, Node *mem, Node *adr )
-    : LoadPNode(c,mem,adr,TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM) {}
+  LoadPLockedNode(Node *c, Node *mem, Node *adr, Sem sem = LoadNode::acquire)
+    : LoadPNode(c, mem, adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM, sem) {}
   virtual int Opcode() const;
   virtual int store_Opcode() const { return Op_StorePConditional; }
   virtual bool depends_only_on_test() const { return true; }

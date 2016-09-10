@@ -544,6 +544,19 @@ public:
     return (_stack_base >= adr && adr >= (_stack_base - _stack_size));
   }
 
+#ifdef CC_INTERP
+  // The cppInterpreter does not support implicit checks, thus we check
+  // stack overflow by comparison. We precompute the limit of the stack
+  // and load it from here to simplify the check in assembly.
+ protected:
+  address _memory_stack_limit;
+
+ public:
+  address memory_stack_limit()                { return _memory_stack_limit;    }
+  void set_memory_stack_limit(address limit)  { _memory_stack_limit = limit;   }
+  static ByteSize memory_stack_limit_offset() { return byte_offset_of(Thread, _memory_stack_limit); }
+#endif
+
   uintptr_t self_raw_id()                    { return _self_raw_id; }
   void      set_self_raw_id(uintptr_t value) { _self_raw_id = value; }
 
@@ -1029,8 +1042,19 @@ class JavaThread: public Thread {
   address last_Java_pc(void)                         { return _anchor.last_Java_pc(); }
 
   // Safepoint support
+#if defined(PPC64)
+  // Use membars when accessing volatile _thread_state. See
+  // Threads::create_vm() for size checks.
+  JavaThreadState thread_state() const           {
+    return (JavaThreadState) OrderAccess::load_acquire((volatile jint*)&_thread_state);
+  }
+  void set_thread_state(JavaThreadState s)       {
+    OrderAccess::release_store((volatile jint*)&_thread_state, (jint)s);
+  }
+#else
   JavaThreadState thread_state() const           { return _thread_state; }
-  void set_thread_state(JavaThreadState s)       { _thread_state=s;      }
+  void set_thread_state(JavaThreadState s)       { _thread_state = s;    }
+#endif
   ThreadSafepointState *safepoint_state() const  { return _safepoint_state;  }
   void set_safepoint_state(ThreadSafepointState *state) { _safepoint_state = state; }
   bool is_at_poll_safepoint()                    { return _safepoint_state->is_at_poll_safepoint(); }
@@ -1694,6 +1718,9 @@ public:
 #endif
 #ifdef TARGET_OS_ARCH_linux_ppc
 # include "thread_linux_ppc.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_aix_ppc
+# include "thread_aix_ppc.hpp"
 #endif
 #ifdef TARGET_OS_ARCH_bsd_x86
 # include "thread_bsd_x86.hpp"

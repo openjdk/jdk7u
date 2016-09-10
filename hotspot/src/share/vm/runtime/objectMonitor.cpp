@@ -52,18 +52,14 @@
 # include "os_windows.inline.hpp"
 # include "thread_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
+# include "thread_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
 # include "thread_bsd.inline.hpp"
 #endif
-
-#if defined(__GNUC__) && !defined(IA64)
-  // Need to inhibit inlining for older versions of GCC to avoid build-time failures
-  #define ATTR __attribute__((noinline))
-#else
-  #define ATTR
-#endif
-
 
 #ifdef DTRACE_ENABLED
 
@@ -316,7 +312,7 @@ bool ObjectMonitor::try_enter(Thread* THREAD) {
   }
 }
 
-void ATTR ObjectMonitor::enter(TRAPS) {
+void ObjectMonitor::enter(TRAPS) {
   // The following code is ordered to check the most common cases first
   // and to reduce RTS->RTO cache line upgrades on SPARC and IA32 processors.
   Thread * const Self = THREAD ;
@@ -500,7 +496,7 @@ int ObjectMonitor::TryLock (Thread * Self) {
    }
 }
 
-void ATTR ObjectMonitor::EnterI (TRAPS) {
+void ObjectMonitor::EnterI (TRAPS) {
     Thread * Self = THREAD ;
     assert (Self->is_Java_thread(), "invariant") ;
     assert (((JavaThread *) Self)->thread_state() == _thread_blocked   , "invariant") ;
@@ -749,7 +745,7 @@ void ATTR ObjectMonitor::EnterI (TRAPS) {
 // Knob_Reset and Knob_SpinAfterFutile support and restructuring the
 // loop accordingly.
 
-void ATTR ObjectMonitor::ReenterI (Thread * Self, ObjectWaiter * SelfNode) {
+void ObjectMonitor::ReenterI (Thread * Self, ObjectWaiter * SelfNode) {
     assert (Self != NULL                , "invariant") ;
     assert (SelfNode != NULL            , "invariant") ;
     assert (SelfNode->_thread == Self   , "invariant") ;
@@ -954,7 +950,7 @@ void ObjectMonitor::UnlinkAfterAcquire (Thread * Self, ObjectWaiter * SelfNode)
 // Both impinge on OS scalability.  Given that, at most one thread parked on
 // a monitor will use a timer.
 
-void ATTR ObjectMonitor::exit(bool not_suspended, TRAPS) {
+void ObjectMonitor::exit(bool not_suspended, TRAPS) {
    Thread * Self = THREAD ;
    if (THREAD != _owner) {
      if (THREAD->is_lock_owned((address) _owner)) {

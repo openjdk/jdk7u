@@ -352,6 +352,8 @@ protected:
 
   // Reference to the i'th input Node.  Error if out of bounds.
   Node* in(uint i) const { assert(i < _max, err_msg_res("oob: i=%d, _max=%d", i, _max)); return _in[i]; }
+  // Reference to the i'th input Node.  NULL if out of bounds.
+  Node* lookup(uint i) const { return ((i < _max) ? _in[i] : NULL); }
   // Reference to the i'th output Node.  Error if out of bounds.
   // Use this accessor sparingly.  We are going trying to use iterators instead.
   Node* raw_out(uint i) const { assert(i < _outcnt,"oob"); return _out[i]; }
@@ -379,6 +381,10 @@ protected:
 
   // Set a required input edge, also updates corresponding output edge
   void add_req( Node *n ); // Append a NEW required input
+  void add_req( Node *n0, Node *n1 ) {
+    add_req(n0); add_req(n1); }
+  void add_req( Node *n0, Node *n1, Node *n2 ) {
+    add_req(n0); add_req(n1); add_req(n2); }
   void add_req_batch( Node* n, uint m ); // Append m NEW required inputs (all n).
   void del_req( uint idx ); // Delete required edge & compact
   void ins_req( uint i, Node *n ); // Insert a NEW required input
@@ -783,6 +789,9 @@ public:
   // is_Copy() returns copied edge index (0 or 1)
   uint is_Copy() const { return (_flags & Flag_is_Copy); }
 
+  // Returns true if this node is a check that can be implemented with a trap.
+  virtual bool is_TrapBasedCheckNode() const { return false; }
+
   virtual bool is_CFG() const { return false; }
 
   // If this node is control-dependent on a test, can it be
@@ -921,6 +930,8 @@ public:
   // Emit bytes starting at parameter 'ptr'
   // Bump 'ptr' by the number of output bytes
   virtual void emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const;
+  // Expand node after register allocation.
+  virtual void lateExpand(GrowableArray <Node *> *nodes, PhaseRegAlloc *ra_);
   // Size of instruction in bytes
   virtual uint size(PhaseRegAlloc *ra_) const;
 
@@ -1008,8 +1019,7 @@ public:
   // RegMask Print Functions
   void dump_in_regmask(int idx) { in_RegMask(idx).dump(); }
   void dump_out_regmask() { out_RegMask().dump(); }
-  static int _in_dump_cnt;
-  static bool in_dump() { return _in_dump_cnt > 0; }
+  static bool in_dump() { return Compile::current()->_in_dump_cnt > 0; }
   void fast_dump() const {
     tty->print("%4d: %-17s", _idx, Name());
     for (uint i = 0; i < len(); i++)

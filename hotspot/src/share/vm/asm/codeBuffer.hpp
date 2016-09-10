@@ -93,6 +93,7 @@ class CodeSection VALUE_OBJ_CLASS_SPEC {
   address     _locs_point;      // last relocated position (grows upward)
   bool        _locs_own;        // did I allocate the locs myself?
   bool        _frozen;          // no more expansion of this section
+  bool        _scratch_emit;    // buffer is used for scratch emit, don't relocate!
   char        _index;           // my section number (SECT_INST, etc.)
   CodeBuffer* _outer;           // enclosing CodeBuffer
 
@@ -109,6 +110,7 @@ class CodeSection VALUE_OBJ_CLASS_SPEC {
     _locs_point    = NULL;
     _locs_own      = false;
     _frozen        = false;
+    _scratch_emit  = false;
     debug_only(_index = (char)-1);
     debug_only(_outer = (CodeBuffer*)badAddress);
   }
@@ -166,6 +168,7 @@ class CodeSection VALUE_OBJ_CLASS_SPEC {
   bool        is_empty() const      { return _start == _end; }
   bool        is_frozen() const     { return _frozen; }
   bool        has_locs() const      { return _locs_end != NULL; }
+  bool        scratch_emit()        { return _scratch_emit; }
 
   CodeBuffer* outer() const         { return _outer; }
 
@@ -192,6 +195,7 @@ class CodeSection VALUE_OBJ_CLASS_SPEC {
     assert(allocates2(pc),     "relocation addr must be in this section");
     _locs_point = pc;
   }
+  void    set_scratch_emit()        { _scratch_emit = true; }
 
   // Code emission
   void emit_int8 (int8_t  x) { *((int8_t*)  end()) = x; set_end(end() + 1); }

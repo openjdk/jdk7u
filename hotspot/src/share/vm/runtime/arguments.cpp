@@ -47,6 +47,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
 #endif
@@ -3484,9 +3487,12 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
 
 #ifdef CC_INTERP
   // Clear flags not supported by the C++ interpreter
+#if !defined(PPC64)
+  // Now supported by CC_INTERP, but not tested with other ports than PPC.
+  LP64_ONLY(FLAG_SET_DEFAULT(UseCompressedOops, false));
   FLAG_SET_DEFAULT(ProfileInterpreter, false);
   FLAG_SET_DEFAULT(UseBiasedLocking, false);
-  LP64_ONLY(FLAG_SET_DEFAULT(UseCompressedOops, false));
+#endif
 #endif // CC_INTERP
 
 #ifdef COMPILER2

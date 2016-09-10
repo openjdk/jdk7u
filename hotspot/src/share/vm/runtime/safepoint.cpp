@@ -80,6 +80,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "thread_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "thread_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "thread_bsd.inline.hpp"
 #endif
@@ -751,6 +754,7 @@ void SafepointSynchronize::block(JavaThread *thread) {
 #define PTR_PAD "        "
 #endif
 
+#ifdef SPARC
 static void print_ptrs(intptr_t oldptr, intptr_t newptr, bool wasoop) {
   bool is_oop = newptr ? ((oop)newptr)->is_oop() : false;
   tty->print_cr(PTR_FORMAT PTR_PAD " %s %c " PTR_FORMAT PTR_PAD " %s %s",
@@ -765,7 +769,6 @@ static void print_longs(jlong oldptr, jlong newptr, bool wasoop) {
                 newptr, is_oop?"oop":"   ", (wasoop && !is_oop) ? "STALE" : ((wasoop==false&&is_oop==false&&oldptr !=newptr)?"STOMP":"     "));
 }
 
-#ifdef SPARC
 static void print_me(intptr_t *new_sp, intptr_t *old_sp, bool *was_oops) {
 #ifdef _LP64
   tty->print_cr("--------+------address-----+------before-----------+-------after----------+");

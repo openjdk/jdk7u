@@ -933,7 +933,7 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool quer
 
 #endif /* CC_INTERP */
 
-#if !defined(PPC) || defined(ZERO)
+#if !defined(PPC32) || defined(ZERO)
   if (m->is_native()) {
 #ifdef CC_INTERP
     f->do_oop((oop*)&istate->_oop_temp);
@@ -941,11 +941,11 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool quer
     f->do_oop((oop*)( fp() + interpreter_frame_oop_temp_offset ));
 #endif /* CC_INTERP */
   }
-#else // PPC
+#else // PPC32
   if (m->is_native() && m->is_static()) {
     f->do_oop(interpreter_frame_mirror_addr());
   }
-#endif // PPC
+#endif // PPC32
 
   int max_locals = m->is_native() ? m->size_of_parameters() : m->max_locals();
 

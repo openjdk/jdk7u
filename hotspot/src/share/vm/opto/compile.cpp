@@ -78,8 +78,23 @@
 #ifdef TARGET_ARCH_MODEL_arm
 # include "adfiles/ad_arm.hpp"
 #endif
-#ifdef TARGET_ARCH_MODEL_ppc
-# include "adfiles/ad_ppc.hpp"
+#ifdef TARGET_ARCH_MODEL_ppc_32
+# include "adfiles/ad_ppc_32.hpp"
+#endif
+#ifdef TARGET_ARCH_MODEL_ppc_64
+# include "adfiles/ad_ppc_64.hpp"
+#endif
+#ifdef  TARGET_ARCH_x86
+# include "compile_x86.hpp"
+#endif
+#ifdef  TARGET_ARCH_sparc
+# include "compile_sparc.hpp"
+#endif
+#ifdef  TARGET_ARCH_zero
+# include "compile_zero.hpp"
+#endif
+#ifdef  TARGET_ARCH_ppc
+# include "compile_ppc.hpp"
 #endif
 
 
@@ -568,6 +583,9 @@ uint Compile::scratch_emit_size(const Node* n) {
   buf.consts()->initialize_shared_locs(&locs_buf[lsize * 0], lsize);
   buf.insts()->initialize_shared_locs( &locs_buf[lsize * 1], lsize);
   buf.stubs()->initialize_shared_locs( &locs_buf[lsize * 2], lsize);
+  buf.consts()->set_scratch_emit();
+  buf.insts() ->set_scratch_emit();
+  buf.stubs() ->set_scratch_emit();
 
   // Do the emission.
 
@@ -632,6 +650,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                   _dead_node_count(0),
 #ifndef PRODUCT
                   _trace_opto_output(TraceOptoOutput || method()->has_option("TraceOptoOutput")),
+                  _in_dump_cnt(0),
                   _printer(IdealGraphPrinter::printer()),
 #endif
                   _congraph(NULL),
@@ -919,6 +938,7 @@ Compile::Compile( ciEnv* ci_env,
     _inner_loops(0),
 #ifndef PRODUCT
     _trace_opto_output(TraceOptoOutput),
+    _in_dump_cnt(0),
     _printer(NULL),
 #endif
     _dead_node_list(comp_arena()),
@@ -1038,6 +1058,15 @@ void Compile::Init(int aliaslevel) {
   set_max_vector_size(0);
   Copy::zero_to_bytes(_trap_hist, sizeof(_trap_hist));
   set_decompile_count(0);
+
+  // Compute when not to trap. Used by matching trap based nodes and
+  // NullCheck optimization.
+  _allowed_reasons = 0;
+  for (int rs = (int)Deoptimization::Reason_none+1; rs < Compile::trapHistLength; rs++) {
+    assert(rs < BitsPerInt, "recode bit map");
+    if (!C->too_many_traps((Deoptimization::DeoptReason) rs))
+      _allowed_reasons |= nth_bit(rs);
+  }
 
   set_do_freq_based_layout(BlockLayoutByFrequency || method_has_option("BlockLayoutByFrequency"));
   set_num_loop_opts(LoopOptsCount);
@@ -2121,6 +2150,9 @@ void Compile::Code_Gen() {
   check_node_count(0, "out of nodes matching instructions");
   if (failing())  return;
 
+  // Platform dependent post matching hook (used on ppc).
+  PdCompile::pd_post_matching_hook(this);
+
   // Build a proper-looking CFG
   PhaseCFG cfg(node_arena(), root(), m);
   _cfg = &cfg;
@@ -2184,6 +2216,11 @@ void Compile::Code_Gen() {
     NOT_PRODUCT( TracePhase t2("peephole", &_t_peephole, TimeCompiler); )
     PhasePeephole peep( _regalloc, cfg);
     peep.do_transform();
+  }
+
+  // Do late expand if CPU requires this.
+  if (Matcher::require_late_expand) {
+    cfg.LateExpand(_regalloc);
   }
 
   // Convert Nodes to instruction bits in a buffer

@@ -595,7 +595,8 @@ void GraphKit::builtin_throw(Deoptimization::DeoptReason reason, Node* arg) {
 
       Node *adr = basic_plus_adr(ex_node, ex_node, offset);
       const TypeOopPtr* val_type = TypeOopPtr::make_from_klass(env()->String_klass());
-      Node *store = store_oop_to_object(control(), ex_node, adr, adr_typ, null(), val_type, T_OBJECT);
+      // Conservatively release stores of object references.
+      Node *store = store_oop_to_object(control(), ex_node, adr, adr_typ, null(), val_type, T_OBJECT, StoreNode::release);
 
       add_exception_state(make_exception_state(ex_node));
       return;
@@ -1438,32 +1439,33 @@ void GraphKit::set_all_memory_call(Node* call, bool separate_io_proj) {
 // factory methods in "int adr_idx"
 Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
                           int adr_idx,
-                          bool require_atomic_access) {
+                          bool require_atomic_access, LoadNode::Sem sem) {
   assert(adr_idx != Compile::AliasIdxTop, "use other make_load factory" );
   const TypePtr* adr_type = NULL; // debug-mode-only argument
   debug_only(adr_type = C->get_adr_type(adr_idx));
   Node* mem = memory(adr_idx);
   Node* ld;
   if (require_atomic_access && bt == T_LONG) {
-    ld = LoadLNode::make_atomic(C, ctl, mem, adr, adr_type, t);
+    ld = LoadLNode::make_atomic(C, ctl, mem, adr, adr_type, t, sem);
   } else {
-    ld = LoadNode::make(_gvn, ctl, mem, adr, adr_type, t, bt);
+    ld = LoadNode::make(_gvn, ctl, mem, adr, adr_type, t, bt, sem);
   }
   return _gvn.transform(ld);
 }
 
 Node* GraphKit::store_to_memory(Node* ctl, Node* adr, Node *val, BasicType bt,
                                 int adr_idx,
-                                bool require_atomic_access) {
+                                bool require_atomic_access,
+                                StoreNode::Sem sem) {
   assert(adr_idx != Compile::AliasIdxTop, "use other store_to_memory factory" );
   const TypePtr* adr_type = NULL;
   debug_only(adr_type = C->get_adr_type(adr_idx));
   Node *mem = memory(adr_idx);
   Node* st;
   if (require_atomic_access && bt == T_LONG) {
-    st = StoreLNode::make_atomic(C, ctl, mem, adr, adr_type, val);
+    st = StoreLNode::make_atomic(C, ctl, mem, adr, adr_type, val, sem);
   } else {
-    st = StoreNode::make(_gvn, ctl, mem, adr, adr_type, val, bt);
+    st = StoreNode::make(_gvn, ctl, mem, adr, adr_type, val, bt, sem);
   }
   st = _gvn.transform(st);
   set_memory(st, adr_idx);
@@ -1544,7 +1546,8 @@ Node* GraphKit::store_oop(Node* ctl,
                           Node* val,
                           const TypeOopPtr* val_type,
                           BasicType bt,
-                          bool use_precise) {
+                          bool use_precise,
+                          StoreNode::Sem sem) {
   // Transformation of a value which could be NULL pointer (CastPP #NULL)
   // could be delayed during Parse (for example, in adjust_map_after_if()).
   // Execute transformation here to avoid barrier generation in such case.
@@ -1564,7 +1567,7 @@ Node* GraphKit::store_oop(Node* ctl,
               NULL /* pre_val */,
               bt);
 
-  Node* store = store_to_memory(control(), adr, val, bt, adr_idx);
+  Node* store = store_to_memory(control(), adr, val, bt, adr_idx, false, sem);
   post_barrier(control(), store, obj, adr, adr_idx, val, bt, use_precise);
   return store;
 }
@@ -1575,7 +1578,8 @@ Node* GraphKit::store_oop_to_unknown(Node* ctl,
                              Node* adr,  // actual adress to store val at
                              const TypePtr* adr_type,
                              Node* val,
-                             BasicType bt) {
+                             BasicType bt,
+                             StoreNode::Sem sem) {
   Compile::AliasType* at = C->alias_type(adr_type);
   const TypeOopPtr* val_type = NULL;
   if (adr_type->isa_instptr()) {
@@ -1594,7 +1598,7 @@ Node* GraphKit::store_oop_to_unknown(Node* ctl,
   if (val_type == NULL) {
     val_type = TypeInstPtr::BOTTOM;
   }
-  return store_oop(ctl, obj, adr, adr_type, val, val_type, bt, true);
+  return store_oop(ctl, obj, adr, adr_type, val, val_type, bt, true, sem);
 }
 
 
@@ -3636,7 +3640,7 @@ void GraphKit::g1_write_barrier_pre(bool do_load,
 
         // Now get the buffer location we will log the previous value into and store it
         Node *log_addr = __ AddP(no_base, buffer, next_index);
-        __ store(__ ctrl(), log_addr, pre_val, T_OBJECT, Compile::AliasIdxRaw);
+        __ store(__ ctrl(), log_addr, pre_val, T_OBJECT, Compile::AliasIdxRaw, StoreNode::release);
         // update the index
         __ store(__ ctrl(), index_adr, next_index, index_bt, Compile::AliasIdxRaw);
 
@@ -3678,8 +3682,8 @@ void GraphKit::g1_mark_card(IdealKit& ideal,
     Node* next_index = _gvn.transform(new (C) SubXNode(index, __ ConX(sizeof(intptr_t))));
     Node* log_addr = __ AddP(no_base, buffer, next_index);
 
-    __ store(__ ctrl(), log_addr, card_adr, T_ADDRESS, Compile::AliasIdxRaw);
-    __ store(__ ctrl(), index_adr, next_index, TypeX_X->basic_type(), Compile::AliasIdxRaw);
+    __ store(__ ctrl(), log_addr, card_adr, T_ADDRESS, Compile::AliasIdxRaw, StoreNode::release);
+    __ store(__ ctrl(), index_adr, next_index, TypeX_X->basic_type(), Compile::AliasIdxRaw, StoreNode::release);
 
   } __ else_(); {
     __ make_leaf_call(tf, CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post), "g1_wb_post", card_adr, __ thread());

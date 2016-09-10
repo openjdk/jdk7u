@@ -35,6 +35,9 @@
 #ifdef TARGET_ARCH_arm
 # include "c2_globals_arm.hpp"
 #endif
+#ifdef TARGET_ARCH_ppc
+# include "c2_globals_ppc.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_linux
 # include "c2_globals_linux.hpp"
 #endif
@@ -43,6 +46,9 @@
 #endif
 #ifdef TARGET_OS_FAMILY_windows
 # include "c2_globals_windows.hpp"
+#endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "c2_globals_aix.hpp"
 #endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "c2_globals_bsd.hpp"
@@ -217,7 +223,9 @@
   diagnostic(bool, UnrollLimitCheck, true,                                  \
           "Additional overflow checks during loop unroll")                  \
                                                                             \
-  product(bool, OptimizeFill, true,                                         \
+  /* On Power, with optimize fill we can not parse xml files, e.g. after */ \
+  /* jbb2005, 'An invalid XML character (Unicode: 0x2e) was found ...'.  */ \
+  product(bool, OptimizeFill, true PPC64_ONLY(&& false),                    \
           "convert fill/copy loops into intrinsic")                         \
                                                                             \
   develop(bool, TraceOptimizeFill, false,                                   \
@@ -444,6 +452,8 @@
                                                                             \
   product(intx, AutoBoxCacheMax, 128,                                       \
           "Sets max value cached by the java.lang.Integer autobox cache")   \
+                                                                            \
+  develop(bool, TraceLateExpand, false, "Trace late expand of nodes.")      \
                                                                             \
   product(bool, DoEscapeAnalysis, true,                                     \
           "Perform escape analysis")                                        \

@@ -51,16 +51,13 @@
 # include "os_windows.inline.hpp"
 # include "thread_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
+# include "thread_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
 # include "thread_bsd.inline.hpp"
-#endif
-
-#if defined(__GNUC__) && !defined(IA64)
-  // Need to inhibit inlining for older versions of GCC to avoid build-time failures
-  #define ATTR __attribute__((noinline))
-#else
-  #define ATTR
 #endif
 
 // The "core" versions of monitor enter and exit reside in this file.
@@ -452,7 +449,7 @@ void ObjectSynchronizer::notifyall(Handle obj, TRAPS) {
 // and explicit fences (barriers) to control for architectural reordering performed
 // by the CPU(s) or platform.
 
-static int  MBFence (int x) { OrderAccess::fence(); return x; }
+// static int  MBFence (int x) { OrderAccess::fence(); return x; }
 
 struct SharedGlobals {
     // These are highly shared mostly-read variables.
@@ -945,7 +942,7 @@ void ObjectSynchronizer::verifyInUse (Thread *Self) {
    assert(freetally == Self->omFreeCount, "free count off");
 }
 */
-ObjectMonitor * ATTR ObjectSynchronizer::omAlloc (Thread * Self) {
+ObjectMonitor * ObjectSynchronizer::omAlloc (Thread * Self) {
     // A large MAXPRIVATE value reduces both list lock contention
     // and list coherency traffic, but also tends to increase the
     // number of objectMonitors in circulation as well as the STW
@@ -1192,7 +1189,7 @@ ObjectMonitor* ObjectSynchronizer::inflate_helper(oop obj) {
 // multiple locks occupy the same $ line.  Padding might be appropriate.
 
 
-ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
+ObjectMonitor * ObjectSynchronizer::inflate (Thread * Self, oop object) {
   // Inflate mutates the heap ...
   // Relaxing assertion for bug 6320749.
   assert (Universe::verify_in_progress() ||

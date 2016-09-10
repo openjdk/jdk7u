@@ -87,8 +87,13 @@ define_pd_global(intx, CMSYoungGenPerWorker, 64*M);  // default max size of CMS 
   product(intx, FenceInstruction, 0,                                        \
           "(Unsafe,Unstable) Experimental")                                 \
                                                                             \
-  product(intx,  ReadPrefetchInstr, 0,                                      \
+  product(intx, ReadPrefetchInstr, 0,                                       \
           "Prefetch instruction to prefetch ahead")                         \
+                                                                            \
+  develop(bool, TrapBasedNullChecks, false,                                 \
+          "Not supported on this platform.")                                \
+  develop(bool, TrapBasedRangeChecks, false,                                \
+          "Not supported on this platform.")                                \
                                                                             \
   product(bool, UseStoreImmI16, true,                                       \
           "Use store immediate 16-bits value instruction on x86")           \

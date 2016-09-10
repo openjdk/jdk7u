@@ -56,7 +56,7 @@ enum {
 // Native interfaces for use by Forte tools.
 
 
-#ifndef IA64
+#if !defined(IA64) || defined(AIX)
 
 class vframeStreamForte : public vframeStreamCommon {
  public:
@@ -626,7 +626,7 @@ void AsyncGetCallTrace(ASGCT_CallTrace *trace, jint depth, void* ucontext) {
 // Method to let libcollector know about a dynamically loaded function.
 // Because it is weakly bound, the calls become NOP's when the library
 // isn't present.
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(AIX)
 // XXXDARWIN: Link errors occur even when __attribute__((weak_import))
 // is added
 #define collector_func_load(x0,x1,x2,x3,x4,x5,x6) (0)
@@ -648,7 +648,7 @@ void    collector_func_load(char* name,
 #endif // !IA64
 
 void Forte::register_stub(const char* name, address start, address end) {
-#if !defined(_WINDOWS) && !defined(IA64)
+#if !defined(_WINDOWS) && (!defined(IA64) || defined(AIX))
   assert(pointer_delta(end, start, sizeof(jbyte)) < INT_MAX,
          "Code size exceeds maximum range");
 

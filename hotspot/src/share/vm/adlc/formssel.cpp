@@ -36,20 +36,21 @@ InstructForm::InstructForm(const char *id, bool ideal_only)
 {
       _ftype = Form::INS;
 
-      _matrule   = NULL;
-      _insencode = NULL;
-      _constant  = NULL;
-      _opcode    = NULL;
-      _size      = NULL;
-      _attribs   = NULL;
-      _predicate = NULL;
-      _exprule   = NULL;
-      _rewrule   = NULL;
-      _format    = NULL;
-      _peephole  = NULL;
-      _ins_pipe  = NULL;
-      _uniq_idx  = NULL;
-      _num_uniq  = 0;
+      _matrule       = NULL;
+      _insencode     = NULL;
+      _constant      = NULL;
+      _is_lateExpand = false;
+      _opcode        = NULL;
+      _size          = NULL;
+      _attribs       = NULL;
+      _predicate     = NULL;
+      _exprule       = NULL;
+      _rewrule       = NULL;
+      _format        = NULL;
+      _peephole      = NULL;
+      _ins_pipe      = NULL;
+      _uniq_idx      = NULL;
+      _num_uniq      = 0;
       _cisc_spill_operand = Not_cisc_spillable;// Which operand may cisc-spill
       _cisc_spill_alternate = NULL;            // possible cisc replacement
       _cisc_reg_mask_name = NULL;
@@ -68,20 +69,21 @@ InstructForm::InstructForm(const char *id, InstructForm *instr, MatchRule *rule)
 {
       _ftype = Form::INS;
 
-      _matrule   = rule;
-      _insencode = instr->_insencode;
-      _constant  = instr->_constant;
-      _opcode    = instr->_opcode;
-      _size      = instr->_size;
-      _attribs   = instr->_attribs;
-      _predicate = instr->_predicate;
-      _exprule   = instr->_exprule;
-      _rewrule   = instr->_rewrule;
-      _format    = instr->_format;
-      _peephole  = instr->_peephole;
-      _ins_pipe  = instr->_ins_pipe;
-      _uniq_idx  = instr->_uniq_idx;
-      _num_uniq  = instr->_num_uniq;
+      _matrule       = rule;
+      _insencode     = instr->_insencode;
+      _constant      = instr->_constant;
+      _is_lateExpand = instr->_is_lateExpand;
+      _opcode        = instr->_opcode;
+      _size          = instr->_size;
+      _attribs       = instr->_attribs;
+      _predicate     = instr->_predicate;
+      _exprule       = instr->_exprule;
+      _rewrule       = instr->_rewrule;
+      _format        = instr->_format;
+      _peephole      = instr->_peephole;
+      _ins_pipe      = instr->_ins_pipe;
+      _uniq_idx      = instr->_uniq_idx;
+      _num_uniq      = instr->_num_uniq;
       _cisc_spill_operand = Not_cisc_spillable;// Which operand may cisc-spill
       _cisc_spill_alternate = NULL;            // possible cisc replacement
       _cisc_reg_mask_name = NULL;
@@ -155,6 +157,11 @@ uint InstructForm::num_defs_or_kills() {
 // This instruction has an expand rule?
 bool InstructForm::expands() const {
   return ( _exprule != NULL );
+}
+
+// This instruction has a late expand rule?
+bool InstructForm::lateExpands() const {
+  return _is_lateExpand;
 }
 
 // This instruction has a peephole rule?
@@ -535,6 +542,34 @@ bool InstructForm::rematerialize(FormDict &globals, RegisterForm *registers ) {
   Form::DataType data_type = is_chain_of_constant(globals);
   if( data_type != Form::none )
     rematerialize = true;
+
+  // Enforce/prohibit rematerializations.
+  // - If an instruction is attributed with 'ins_cannot_rematerialize(true)'
+  //   then rematerialization of that instruction is prohibited and the
+  //   instruction's value will be spilled if necessary.
+  //   Causes that MachNode::rematerialize() returns false.
+  // - If an instruction is attributed with 'ins_should_rematerialize(true)'
+  //   then rematerialization should be enforced and a copy of the instruction
+  //   should be inserted if possible; rematerialization is not guaranteed.
+  //   note: this may result in rematerializations in front of every use.
+  //   (optional attribute)
+  //   Causes that MachNode::rematerialize() returns true.
+  Attribute *attr = _attribs;
+  while (attr != NULL) {
+    if (!strcmp(attr->_ident,"ins_cannot_rematerialize") && !strcmp(attr->_val,"true")) {
+      return false;
+    }
+    if (!strcmp(attr->_ident,"ins_should_rematerialize") && !strcmp(attr->_val,"true")) {
+      return true;
+    }
+    attr = (Attribute *)attr->_next;
+  }
+
+  // Ugly: until a better fix is implemented, disable rematerialization for
+  // negD nodes because they are proved to be problematic.
+  if (is_ideal_negD()) {
+    return false;
+  }
 
   // Constants
   if( _components.count() == 1 && _components[0]->is(Component::USE_DEF) )
@@ -1265,11 +1300,11 @@ void InstructForm::rep_var_format(FILE *fp, const char *rep_var) {
     return;
   }
   if (strcmp(rep_var, "constantoffset") == 0) {
-    fprintf(fp, "st->print(\"#%%d\", constant_offset());\n");
+    fprintf(fp, "st->print(\"#%%d\", constant_offset_unchecked());\n");
     return;
   }
   if (strcmp(rep_var, "constantaddress") == 0) {
-    fprintf(fp, "st->print(\"constant table base + #%%d\", constant_offset());\n");
+    fprintf(fp, "st->print(\"constant table base + #%%d\", constant_offset_unchecked());\n");
     return;
   }
 

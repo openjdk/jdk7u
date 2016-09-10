@@ -61,6 +61,7 @@ class Node;
 class Node_Array;
 class Node_Notes;
 class OptoReg;
+class PdCompile;
 class PhaseCFG;
 class PhaseGVN;
 class PhaseIterGVN;
@@ -88,6 +89,7 @@ struct Final_Reshape_Counts;
 
 class Compile : public Phase {
   friend class VMStructs;
+  friend class PdCompile; // Platform dependent compile hooks.
 
  public:
   // Fixed alias indexes.  (See also MergeMemNode.)
@@ -121,7 +123,7 @@ class Compile : public Phase {
     const TypePtr*  _adr_type;      // normalized address type
     ciField*        _field;         // relevant instance field, or null if none
     bool            _is_rewritable; // false if the memory is write-once only
-    int             _general_index; // if this is type is an instance, the general
+    int             _general_index; // if this type is an instance, the general
                                     // type that this is an instance of
 
     void Init(int i, const TypePtr* at);
@@ -552,6 +554,7 @@ class Compile : public Phase {
   bool          trace_opto_output() const       { return _trace_opto_output; }
   bool              parsed_irreducible_loop() const { return _parsed_irreducible_loop; }
   void          set_parsed_irreducible_loop(bool z) { _parsed_irreducible_loop = z; }
+  int _in_dump_cnt;  // Required for dumping ir nodes.
 #endif
   bool              has_irreducible_loop() const { return _has_irreducible_loop; }
   void          set_has_irreducible_loop(bool z) { _has_irreducible_loop = z; }
@@ -808,6 +811,10 @@ class Compile : public Phase {
                       ciMethodData* logmd = NULL);
   // Report if there were too many recompiles at a method and bci.
   bool too_many_recompiles(ciMethod* method, int bci, Deoptimization::DeoptReason reason);
+  // Return a bitset with the reasons where deoptimization is allowed,
+  // i.e., where there were not too many uncommon traps.
+  int _allowed_reasons;
+  int allowed_deopt_reasons() { return _allowed_reasons; }
 
   // Parsing, optimization
   PhaseGVN*         initial_gvn()               { return _initial_gvn; }
