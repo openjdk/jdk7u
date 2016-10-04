@@ -23,33 +23,54 @@
 #  
 #
 
-# produce 64 bits object files.
-CFLAGS += -m64
-
-# make c code know it is on a 64 bit platform. 
+# make c code know it is on a 64 bit platform.
 CFLAGS += -D_LP64=1
 
-# fixes `relocation truncated to fit' error for gcc 4.1. 
-CFLAGS += -mminimal-toc
+ifeq ($(origin OPENJDK_TARGET_CPU_ENDIAN),undefined)
+  # This can happen during hotspot standalone build. Set endianness from
+  # uname. We assume build and target machines are the same.
+  OPENJDK_TARGET_CPU_ENDIAN:=$(if $(filter ppc64le,$(shell uname -m)),little,big)
+endif
 
-# finds use ppc64 instructions, but schedule for power5
-CFLAGS += -mcpu=powerpc64 -mtune=power5 -minsert-sched-nops=regroup_exact -mno-multiple -mno-string
+ifeq ($(filter $(OPENJDK_TARGET_CPU_ENDIAN),big little),)
+  $(error OPENJDK_TARGET_CPU_ENDIAN value should be 'big' or 'little')
+endif
 
-# PPC uses safefetch stubs.
-CFLAGS += -DSAFEFETCH_STUBS
+ifeq ($(OPENJDK_TARGET_CPU_ENDIAN),big)
+  # produce 64 bits object files.
+  CFLAGS += -m64
 
-# let linker produce 64 bit lib.
-LFLAGS_VM += -m64
+  # fixes `relocation truncated to fit' error for gcc 4.1. 
+  CFLAGS += -mminimal-toc
 
-# let linker find external 64 bit libs.
-LFLAGS_VM += -L/lib64
+  # finds use ppc64 instructions, but schedule for power5
+  CFLAGS += -mcpu=powerpc64 -mtune=power5 -minsert-sched-nops=regroup_exact -mno-multiple -mno-string
 
-# specify lib format.
-LFLAGS_VM +=  -Wl,-melf64ppc
+  # PPC uses safefetch stubs.
+  CFLAGS += -DSAFEFETCH_STUBS
 
-# also build launcher as 64 bit executable.
-LAUNCHERFLAGS += -m64
-LAUNCHERFLAGS += -D_LP64=1
-AOUT_FLAGS += -m64
-AOUT_FLAGS += -L/lib64
-AOUT_FLAGS +=  -Wl,-melf64ppc
+  # let linker produce 64 bit lib.
+  LFLAGS_VM += -m64
+
+  # let linker find external 64 bit libs.
+  LFLAGS_VM += -L/lib64
+
+  # specify lib format.
+  LFLAGS_VM +=  -Wl,-melf64ppc
+
+  # also build launcher as 64 bit executable.
+  LAUNCHERFLAGS += -m64
+  LAUNCHERFLAGS += -D_LP64=1
+  AOUT_FLAGS += -m64
+  AOUT_FLAGS += -L/lib64
+  AOUT_FLAGS +=  -Wl,-melf64ppc
+else 
+  # Little endian machine uses ELFv2 ABI.
+  CFLAGS += -DVM_LITTLE_ENDIAN -DABI_ELFv2
+
+  # PPC uses safefetch stubs. TODO(asmundak): is this needed?
+  CFLAGS += -DSAFEFETCH_STUBS
+
+  # Use Power8, this is the first CPU to support PPC64 LE with ELFv2 ABI.
+  CFLAGS += -mcpu=power7 -mtune=power8 -minsert-sched-nops=regroup_exact -mno-multiple -mno-string
+endif

@@ -26,7 +26,7 @@
 # Usage:
 #
 # $(MAKE) -f buildtree.make SRCARCH=srcarch BUILDARCH=buildarch LIBARCH=libarch
-#         GAMMADIR=dir OS_FAMILY=os VARIANT=variant
+#         GAMMADIR=dir OS_FAMILY=os VARIANT=variant OPENJDK_TARGET_CPU_ENDIAN=endianness
 #
 # The macros ARCH, GAMMADIR, OS_FAMILY and VARIANT must be defined in the
 # environment or on the command-line:
@@ -40,7 +40,8 @@
 # HOTSPOT_RELEASE_VERSION - <major>.<minor>-b<nn> (11.0-b07)
 # HOTSPOT_BUILD_VERSION   - internal, internal-$(USER_RELEASE_SUFFIX) or empty
 # JRE_RELEASE_VERSION     - <major>.<minor>.<micro> (1.7.0)
-#
+# OPENJDK_TARGET_CPU_ENDIAN - target endianness: 'big'/'little'. Used to differentiate
+#                   the architecture flavor for PowerPC64
 # Builds the directory trees with makefiles plus some convenience files in
 # each directory:
 #
@@ -133,7 +134,8 @@ BUILDTREE_TARGETS = Makefile flags.make flags_vm.make vm.make adlc.make trace.ma
         env.sh env.csh jdkpath.sh .dbxrc test_gamma
 
 BUILDTREE_VARS	= GAMMADIR=$(GAMMADIR) OS_FAMILY=$(OS_FAMILY) \
-	SRCARCH=$(SRCARCH) BUILDARCH=$(BUILDARCH) LIBARCH=$(LIBARCH) VARIANT=$(VARIANT)
+	SRCARCH=$(SRCARCH) BUILDARCH=$(BUILDARCH) LIBARCH=$(LIBARCH) VARIANT=$(VARIANT) \
+	OPENJDK_TARGET_CPU_ENDIAN=$(OPENJDK_TARGET_CPU_ENDIAN)
 
 # Define variables to be set in flags.make.
 # Default values are set in make/defs.make.
@@ -209,6 +211,7 @@ flags.make: $(BUILDTREE_MAKE) ../shared_dirs.lst
 	echo "HOTSPOT_BUILD_USER = $(HOTSPOT_BUILD_USER)"; \
 	echo "HOTSPOT_VM_DISTRO = $(HOTSPOT_VM_DISTRO)"; \
 	echo "OPENJDK = $(OPENJDK)"; \
+	echo "OPENJDK_TARGET_CPU_ENDIAN = $(OPENJDK_TARGET_CPU_ENDIAN)"; \
 	echo "ZERO_BUILD = $(ZERO_BUILD)"; \
 	echo; \
 	echo "# Used for platform dispatching"; \

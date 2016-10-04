@@ -133,6 +133,18 @@ ifeq ($(ARCH), ppc64)
   PLATFORM         = linux-ppc64
   VM_PLATFORM      = linux_ppc64
   HS_ARCH          = ppc
+  OPENJDK_TARGET_CPU_ENDIAN  = big
+endif
+
+# PPC64LE
+ifeq ($(ARCH), ppc64le)
+  ARCH_DATA_MODEL  = 64
+  MAKE_ARGS        += LP64=1
+  PLATFORM         = linux-ppc64
+  VM_PLATFORM      = linux_ppc64
+  HS_ARCH          = ppc
+  OPENJDK_TARGET_CPU_ENDIAN  = little
+  ARCH := ppc64
 endif
 
 # determine if HotSpot is being built in JDK6 or earlier version
