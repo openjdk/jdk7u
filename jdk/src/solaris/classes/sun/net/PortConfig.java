@@ -52,6 +52,13 @@ public final class PortConfig {
                     } else if (os.startsWith("SunOS")) {
                         defaultLower = 32768;
                         defaultUpper = 65535;
+                    // Ephemeral port ranges may vary by OS version on AIX,
+                    // see http://publib.boulder.ibm.com/infocenter/aix/v7r1/index.jsp?topic=%2Fcom.ibm.aix.rsct315.admin%2Fbl503_ephport.htm .
+                    // On tested AIX 5.3 / 6.1 / 7.1 machines we see always the settings below by
+                    // /usr/sbin/no -a | fgrep ephemeral so it seems to be a pretty good default.
+                    } else if (os.startsWith("AIX")) {
+                        defaultLower = 32768;
+                        defaultUpper = 65535;
                     } else if (os.contains("OS X")) {
                         defaultLower = 49152;
                         defaultUpper = 65535;

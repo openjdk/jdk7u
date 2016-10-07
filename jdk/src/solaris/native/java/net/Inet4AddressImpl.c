@@ -379,9 +379,18 @@ Java_java_net_Inet4AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
 
         // ensure null-terminated
         hostname[MAXHOSTNAMELEN] = '\0';
+#if defined(AIX)
+        struct hostent_data htdata;
+#endif
 
 #ifdef HAS_GLIBC_GETHOSTBY_R
         gethostbyname_r(hostname, &res, (char*)buf, sizeof(buf), &hp, &h_error);
+#elif defined(AIX)
+        if (gethostbyname_r(hostname, &res, &htdata) == 0) {
+            hp = &res;
+        } else {
+            hp = NULL;
+        }
 #else
         hp = gethostbyname_r(hostname, &res, (char*)buf, sizeof(buf), &h_error);
 #endif
@@ -389,6 +398,13 @@ Java_java_net_Inet4AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
 #ifdef HAS_GLIBC_GETHOSTBY_R
             gethostbyaddr_r(hp->h_addr, hp->h_length, AF_INET,
                             &res2, (char*)buf2, sizeof(buf2), &hp, &h_error);
+#elif defined(AIX)
+            if (gethostbyaddr_r(hp->h_addr, hp->h_length, AF_INET,
+                            &res2, &htdata) == 0) {
+                hp = &res2;
+            } else {
+                hp = NULL;
+            }
 #else
             hp = gethostbyaddr_r(hp->h_addr, hp->h_length, AF_INET,
                                  &res2, (char*)buf2, sizeof(buf2), &h_error);
@@ -430,6 +446,9 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
     // this buffer must be pointer-aligned so is declared
     // with pointer type
     char *buf[HENT_BUF_SIZE/(sizeof (char *))];
+#if defined(AIX)
+    struct hostent_data htdata;
+#endif
 
     /* temporary buffer, on the off chance we need to expand */
     char *tmp = NULL;
@@ -461,6 +480,12 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
     /* Try once, with our static buffer. */
 #ifdef HAS_GLIBC_GETHOSTBY_R
     gethostbyname_r(hostname, &res, (char*)buf, sizeof(buf), &hp, &h_error);
+#elif defined(AIX)
+    if (gethostbyname_r(hostname, &res, &htdata) == 0) {
+        hp = &res;
+    } else {
+        hp = NULL;
+    }
 #else
     hp = gethostbyname_r(hostname, &res, (char*)buf, sizeof(buf), &h_error);
 #endif
@@ -475,6 +500,12 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
 #ifdef HAS_GLIBC_GETHOSTBY_R
             gethostbyname_r(hostname, &res, tmp, BIG_HENT_BUF_SIZE,
                             &hp, &h_error);
+#elif defined(AIX)
+            if (gethostbyname_r(hostname, (struct hostent*)buf, &htdata) == 0) {
+                hp = (struct hostent*)buf;
+            } else {
+                hp = NULL;
+            }
 #else
             hp = gethostbyname_r(hostname, &res, tmp, BIG_HENT_BUF_SIZE,
                                  &h_error);
@@ -539,6 +570,9 @@ Java_java_net_Inet4AddressImpl_getHostByAddr(JNIEnv *env, jobject this,
     char *buf[HENT_BUF_SIZE/(sizeof (char *))];
     int h_error = 0;
     char *tmp = NULL;
+#if defined(AIX)
+    struct hostent_data htdata;
+#endif
 
     /*
      * We are careful here to use the reentrant version of
@@ -559,6 +593,13 @@ Java_java_net_Inet4AddressImpl_getHostByAddr(JNIEnv *env, jobject this,
 #ifdef HAS_GLIBC_GETHOSTBY_R
     gethostbyaddr_r((char *)&addr, sizeof(addr), AF_INET, &hent,
                     (char*)buf, sizeof(buf), &hp, &h_error);
+#elif defined(AIX)
+    if (gethostbyaddr_r((char *)&addr, sizeof(addr), AF_INET,
+                    &hent, &htdata) == 0) {
+        hp = &hent;
+    } else {
+        hp = NULL;
+    }
 #else
     hp = gethostbyaddr_r((char *)&addr, sizeof(addr), AF_INET, &hent,
                          (char*)buf, sizeof(buf), &h_error);
@@ -573,6 +614,13 @@ Java_java_net_Inet4AddressImpl_getHostByAddr(JNIEnv *env, jobject this,
 #ifdef HAS_GLIBC_GETHOSTBY_R
             gethostbyaddr_r((char *)&addr, sizeof(addr), AF_INET,
                             &hent, tmp, BIG_HENT_BUF_SIZE, &hp, &h_error);
+#elif defined(AIX)
+            if (gethostbyaddr_r((char *)&addr, sizeof(addr), AF_INET,
+                            &hent, &htdata) == 0) {
+                hp = &hent;
+            } else {
+                hp = NULL;
+            }
 #else
             hp = gethostbyaddr_r((char *)&addr, sizeof(addr), AF_INET,
                                  &hent, tmp, BIG_HENT_BUF_SIZE, &h_error);
@@ -833,6 +881,13 @@ Java_java_net_Inet4AddressImpl_isReachable0(JNIEnv *env, jobject this,
         case ENETUNREACH: /* Network Unreachable */
         case EAFNOSUPPORT: /* Address Family not supported */
         case EADDRNOTAVAIL: /* address is not available on  the  remote machine */
+#ifdef _AIX
+        case EHOSTUNREACH: /* No route to host */
+          /*
+           * On AIX and AS400 the connect may also immediately return with
+           * EHOSTUNREACH which is not an error, but the answer to our question.
+           */
+#endif
 #ifdef __linux__
         case EINVAL:
         case EHOSTUNREACH:

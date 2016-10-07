@@ -59,6 +59,11 @@
 #define readdir64_r readdir_r
 #endif
 
+/* Needed for strerror */
+#if defined(_AIX) || defined (__hpux__)
+#include <string.h>
+#endif
+
 #include "jni.h"
 #include "jni_util.h"
 #include "jlong.h"
@@ -104,6 +109,13 @@ static jfieldID entry_dir;
 static jfieldID entry_fstype;
 static jfieldID entry_options;
 static jfieldID entry_dev;
+
+/* AIX and HP-UX need a couple more references for futimes emulation */
+#if defined(_AIX) || defined (__hpux__)
+static jmethodID disp_copy2buf;
+static jfieldID buffer_address;
+static jmethodID buffer_release;
+#endif
 
 /**
  * System calls that may not be available at run time.
@@ -206,6 +218,17 @@ Java_sun_nio_fs_UnixNativeDispatcher_init(JNIEnv* env, jclass this)
     entry_options = (*env)->GetFieldID(env, clazz, "opts", "[B");
     entry_dev = (*env)->GetFieldID(env, clazz, "dev", "J");
 
+    /* AIX and HP-UX need a couple more references for futimes emulation */
+#if defined(_AIX) || defined (__hpux__)
+    disp_copy2buf = (*env)->GetStaticMethodID(env, this, "copyToNativeBuffer", "(Lsun/nio/fs/UnixPath;)Lsun/nio/fs/NativeBuffer;");
+    clazz = (*env)->FindClass(env, "sun/nio/fs/NativeBuffer");
+    if (clazz == NULL) {
+        return 0;
+    }
+    buffer_address = (*env)->GetFieldID(env, clazz, "address", "J");
+    buffer_release = (*env)->GetMethodID(env, clazz, "release", "()V");
+#endif
+
     /* system calls that might not be available at run time */
 
 #if (defined(__solaris__) && defined(_LP64)) || defined(_ALLBSD_SOURCE)
@@ -263,7 +286,13 @@ Java_sun_nio_fs_UnixNativeDispatcher_strerror(JNIEnv* env, jclass this, jint err
     jsize len;
     jbyteArray bytes;
 
+    /* strerror is not thread-safe on AIX */
+#ifdef _AIX
+    char buffer[256];
+    msg = (strerror_r((int)error, buffer, 256) == 0) ? buffer : "Error while calling strerror_r";
+#else
     msg = strerror((int)error);
+#endif
     len = strlen(msg);
     bytes = (*env)->NewByteArray(env, len);
     if (bytes != NULL) {
@@ -550,9 +579,10 @@ Java_sun_nio_fs_UnixNativeDispatcher_utimes0(JNIEnv* env, jclass this,
     }
 }
 
+/* Added path of file "filedes" for platform ports (only needed on AIX and HPUX) */
 JNIEXPORT void JNICALL
 Java_sun_nio_fs_UnixNativeDispatcher_futimes(JNIEnv* env, jclass this, jint filedes,
-    jlong accessTime, jlong modificationTime)
+    jlong accessTime, jlong modificationTime, jobject path)
 {
     struct timeval times[2];
     int err = 0;
@@ -565,16 +595,38 @@ Java_sun_nio_fs_UnixNativeDispatcher_futimes(JNIEnv* env, jclass this, jint file
 
 #ifdef _ALLBSD_SOURCE
     RESTARTABLE(futimes(filedes, &times[0]), err);
-#else
-    if (my_futimesat_func == NULL) {
-        JNU_ThrowInternalError(env, "my_ftimesat_func is NULL");
-        return;
-    }
-    RESTARTABLE((*my_futimesat_func)(filedes, NULL, &times[0]), err);
-#endif
+
     if (err == -1) {
         throwUnixException(env, errno);
     }
+#else
+    if (my_futimesat_func != NULL) {
+        RESTARTABLE((*my_futimesat_func)(filedes, NULL, &times[0]), err);
+
+        if (err == -1) {
+            throwUnixException(env, errno);
+        }
+    }
+    /* AIX and HP-UX does not provide futimes as system call => use utimes instead */
+#if defined(_AIX) || defined (__hpux__)
+    else {
+        jobject buffer = (*env)->CallStaticObjectMethod(env, this, disp_copy2buf, path);
+        jlong path_address = (*env)->GetLongField(env, buffer, buffer_address);
+        const char* path = (const char*)jlong_to_ptr(path_address);
+        RESTARTABLE(utimes(path, &times[0]), err);
+        if (err == -1) {
+            throwUnixException(env, errno);
+        }
+        (*env)->CallVoidMethod(env, buffer, buffer_release);
+    }
+#else
+    else {
+        JNU_ThrowInternalError(env, "my_ftimesat_func is NULL");
+        return;
+    }
+#endif
+
+#endif
 }
 
 JNIEXPORT jlong JNICALL
@@ -626,12 +678,21 @@ Java_sun_nio_fs_UnixNativeDispatcher_readdir(JNIEnv* env, jclass this, jlong val
         char name_extra[PATH_MAX + 1 - sizeof result->d_name];
     } entry;
     struct dirent64* ptr = &entry.buf;
+
     int res;
     DIR* dirp = jlong_to_ptr(value);
 
     /* EINTR not listed as a possible error */
     /* TDB: reentrant version probably not required here */
     res = readdir64_r(dirp, ptr, &result);
+
+    /* AIX returns EBADF for directory stream end which is no error. */
+#ifdef _AIX
+    if (res != 0) {
+        res = (result == NULL && res == EBADF) ? 0 : errno;
+    }
+#endif
+
     if (res != 0) {
         throwUnixException(env, res);
         return NULL;
@@ -835,6 +896,17 @@ Java_sun_nio_fs_UnixNativeDispatcher_statvfs0(JNIEnv* env, jclass this,
     if (err == -1) {
         throwUnixException(env, errno);
     } else {
+        /* Number of blocks (f_blocks) may be too big for signed long on AIX for /proc. */
+#ifdef _AIX
+        if (buf.f_blocks == ULONG_MAX) {
+            buf.f_blocks = 0;
+        }
+        /* Number of free or available blocks can never exceed total number of blocks (seen on /QOpt as400) */
+        if (buf.f_blocks == 0) {
+                buf.f_bfree = 0;
+            buf.f_bavail = 0;
+        }
+#endif
         (*env)->SetLongField(env, attrs, attrs_f_frsize, long_to_jlong(buf.f_frsize));
         (*env)->SetLongField(env, attrs, attrs_f_blocks, long_to_jlong(buf.f_blocks));
         (*env)->SetLongField(env, attrs, attrs_f_bfree,  long_to_jlong(buf.f_bfree));
@@ -911,7 +983,12 @@ Java_sun_nio_fs_UnixNativeDispatcher_getpwuid(JNIEnv* env, jclass this, jint uid
         if (res != 0 || p == NULL || p->pw_name == NULL || *(p->pw_name) == '\0') {
             /* not found or error */
             if (errno == 0)
+                /* getpwuid_r returns ESRCH if user does not exist on AIX */
+#ifdef _AIX
+                errno = ESRCH;
+#else
                 errno = ENOENT;
+#endif
             throwUnixException(env, errno);
         } else {
             jsize len = strlen(p->pw_name);
@@ -966,7 +1043,12 @@ Java_sun_nio_fs_UnixNativeDispatcher_getgrgid(JNIEnv* env, jclass this, jint gid
                 retry = 1;
             } else {
                 if (errno == 0)
+                    /* getgrgid_r returns ESRCH if group does not exist on AIX */
+#ifdef _AIX
+                    errno = ESRCH;
+#else
                     errno = ENOENT;
+#endif
                 throwUnixException(env, errno);
             }
         } else {
