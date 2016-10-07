@@ -1,0 +1,689 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE8">
+<head>
+  <title>OpenJDK PowerPC/AIX Port</title>
+  <style type="text/css" id="internalStyle">
+    pre.terminal {
+      display: table;
+      color: white;
+      background-color: black;
+      border-style: solid;
+      border-width: 1px;
+      border-color: darkgray;
+      margin: 8px 0px 5px 0px;
+      padding: 2px;
+      width: auto;
+      overflow: auto;
+      font-family: monospace;
+    }
+    div.toc {
+	  background-color: #ffffee;
+	  border-bottom: 1px solid #cccccc;
+	  border-top: 1px solid #cccccc;
+	  border-left: 1px solid #cccccc;
+	  border-right: 1px solid #cccccc;
+	  padding: 5px;
+	  position: fixed;
+	  top: 10px;
+	  right: 10px;
+	  margin: 0px 5px 5px 5px;
+	  line-height: 1.5em;
+	  font-size: 80%;
+    }
+    div.tocHeader {
+	  float: right;
+    }
+    div.toc ul {
+	  list-style: none;
+	  margin-left: 10px;
+	  padding: 0;
+    }
+
+    div.tocBody > ul > li {
+      counter-reset: toc2_counter toc3_counter toc4_counter toc5_counter toc6_counter;
+    }
+    div.tocBody > ul ul > li {
+      counter-reset: toc3_counter toc4_counter toc5_counter toc6_counter;
+    }
+    div.tocBody > ul ul ul > li {
+      counter-reset: toc4_counter toc5_counter toc6_counter;
+    }
+    div.tocBody > ul ul ul ul > li {
+      counter-reset: toc5_counter toc6_counter;
+    }
+    div.tocBody > ul ul ul ul ul > li {
+      counter-reset: toc6_counter;
+    }
+    div.tocBody > ul ul > li:before {
+      content: counter(toc2_counter) "\0000a0";
+      counter-increment: toc2_counter;
+    }
+    div.tocBody > ul ul ul > li:before {
+      content: counter(toc2_counter) "." counter(toc3_counter) "\0000a0";
+      counter-increment: toc3_counter;
+    }
+    div.tocBody > ul ul ul ul > li:before {
+      content: counter(toc2_counter) "." counter(toc3_counter) "." counter(toc4_counter) "\0000a0";
+      counter-increment: toc4_counter;
+    }
+    div.tocBody > ul ul ul ul ul > li:before {
+      content: counter(toc2_counter) "." counter(toc3_counter) "." counter(toc4_counter) "." counter(toc5_counter) "\0000a0";
+      counter-increment: toc5_counter;
+    }
+    div.tocBody > ul ul ul ul ul ul > li:before {
+      content: counter(toc2_counter) "." counter(toc3_counter) "." counter(toc4_counter) "." counter(toc5_counter) "." counter(toc6_counter) "\0000a0";
+      counter-increment: toc6_counter;
+    }
+
+
+    body {
+      counter-reset: h2_counter h3_counter h4_counter h5_counter h6_counter;
+    }
+    h1 {
+      counter-reset: h2_counter h3_counter h4_counter h5_counter h6_counter;
+    }
+    h2 {
+      counter-reset: h3_counter h4_counter h5_counter h6_counter;
+    }
+    h3 {
+      counter-reset: h4_counter h5_counter h6_counter;
+    }
+    h4 {
+      counter-reset: h5_counter h6_counter;
+    }
+    h5 {
+      counter-reset: h6_counter;
+    }
+    h2:before {
+      content: counter(h2_counter) "\0000a0";
+      counter-increment: h2_counter;
+    }
+    h3:before {
+      content: counter(h2_counter) "." counter(h3_counter) "\0000a0";
+      counter-increment: h3_counter;
+    }
+    h4:before {
+      content: counter(h2_counter) "." counter(h3_counter) "." counter(h4_counter) "\0000a0";
+      counter-increment: h4_counter;
+    }
+    h5:before {
+      content: counter(h2_counter) "." counter(h3_counter) "." counter(h4_counter) "." counter(h5_counter) "\0000a0";
+      counter-increment: h5_counter;
+    }
+    h6:before {
+      content: counter(h2_counter) "." counter(h3_counter) "." counter(h4_counter) "." counter(h5_counter) "." counter(h6_counter) "\0000a0";
+      counter-increment: h6_counter;
+    }
+  </style>
+  <script>
+    function findElements(node, filter) {
+      var result = new Array();
+      var children = node.childNodes;
+      if (children.length === 0) return result;
+      for (var i=0; children[i]; i++) {
+        var child = children[i];
+        if (filter(child)) {
+          result.push(child);
+          result = result.concat(findElements(child, filter));
+        }
+      }
+      return result;
+    }
+
+    function headingFilter(node) {
+      if (node.nodeType === 1 /*Node.ELEMENT_NODE*/ && /[hH][1-6]/.test(node.nodeName)) {
+        return true;
+      }
+      return false;
+    }
+
+    function showOrHideTOC(tocID, buttonID) {
+      var toc = document.getElementById(tocID);
+      var button = document.getElementById(buttonID);
+      if (toc.style.display === "none") {
+        toc.style.display="block";
+        // Use a Unicode "minus" here, to make it the same width like a "plus"
+        // (see http://en.wikipedia.org/wiki/Minus_sign#Character_codes)
+        button.innerHTML = "[\u2212] ";
+      } else {
+        toc.style.display="none";
+        button.innerHTML = "[+] ";
+      }
+    }
+
+    function createTOCHeader() {
+      var tocHeader = document.createElement('div');
+      tocHeader.setAttribute("class", "tocHeader");
+      var a = document.createElement('a');
+      a.setAttribute("href","#");
+      a.setAttribute("onclick","showOrHideTOC('_TOC_BODY_', '_TOC_EXPAND_BUTTON_'); return false;");
+      var span = document.createElement('span');
+      span.setAttribute("id", "_TOC_EXPAND_BUTTON_");
+      span.appendChild(document.createTextNode("[\u2212] "));
+      a.appendChild(span);
+      a.appendChild(document.createTextNode("Table of Contents"));
+      tocHeader.appendChild(a);
+	  return tocHeader;
+    }
+
+    function createTOCBody() {
+      var tocBody = document.createElement('div');
+      tocBody.setAttribute("class", "tocBody");
+      tocBody.setAttribute("id", "_TOC_BODY_");
+	  return tocBody;
+    }
+
+    function createTOCElement(tocHeader, tocBody) {
+      var toc = document.createElement('div');
+      toc.setAttribute("class", "toc");
+      toc.appendChild(tocHeader);
+      toc.appendChild(tocBody);
+      return toc;
+    }
+
+    function insertAnchor(heading, anchor) {
+      var tag = document.createElement('a');
+      tag.setAttribute('name', anchor);
+      heading.parentNode.insertBefore(tag, heading);
+    }
+
+    function createLink(heading, anchor) {
+      var li = document.createElement('li');
+      var a = document.createElement('a');
+      a.setAttribute('href', "#" + anchor);
+      a.innerHTML = heading.innerHTML;
+      li.appendChild(a);
+      return li;
+    }
+
+    function createTOC(createIndex) {
+      if(typeof(createIndex)==='undefined') createIndex = false;
+      var headings = findElements(document.body, headingFilter);
+      var tocHeader = createTOCHeader();
+      var tocBody = createTOCBody();
+      var toc = createTOCElement(tocHeader, tocBody);
+      var ul = document.createElement('ul');
+      tocBody.appendChild(ul);
+      var currentLevel = 1;
+      for (var i=0; headings[i]; i++) {
+        var heading = headings[i];
+        var anchor = "_TOC_ANCHOR_" + i + "_";
+        // Create anchor just before the heading
+        insertAnchor(heading, anchor);
+        // Create the corresponding TOC entry which links right to 'anchor'
+        var level = parseInt(heading.nodeName.charAt(1), 10);
+        while (level > currentLevel) {
+          var _ul = document.createElement('ul');
+          if (ul.lastChild === null) {
+            ul.appendChild(_ul);
+          }
+          else {
+            ul.lastChild.appendChild(_ul);
+          }
+          ul = _ul;
+          currentLevel++;
+        }
+        while (level < currentLevel) {
+          do {
+            ul = ul.parentNode;
+          } while (ul.nodeName !== "UL");
+          currentLevel--;
+        }
+        ul.appendChild(createLink(heading, anchor));
+      }
+      document.body.insertBefore(toc, document.body.firstChild);
+    }
+  </script>
+</head>
+<body onload="createTOC();">
+
+<h1>OpenJDK PowerPC Port</h1>
+
+<p>
+This file contains some additional build instructions for
+the <a href="http://openjdk.java.net/projects/ppc-aix-port"> OpenJDK PowerPC
+Port for Linux and AIX</a>. It complements the general
+OpenJDK <a href="http://hg.openjdk.java.net/ppc-aix-port/jdk7u/raw-file/tip/README-builds.html">
+README-builds.html</a> file.
+</p>
+
+<h2>Building on Linux/PPC64</h2>
+
+<p>
+Currently, i.e. all versions after
+revision <a href="http://hg.openjdk.java.net/ppc-aix-port/jdk7u/file/ppc-aix-port-b01"><em>ppc-aix-port-b01</em></a>,
+should successfully build and run on Linux/PPC64. Passing
+<code>CORE_BUILD=true</code> on the build comamnd line will instruct the build
+system to create an interpreter-only version of the VM which is in general about
+an order of magnitude slower than a corresponding server VM with JIT
+compiler. But it is still fully functional (e.g. it passes JVM98) and can even
+be used to bootstrap itself. Starting with
+revision <a href="http://hg.openjdk.java.net/ppc-aix-port/jdk7u/file/ppc-aix-port-b03"><em>ppc-aix-port-b03</em></a>,
+it is possible to build without <code>CORE_BUILD=true</code> and create a
+JIT-enabled version of the VM (containing the C2 "<em>Server</em>" JIT
+compiler).
+</p>
+
+<p>
+Our current build system is a Power6 box running
+SLES 10.3 with gcc version 4.1.2 (in general, more recent Linux distributions
+should work as well).
+</p>
+
+<h3>Building with the OpenJDK Linux/PPC64 port as bootstrap JDK</h3>
+
+<p>
+A precompiled build of <em>ppc-aix-port-b03</em> is available
+for <a href="http://openjdkpower.osuosl.org/OpenJDK/download/bootstrap/openjdk1.7.0-ppc-aix-port-linux-ppc64-b03.tar.bz2">download</a>.
+With it and together with the other build dependencies fulfilled as described
+in the
+main <a href="http://hg.openjdk.java.net/ppc-aix-port/jdk7u/raw-file/tip/README-builds.html">
+README-builds.html</a> file you can build a debug version of the JDK from the
+top-level source directory with the following command line (additionally
+pass <code>CORE_BUILD=true</code> to build an interpreter-only version of the VM):
+</p>
+
+<pre class="terminal">
+&gt; make FT_CFLAGS=-m64 LANG=C \
+  ALT_BOOTDIR=&lt;path_to&gt;/jdk1.7.0-ppc-aix-port-b01 \
+  ARCH_DATA_MODEL=64 \
+  HOTSPOT_BUILD_JOBS=8 \
+  PARALLEL_COMPILE_JOBS=8 \
+  ALT_FREETYPE_LIB_PATH=/usr/local/lib \
+  ALT_FREETYPE_HEADERS_PATH=/usr/local/include \
+  ANT_HOME=/usr/local/apache-ant-1.8.4 \
+  VERBOSE=true \
+  CC_INTERP=true \
+  OPENJDK=true \
+  debug_build 2>&1 | tee build_ppc-aix-port_dbg.log
+</pre>
+
+<p>
+After the build finished successfully the results can be found under
+<tt>./build/linux-ppc64-debug/</tt>. Product and fastdebug versions can be
+build with the make targets <tt>product_build</tt> and
+<tt>fastdebug_build</tt> respectively (the build results will be located under
+<tt>./build/linux-ppc64/</tt> and <tt>./build/linux-ppc64-fastdebug/</tt>). On
+our transitional <a
+href="http://cr.openjdk.java.net/~simonis/ppc-aix-port/index.html">ppc-aix-port
+project page</a> you can find the build logs of our regular nightly makes.
+</p>
+
+<h4>Problems with pre-installed ANT on newer Linux distros</h4>
+
+<p>
+Notice that pre-installed ANT version (i.e. ANT versions installed with the
+corresponding system package manager) may cause problems in conjunction with
+our bootstrap JDK. This is because they use various scripts from the
+<a href="http://www.jpackage.org/">jpackage</a> project to locate specific Java
+libraries and jar files. These scripts (in particular 
+<code>set_jvm_dirs()</code>
+in <code>/usr/share/java-utils/java-functions</code>) expect that executing
+"<code>java -fullversion</code>" will return a string starting with "java" but
+our OpenJDK port returns a string starting with "openjdk" instead.
+</p>
+
+<p>
+The problem can be easily solved by either editing the regular expressions
+which parse the version string
+in <code>/usr/share/java-utils/java-functions</code> (or the respective file of
+your Linux distribution) or by installing a plain version of ANT
+from <a href="http://ant.apache.org/bindownload.cgi">http://ant.apache.org/bindownload.cgi</a>
+and passing its installation directory to the build via
+the <code>ANT_HOME</code> environment variable.
+</p>
+ 
+<h3>Building with the IBM JDK for Linux/PPC64 as bootstrap JDK</h3>
+
+<p>
+It is also possible to build with an <a
+href="http://www.ibm.com/developerworks/java/jdk/linux/download.html#java7">IBM
+JDK 7</a> bootstrap JDK (after all this is how we initially bootstrapped the
+port). But because the IBM JDK uses a different default implementation of the
+<tt>idlj</tt> and <tt>rmic</tt> compilers you will have to add the following
+two additional variables to the build command line to force the IBM JDK to
+fall back to the default Sun/Oracle version of the mentioned compilers (notice
+that the single quotes are crucial here to prevent the immediate expansion of
+<tt>$(ALT_BOOTDIR)</tt>):
+</p>
+
+<pre class="terminal">
+IDLJ='$(ALT_BOOTDIR)/bin/java -cp $(ALT_BOOTDIR)/lib/tools.jar com.sun.tools.corba.se.idl.toJavaPortable.Compile'
+RMIC='$(ALT_BOOTDIR)/bin/java -cp $(ALT_BOOTDIR)/lib/tools.jar sun.rmi.rmic.Main'
+</pre>
+
+<p>
+We successfully used build <tt>pxp6470-20110827_01</tt> of the IBM JDK but
+there have been <a
+href="http://mail.openjdk.java.net/pipermail/ppc-aix-port-dev/2012-July/thread.html#21">reports</a>
+on the <a
+href="http://mail.openjdk.java.net/mailman/listinfo/ppc-aix-port-dev">ppc-aix-port-dev</a>
+mailing list that newer version of the IBM JDK (starting with build <tt>pxp6470sr1-20120330_01(SR1)</tt>) require some additional
+tweaking. Neil Richards advised in that mail thread to "<em>Just rename lib/ibmorbtools.jar to be something else.
+As the tools.jar tries to chain onto a file of that name, and that file
+contains the rmicext.properties files with the IBM-impl settings, moving
+that file off to one side should consistently cause rmic invocations to
+use the OpenJDK rmic IIOP generator.
+Approaching things this way would also mean one would not need to use
+the RMIC setting.
+(NB: One still need to use the IDLJ setting to use the OpenJDK idlj
+implementation, especially as moving the ibmorbtools.jar file aside also
+eliminates the IBM idlj implementation from the classpath).</em>"
+</p>
+
+<p>
+For historical reasons two old build logs of a debug and a product build
+bootstrapped with the IBM JDK are still available for inspection: <a
+href="http://openjdkpower.osuosl.org/OpenJDK/download/build-logs/output_ppc-aix-port_dbg.log">output_ppc-aix-port_dbg.log</a>,
+<a
+href="http://openjdkpower.osuosl.org/OpenJDK/download/build-logs/output_ppc-aix-port_opt.log">output_ppc-aix-port_opt.log</a>.
+</p>
+
+<h3>Running the OpenJDK Linux/PPC64 port</h3>
+
+<p>
+Running the freshly build VM should give the following output:
+</p>
+
+<pre class="terminal">
+&gt; build/linux-ppc64-debug/bin/java -showversion HelloWorld
+openjdk version "1.7.0-internal"
+OpenJDK Runtime Environment (build 1.7.0-internal-jvmtests_2012_12_16_22_14-b00)
+OpenJDK 64-Bit Server VM (build 23.2-b04, mixed mode)
+
+HelloWorld
+</pre>
+
+<h2>Building on AIX/PPC64</h2>
+
+<p>
+Currently, i.e. all versions after revision <a
+href="http://hg.openjdk.java.net/ppc-aix-port/jdk7u/file/ppc-aix-port-b02"><em>ppc-aix-port-b02</em></a>,
+should successfully build and run on AIX. Passing
+<code>CORE_BUILD=true</code> on the build comamnd line will instruct the build
+system to create an interpreter-only version of the VM which is in general about
+an order of magnitude slower than a corresponding server VM with JIT
+compiler. But it is still fully functional (e.g. it passes JVM98) and can even
+be used to bootstrap itself. Starting with
+revision <a href="http://hg.openjdk.java.net/ppc-aix-port/jdk7u/file/ppc-aix-port-b03"><em>ppc-aix-port-b03</em></a>,
+it is possible to build without <code>CORE_BUILD=true</code> and create a
+JIT-enabled version of the VM (containing the C2 "<em>Server</em>" JIT
+compiler).
+</p>
+
+<h3>Building with the OpenJDK AIX/PPC64 port as bootstrap JDK</h3>
+
+<p>
+A precompiled build of <em>ppc-aix-port-b03</em> is available
+for <a href="http://openjdkpower.osuosl.org/OpenJDK/download/bootstrap/openjdk1.7.0-ppc-aix-port-aix-ppc64-b03.tar.bz2">download</a>.
+We recommend using it or a self compiled OpenJDK version for AIX as bootstrap JDK.
+</p>
+
+<h3>Building with the IBM JDK for AIX as bootstrap JDK</h3>
+
+<p>
+It is also possible to build with an <a
+href="http://www.ibm.com/developerworks/java/jdk/aix/service.html#java6">IBM
+JDK 6</a> bootstrap JDK (after all this is how we initially bootstrapped the
+port). But because the IBM JDK uses a different default implementation of the
+<tt>idlj</tt> and <tt>rmic</tt> compilers you will have to rename or
+delete <code>lib/ibmorbtools.jar</code> and add the following additional
+variable to the build command line to force the IBM JDK to fall back to the
+default Sun/Oracle version of the IDLJ compiler (notice that the the single
+quotes are crucial here to prevent the immediate expansion of
+<tt>$(ALT_BOOTDIR)</tt>):
+</p>
+
+<pre class="terminal">
+IDLJ='$(ALT_BOOTDIR)/bin/java -cp $(ALT_BOOTDIR)/lib/tools.jar com.sun.tools.corba.se.idl.toJavaPortable.Compile'
+</pre>
+
+<h3>AIX build dependencies</h3>
+
+<p>
+Our current build system is based on AIX 5.3 in order to produce binaries which
+can be run on any AIX version higher than 5.3. However building on
+newer version of AIX should in general work equally well (from time to time we
+build on AIX 7.1 as well). It should be noticed
+that the current build infrastructure only supports the
+commercial <a href="http://www-01.ibm.com/software/awdtools/xlcpp/">XL
+C/C++</a> compilers from IBM so getting a copy of the XL C/C++ compiler suite
+10.1 (or higher) is the first prerequisite that has to be fulfilled. You also
+need to to have the "AIXwindows Application Development Toolkit for X
+Extensions" (i.e. <code>X11.adt.ext</code>) package installed on your
+system. You can check this by doing:
+</p>
+
+<pre class="terminal">
+&gt; lslpp -l X11.adt.ext
+  Fileset                      Level  State      Description
+  ----------------------------------------------------------------------------
+Path: /usr/lib/objrepos
+  X11.adt.ext                7.1.0.0  COMMITTED  AIXwindows Application
+                                                 Development Toolkit for X
+                                                 Extensions
+</pre>
+
+<p>
+There are several other build dependencies (mostly described in the
+general <a href="http://hg.openjdk.java.net/ppc-aix-port/jdk7u/raw-file/tip/README-builds.html">
+README-builds.html</a> file) which are a little more complicate to fulfill on
+AIX than on Linux platforms, but they are all freely available as described in
+the following section.
+</p>
+
+
+<h4>Mercurial &amp; Python</h4>
+
+<p>
+The first thing to install
+is <a href="http://mercurial.selenic.com">Mercurial</a>. The
+Mercurial <a href=" http://mercurial.selenic.com/wiki/Download">download
+wiki</a> contains a
+special <a href="http://mercurial.selenic.com/wiki/Download#AIX">AIX</a>
+section which links
+to <a href="http://www.lunch.org.uk/wiki/aix_packages">http://www.lunch.org.uk/wiki/aix_packages</a>. The
+site provides various <a href="http://www.lunch.org.uk/aix/rpms">RPM
+packeges</a> for AIX 5.2 and higher. Download and
+install <a href="http://www.lunch.org.uk/aix/rpms/python-2.4.6-1.aix5.2.ppc.rpm">python-2.4.6-1.aix5.2.ppc.rpm</a>
+and <a href="http://www.lunch.org.uk/aix/rpms/mercurial-2.3.1-0.aix5.2.ppc.rpm">mercurial-2.3.1-0.aix5.2.ppc.rpm</a>
+(with <code>rpm -i &lt;package-name&gt;.rpm</code>). All the "free" software
+packages will be installed by default into the <code>/opt/freeware</code>
+subdirectory under AIX which seems to be the equivalent
+to <code>/usr/local</code> on Linux platforms.
+</p>
+
+<p>
+Notice that Python has a lot of dependencies on other freeware packages
+from <code>/opt/freeware</code> and you'll have to download and install them
+first before the installation of Python succeeds. Fortunately these packages can
+be downloaded directly from IBM's
+<a href="http://www-03.ibm.com/systems/power/software/aix/linux/toolbox/alpha.html">AIX
+Toolbox for Linux Applications</a> site (if you don't have the RPM package
+manager installed already you'll first have to get
+the <a href="ftp://public.dhe.ibm.com/aix/freeSoftware/aixtoolbox/INSTALLP/ppc/rpm.rte">AIX
+installp image for the rpm package manager for POWER</a> and install it with
+the command '<code>installp -qacXgd rpm.rte rpm.rte
+</code>'). On my AIX box, I had to install the following additional packages:
+</p>
+
+<ul>
+  <li><a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/bzip2/bzip2-1.0.5-3.aix5.3.ppc.rpm">bzip2-1.0.5-3.aix5.3.ppc.rpm</a></li>
+  <li><a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/db/db-3.3.11-4.aix5.1.ppc.rpm">db-3.3.11-4.aix5.1.ppc.rpm</a></li>
+  <li><a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/gdbm/gdbm-1.8.3-5.aix5.2.ppc.rpm">gdbm-1.8.3-5.aix5.2.ppc.rpm</a></li>
+  <li><a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/zlib/zlib-1.2.3-4.aix5.2.ppc.rpm">zlib-1.2.3-4.aix5.2.ppc.rpm</a></li>
+  <li><a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/readline/readline-4.3-2.aix5.1.ppc.rpm">readline-4.3-2.aix5.1.ppc.rpm</a></li>
+</ul>
+
+<p>
+Python also requires OpenSSL which is available from the "AIX Toolbox for Linux
+Applications" as well, but only after signing in with a universal IBM user
+ID, which can be obtained for free
+(follow the
+link <a href="http://www.ibm.com/services/forms/preLogin.do?source=aixtbx">AIX
+Toolbox Cryptographic Content</a> on
+the <a href="http://www-03.ibm.com/systems/power/software/aix/linux/toolbox/download.html">IBM
+AIX Toolbox download information</a> page).
+</p>
+
+<h4>GNU Make</h4>
+
+Unfortunately, the GNU Make package available from the "AIX Toolbox for Linux
+Applications" is too old (version 3.80 vs. 3.82) for building OpenJDK so we
+have to build our own one. Fortunately, that's not too hard:
+
+<pre class="terminal">
+&gt; wget http://ftp.gnu.org/gnu/make/make-3.82.tar.gz
+&gt; tar -xzf make-3.82.tar.gz
+&gt; cd make-3.82
+&gt; CC=xlc_r ./configure --prefix=/opt/freeware
+&gt; make
+&gt; make install
+</pre>
+
+
+<h4>Freetype, Cups and friends</h4>
+
+<p>
+Luckily, a sufficiently new version of Freetype is available from the "AIX
+Toolbox for Linux Applications" site as well. We need the Freetype development
+package which itself has dependencies as listed below:
+</p>
+
+<ul>
+  <li><a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/freetype2/freetype2-2.3.9-1.aix5.2.ppc.rpm">freetype2-2.3.9-1.aix5.2.ppc.rpm</a></li>
+  <li><a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/freetype2/freetype2-devel-2.3.9-1.aix5.2.ppc.rpm">freetype2-devel-2.3.9-1.aix5.2.ppc.rpm</a></li>
+  <li><a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/zlib/zlib-devel-1.2.3-4.aix5.2.ppc.rpm">zlib-devel-1.2.3-4.aix5.2.ppc.rpm</a></li>
+  <li><a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/pkg-config/pkg-config-0.19-6.aix5.2.ppc.rpm">pkg-config-0.19-6.aix5.2.ppc.rpm</a></li>
+</ul>
+
+<p>
+Notice that the Freetype package will only install a single archive
+under <code>/opt/freeware/lib/libfreetype.a</code> but that archive contains
+both 32- and 64-bit versions of the <code>libfreetype.so</code> shared library:
+</p>
+
+<pre class="terminal">
+&gt; ar -vt -Xany /opt/freeware/lib/libfreetype.a
+rwxr-xr-x     0/0     966393 Aug 21 01:42 2009 libfreetype.so.6
+rwxr-xr-x     0/0     1048680 Aug 21 01:41 2009 libfreetype.so.6
+</pre>
+
+<p>
+During a 64-bit build, the compiler will "magically" find the right version of
+the shared library from the archive.
+</p>
+
+<p>
+Unfortunately the "AIX Toolbox for Linux Applications" site provides no Cups
+package, so I
+took <a href="ftp://www.oss4aix.org/latest/aix53/cups-devel-1.6.1-1.aix5.3.ppc.rpm">cups-devel-1.6.1-1.aix5.3.ppc.rpm</a>
+from <a href="http://www.perzl.org/aix/">http://www.perzl.org/aix/</a>, another
+great site with precompiled open source software for AIX. The Cups development
+package has a lot of dependencies, but because the OpenJDK build only needs the
+Cups header files it is enough to force the installation of the Cups
+development package with <code>rpm -i --nodeps
+cups-devel-1.6.1-1.aix5.3.ppc.rpm</code>.
+</p>
+
+<p>
+The default AIX <code>tar</code> may give you errors like
+"<code>/usr/bin/tar: arg list too long</code>" during the build
+process so we strongly recommend to install
+the <a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/tar/tar-1.14-2.aix5.1.ppc.rpm">tar-1.14-2.aix5.1.ppc.rpm</a>
+package from IBM's AIX Toolbox for Linux Applications site.
+</p>
+
+<h4>Setting up the <code>PATH</code> and building</h4>
+
+<p>
+If you prepend <code>/opt/freeware/bin</code> to you <code>PATH</code>
+environment variable you should be finally able to start the build with the
+following command line (additionally pass <code>CORE_BUILD=true</code> to build
+an interpreter-only version of the VM):
+</p>
+
+<pre class="terminal">
+make debug_build \
+  ALT_BOOTDIR=/usr/work/openjdk/nb/rs6000_64/last_known_good/output-jdk7u/j2sdk-image \
+  ANT_HOME=/sapmnt/depot/tools/gen/java/OpenSource/Ant/1.8.0 \
+  ALT_FREETYPE_LIB_PATH=/opt/freeware/lib \
+  ALT_FREETYPE_HEADERS_PATH=/opt/freeware/include \
+  ALT_CUPS_HEADERS_PATH=/opt/freeware/include \
+  VERBOSE=true \
+  CC_INTERP=true \
+  OPENJDK=true \
+  HOTSPOT_BUILD_JOBS=8 \
+  PARALLEL_COMPILE_JOBS=8 2>&1 | tee /priv/d046063/OpenJDK/output-ppc-aix-port-debug.log
+</pre>
+
+<p>
+After the build finished successfully the results can be found under
+<tt>./build/aix-ppc64-debug/</tt>. Product and fastdebug versions can be
+build with the make targets <tt>product_build</tt> and
+<tt>fastdebug_build</tt> respectively (the build results will be located under
+<tt>./build/aix-ppc64/</tt> and <tt>./build/aix-ppc64-fastdebug/</tt>). On
+our transitional <a
+href="http://cr.openjdk.java.net/~simonis/ppc-aix-port/index.html">ppc-aix-port
+project page</a> you can find the build logs of our regular nightly makes.
+</p>
+
+<h3>Running the OpenJDK AIX/PPC64 port</h3>
+
+<p>
+Running the freshly build VM should give the following output:
+</p>
+
+<pre class="terminal">
+&gt; build/aix-ppc64-debug/bin/java -showversion HelloWorld
+openjdk version "1.7.0-internal-debug"
+OpenJDK Runtime Environment (build 1.7.0-internal-jvmtests_2012_12_16_23_22-b00)
+OpenJDK 64-Bit Server VM (build 23.2-b04, mixed mode)
+
+HelloWorld
+</pre>
+
+<h4>Fonts and Fontconfig (optional)</h4>
+
+<p>
+If you want to run AWT/Swing applications you have to install
+the <a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/fontconfig/fontconfig-2.4.2-1.aix5.2.ppc.rpm">fontconfig</a>
+package from the "AIX Toolbox for Linux Applications" site as described
+before. You will also have to install at least the "AIXwindows Latin Type1
+Fonts" package (<code>X11.fnt.iso_T1</code>) because Fontconfig
+and the <code>fontconfig.properties</code> file of the OpenJDK currently rely on
+the standard Type1 Postscript fonts. If you want to use other Type 1 or
+TrueType fonts (e.g. <code>X11.fnt.ucs.ttf</code>) you'll probably have to edit
+the
+local <a href="http://www.freedesktop.org/software/fontconfig/fontconfig-user.html">Fontconfig
+configuration file</a> (under <code>/opt/freeware/etc/fonts/local.conf</code>)
+and
+the <a href="http://download.java.net/jdk8/docs/technotes/guides/intl/fontconfig.html"><code>&lt;openjdk-path&gt;/jre/lib/fontconfig.properties</code>
+</a> file of your OpenJDK image.
+</p>
+
+<p>
+Also remember that we currently dynamically link against Freetype (see build
+dependencies above) so if you copy the build results to another AIX machine you
+have to ensure that the new host has at
+least <a href="ftp://ftp.software.ibm.com/aix/freeSoftware/aixtoolbox/RPMS/ppc/freetype2/freetype2-2.3.9-1.aix5.2.ppc.rpm">freetype2-2.3.9-1.aix5.2.ppc.rpm</a>
+installed.
+</p>
+
+<h4>Memory requirements</h4>
+
+<p>
+Our VM is currently optimized for server class loads. This means that besides
+the usual Java heap settings which are controlled trough command line options
+the user has to make sure the environment provides reasonable data segment and
+the stack size limits. We recommend setting the stack size limit to 4MB
+(e.g. call '<code>ulimit -s 4000</code>') and the data segment limit to 1GB
+(e.g. call '<code>ulimit -d 1000000</code>'). Higher limits should be OK (the
+current limits can be inspected with '<code>ulimit -a</code>').
+</p>
+
+</body>
+</html>
