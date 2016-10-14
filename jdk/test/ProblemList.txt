@@ -230,6 +230,9 @@ javax/management/MBeanServer/OldMBeanServerTest.java            aix-all
 
 # jdk_math
 
+# 8026393
+sun/security/tools/jarsigner/warnings/BadKeyUsageTest.java      generic-all
+
 ############################################################################
 
 # jdk_other
