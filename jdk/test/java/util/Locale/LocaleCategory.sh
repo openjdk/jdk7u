@@ -47,7 +47,7 @@ esac
 # test user.xxx.display user.xxx.format properties
 
 # run
-RUNCMD="${TESTJAVA}${FS}bin${FS}java -classpath ${TESTCLASSES} -Duser.language.display=ja -Duser.language.format=zh LocaleCategory"
+RUNCMD="${TESTJAVA}${FS}bin${FS}java ${TESTVMOPTS} -classpath ${TESTCLASSES} -Duser.language.display=ja -Duser.language.format=zh LocaleCategory"
 
 echo ${RUNCMD}
 ${RUNCMD}
@@ -63,7 +63,7 @@ fi
 # test user.xxx properties overriding user.xxx.display/format
 
 # run
-RUNCMD="${TESTJAVA}${FS}bin${FS}java -classpath ${TESTCLASSES} -Duser.language=en -Duser.language.display=ja -Duser.language.format=zh LocaleCategory"
+RUNCMD="${TESTJAVA}${FS}bin${FS}java ${TESTVMOPTS} -classpath ${TESTCLASSES} -Duser.language=en -Duser.language.display=ja -Duser.language.format=zh LocaleCategory"
 
 echo ${RUNCMD}
 ${RUNCMD}

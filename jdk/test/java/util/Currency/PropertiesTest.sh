@@ -47,7 +47,7 @@ esac
 # Currency dump path #1.  Just dump currencies with the bare JRE
 
 # run
-RUNCMD="${TESTJAVA}${FS}bin${FS}java -classpath ${TESTCLASSES} PropertiesTest -d dump1"
+RUNCMD="${TESTJAVA}${FS}bin${FS}java ${TESTVMOPTS} -classpath ${TESTCLASSES} PropertiesTest -d dump1"
 
 echo ${RUNCMD}
 ${RUNCMD}
@@ -82,7 +82,7 @@ fi
 cp ${TESTSRC}${FS}currency.properties $PROPLOCATION
 
 # run
-RUNCMD="${WRITABLEJDK}${FS}bin${FS}java -classpath ${TESTCLASSES} PropertiesTest -d dump2"
+RUNCMD="${WRITABLEJDK}${FS}bin${FS}java ${TESTVMOPTS} -classpath ${TESTCLASSES} PropertiesTest -d dump2"
 
 echo ${RUNCMD}
 ${RUNCMD}
