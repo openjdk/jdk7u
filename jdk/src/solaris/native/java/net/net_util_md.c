@@ -112,6 +112,8 @@ void setDefaultScopeID(JNIEnv *env, struct sockaddr *him)
 int getDefaultScopeID(JNIEnv *env) {
     static jclass ni_class = NULL;
     static jfieldID ni_defaultIndexID;
+    int defaultIndex = 0;
+
     if (ni_class == NULL) {
         jclass c = (*env)->FindClass(env, "java/net/NetworkInterface");
         CHECK_NULL_RETURN(c, 0);
@@ -121,7 +123,6 @@ int getDefaultScopeID(JNIEnv *env) {
             env, c, "defaultIndex", "I");
         ni_class = c;
     }
-    int defaultIndex = 0;
     defaultIndex = (*env)->GetStaticIntField(env, ni_class,
                                                  ni_defaultIndexID);
     return defaultIndex;
@@ -284,9 +285,7 @@ int cmpScopeID (unsigned int scope, struct sockaddr *him) {
 void
 NET_ThrowByNameWithLastError(JNIEnv *env, const char *name,
                    const char *defaultDetail) {
-    char errmsg[255];
-    sprintf(errmsg, "errno: %d, error: %s\n", errno, defaultDetail);
-    JNU_ThrowByNameWithLastError(env, name, errmsg);
+    JNU_ThrowByNameWithMessageAndLastError(env, name, defaultDetail);
 }
 
 void
