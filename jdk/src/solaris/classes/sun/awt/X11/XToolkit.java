@@ -1366,7 +1366,9 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
                 }
             } catch (InterruptedException ie) {
             // Note: the returned timeStamp can be incorrect in this case.
-                if (log.isLoggable(PlatformLogger.FINE)) log.fine("Catched exception, timeStamp may not be correct (ie = " + ie + ")");
+                if (log.isLoggable(PlatformLogger.FINE)) {
+                    log.fine("Catched exception, timeStamp may not be correct (ie = " + ie + ")");
+                }
             }
         } finally {
             awtUnlock();
@@ -1527,7 +1529,9 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
 
             name = "gnome." + name;
             setDesktopProperty(name, e.getValue());
-            log.fine("name = " + name + " value = " + e.getValue());
+            if (log.isLoggable(PlatformLogger.FINE)) {
+                log.fine("name = " + name + " value = " + e.getValue());
+            }
 
             // XXX: we probably want to do something smarter.  In
             // particular, "Net" properties are of interest to the
@@ -2344,7 +2348,9 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
             return getEventNumber() - event_number > 1;
         } finally {
             removeEventDispatcher(win.getWindow(), oops_waiter);
-            eventLog.finer("Exiting syncNativeQueue");
+            if (eventLog.isLoggable(PlatformLogger.FINER)) {
+                eventLog.finer("Exiting syncNativeQueue");
+            }
             awtUnlock();
         }
     }

@@ -234,7 +234,9 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
      * Called when component receives focus
      */
     public void focusGained(FocusEvent e) {
-        focusLog.fine("{0}", e);
+        if (focusLog.isLoggable(PlatformLogger.FINE)) {
+            focusLog.fine("{0}", e);
+        }
         bHasFocus = true;
     }
 
@@ -242,7 +244,9 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
      * Called when component loses focus
      */
     public void focusLost(FocusEvent e) {
-        focusLog.fine("{0}", e);
+        if (focusLog.isLoggable(PlatformLogger.FINE)) {
+            focusLog.fine("{0}", e);
+        }
         bHasFocus = false;
     }
 
@@ -314,8 +318,10 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
           case XKeyboardFocusManagerPeer.SNFH_SUCCESS_PROCEED:
               // Currently we just generate focus events like we deal with lightweight instead of calling
               // XSetInputFocus on native window
-              if (focusLog.isLoggable(PlatformLogger.FINER)) focusLog.finer("Proceeding with request to " +
-                  lightweightChild + " in " + target);
+              if (focusLog.isLoggable(PlatformLogger.FINER)) {
+                  focusLog.finer("Proceeding with request to " +
+                                 lightweightChild + " in " + target);
+              }
               /**
                * The problems with requests in non-focused window arise because shouldNativelyFocusHeavyweight
                * checks that native window is focused while appropriate WINDOW_GAINED_FOCUS has not yet
@@ -339,7 +345,9 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
                */
               boolean res = wpeer.requestWindowFocus(null);
 
-              if (focusLog.isLoggable(PlatformLogger.FINER)) focusLog.finer("Requested window focus: " + res);
+              if (focusLog.isLoggable(PlatformLogger.FINER)) {
+                  focusLog.finer("Requested window focus: " + res);
+              }
               // If parent window can be made focused and has been made focused(synchronously)
               // then we can proceed with children, otherwise we retreat.
               if (!(res && parentWindow.isFocused())) {
@@ -359,13 +367,17 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
     }
 
     private boolean rejectFocusRequestHelper(String logMsg) {
-        if (focusLog.isLoggable(PlatformLogger.FINER)) focusLog.finer(logMsg);
+        if (focusLog.isLoggable(PlatformLogger.FINER)) {
+            focusLog.finer(logMsg);
+        }
         XKeyboardFocusManagerPeer.removeLastFocusRequest(target);
         return false;
     }
 
     void handleJavaFocusEvent(AWTEvent e) {
-        if (focusLog.isLoggable(PlatformLogger.FINER)) focusLog.finer(e.toString());
+        if (focusLog.isLoggable(PlatformLogger.FINER)) {
+            focusLog.finer(e.toString());
+        }
         if (e.getID() == FocusEvent.FOCUS_GAINED) {
             focusGained((FocusEvent)e);
         } else {
@@ -650,7 +662,9 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
 
     @Override
     public void setBackground(Color c) {
-        if (log.isLoggable(PlatformLogger.FINE)) log.fine("Set background to " + c);
+        if (log.isLoggable(PlatformLogger.FINE)) {
+            log.fine("Set background to " + c);
+        }
         synchronized (getStateLock()) {
             if (Objects.equals(background, c)) {
                 return;
@@ -663,7 +677,9 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
 
     @Override
     public void setForeground(Color c) {
-        if (log.isLoggable(PlatformLogger.FINE)) log.fine("Set foreground to " + c);
+        if (log.isLoggable(PlatformLogger.FINE)) {
+            log.fine("Set foreground to " + c);
+        }
         synchronized (getStateLock()) {
             if (Objects.equals(foreground, c)) {
                 return;
@@ -685,7 +701,9 @@ public class XComponentPeer extends XWindow implements ComponentPeer, DropTarget
      * @since     JDK1.0
      */
     public FontMetrics getFontMetrics(Font font) {
-        if (fontLog.isLoggable(PlatformLogger.FINE)) fontLog.fine("Getting font metrics for " + font);
+        if (fontLog.isLoggable(PlatformLogger.FINE)) {
+            fontLog.fine("Getting font metrics for " + font);
+        }
         return sun.font.FontDesignMetrics.getMetrics(font);
     }
 
