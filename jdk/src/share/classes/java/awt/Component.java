@@ -4704,12 +4704,12 @@ public abstract class Component implements ImageObserver, MenuContainer,
         // Check that this component belongs to this app-context
         AppContext compContext = appContext;
         if (compContext != null && !compContext.equals(AppContext.getAppContext())) {
-            if (eventLog.isLoggable(PlatformLogger.FINE)) {
+            if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
                 eventLog.fine("Event " + e + " is being dispatched on the wrong AppContext");
             }
         }
 
-        if (eventLog.isLoggable(PlatformLogger.FINEST)) {
+        if (eventLog.isLoggable(PlatformLogger.Level.FINEST)) {
             eventLog.finest("{0}", e);
         }
 
@@ -4745,7 +4745,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
                 return;
             }
         }
-        if ((e instanceof FocusEvent) && focusLog.isLoggable(PlatformLogger.FINEST)) {
+        if ((e instanceof FocusEvent) && focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
             focusLog.finest("" + e);
         }
         // MouseWheel may need to be retargeted here so that
@@ -4803,7 +4803,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
                 if (inputContext != null) {
                     inputContext.dispatchEvent(e);
                     if (e.isConsumed()) {
-                        if ((e instanceof FocusEvent) && focusLog.isLoggable(PlatformLogger.FINEST)) {
+                        if ((e instanceof FocusEvent) && focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                             focusLog.finest("3579: Skipping " + e);
                         }
                         return;
@@ -4838,7 +4838,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
               if (p != null) {
                   p.preProcessKeyEvent((KeyEvent)e);
                   if (e.isConsumed()) {
-                        if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+                        if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                             focusLog.finest("Pre-process consumed event");
                         }
                       return;
@@ -4971,7 +4971,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
                                   // position relative to its parent.
         MouseWheelEvent newMWE;
 
-        if (eventLog.isLoggable(PlatformLogger.FINEST)) {
+        if (eventLog.isLoggable(PlatformLogger.Level.FINEST)) {
             eventLog.finest("dispatchMouseWheelToAncestor");
             eventLog.finest("orig event src is of " + e.getSource().getClass());
         }
@@ -4994,7 +4994,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
                 }
             }
 
-            if (eventLog.isLoggable(PlatformLogger.FINEST)) {
+            if (eventLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 eventLog.finest("new event src is " + anc.getClass());
             }
 
@@ -5494,7 +5494,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
     // Should only be called while holding the tree lock
     int numListening(long mask) {
         // One mask or the other, but not neither or both.
-        if (eventLog.isLoggable(PlatformLogger.FINE)) {
+        if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
             if ((mask != AWTEvent.HIERARCHY_EVENT_MASK) &&
                 (mask != AWTEvent.HIERARCHY_BOUNDS_EVENT_MASK))
             {
@@ -5535,7 +5535,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
               break;
           case HierarchyEvent.ANCESTOR_MOVED:
           case HierarchyEvent.ANCESTOR_RESIZED:
-              if (eventLog.isLoggable(PlatformLogger.FINE)) {
+              if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
                   if (changeFlags != 0) {
                       eventLog.fine("Assertion (changeFlags == 0) failed");
                   }
@@ -5551,7 +5551,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
               break;
           default:
               // assert false
-              if (eventLog.isLoggable(PlatformLogger.FINE)) {
+              if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
                   eventLog.fine("This code must never be reached");
               }
               break;
@@ -7619,7 +7619,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
                                      CausedFocusEvent.Cause cause)
     {
         if (!isRequestFocusAccepted(temporary, focusedWindowChangeAllowed, cause)) {
-            if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("requestFocus is not accepted");
             }
             return false;
@@ -7631,7 +7631,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
         Component window = this;
         while ( (window != null) && !(window instanceof Window)) {
             if (!window.isVisible()) {
-                if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+                if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                     focusLog.finest("component is recurively invisible");
                 }
                 return false;
@@ -7643,14 +7643,14 @@ public abstract class Component implements ImageObserver, MenuContainer,
         Component heavyweight = (peer instanceof LightweightPeer)
             ? getNativeContainer() : this;
         if (heavyweight == null || !heavyweight.isVisible()) {
-            if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("Component is not a part of visible hierarchy");
             }
             return false;
         }
         peer = heavyweight.peer;
         if (peer == null) {
-            if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("Peer is null");
             }
             return false;
@@ -7663,11 +7663,11 @@ public abstract class Component implements ImageObserver, MenuContainer,
         if (!success) {
             KeyboardFocusManager.getCurrentKeyboardFocusManager
                 (appContext).dequeueKeyEvents(time, this);
-            if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("Peer request failed");
             }
         } else {
-            if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("Pass for " + this);
             }
         }
@@ -7679,7 +7679,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
                                            CausedFocusEvent.Cause cause)
     {
         if (!isFocusable() || !isVisible()) {
-            if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("Not focusable or not visible");
             }
             return false;
@@ -7687,7 +7687,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
 
         ComponentPeer peer = this.peer;
         if (peer == null) {
-            if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("peer is null");
             }
             return false;
@@ -7695,7 +7695,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
 
         Window window = getContainingWindow();
         if (window == null || !((Window)window).isFocusableWindow()) {
-            if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("Component doesn't have toplevel");
             }
             return false;
@@ -7717,7 +7717,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
             // Controller is supposed to verify focus transfers and for this it
             // should know both from and to components.  And it shouldn't verify
             // transfers from when these components are equal.
-            if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("focus owner is null or this");
             }
             return true;
@@ -7730,7 +7730,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
             // most recent focus owner.  But most recent focus owner can be
             // changed by requestFocsuXXX() call only, so this transfer has
             // been already approved.
-            if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 focusLog.finest("cause is activation");
             }
             return true;
@@ -7741,7 +7741,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
                                                                           temporary,
                                                                           focusedWindowChangeAllowed,
                                                                           cause);
-        if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+        if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
             focusLog.finest("RequestFocusController returns {0}", ret);
         }
 
@@ -7833,7 +7833,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
     }
 
     boolean transferFocus(boolean clearOnFailure) {
-        if (focusLog.isLoggable(PlatformLogger.FINER)) {
+        if (focusLog.isLoggable(PlatformLogger.Level.FINER)) {
             focusLog.finer("clearOnFailure = " + clearOnFailure);
         }
         Component toFocus = getNextFocusCandidate();
@@ -7842,12 +7842,12 @@ public abstract class Component implements ImageObserver, MenuContainer,
             res = toFocus.requestFocusInWindow(CausedFocusEvent.Cause.TRAVERSAL_FORWARD);
         }
         if (clearOnFailure && !res) {
-            if (focusLog.isLoggable(PlatformLogger.FINER)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINER)) {
                 focusLog.finer("clear global focus owner");
             }
             KeyboardFocusManager.getCurrentKeyboardFocusManager().clearGlobalFocusOwner();
         }
-        if (focusLog.isLoggable(PlatformLogger.FINER)) {
+        if (focusLog.isLoggable(PlatformLogger.Level.FINER)) {
             focusLog.finer("returning result: " + res);
         }
         return res;
@@ -7862,19 +7862,19 @@ public abstract class Component implements ImageObserver, MenuContainer,
             comp = rootAncestor;
             rootAncestor = comp.getFocusCycleRootAncestor();
         }
-        if (focusLog.isLoggable(PlatformLogger.FINER)) {
+        if (focusLog.isLoggable(PlatformLogger.Level.FINER)) {
             focusLog.finer("comp = " + comp + ", root = " + rootAncestor);
         }
         Component candidate = null;
         if (rootAncestor != null) {
             FocusTraversalPolicy policy = rootAncestor.getFocusTraversalPolicy();
             Component toFocus = policy.getComponentAfter(rootAncestor, comp);
-            if (focusLog.isLoggable(PlatformLogger.FINER)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINER)) {
                 focusLog.finer("component after is " + toFocus);
             }
             if (toFocus == null) {
                 toFocus = policy.getDefaultComponent(rootAncestor);
-                if (focusLog.isLoggable(PlatformLogger.FINER)) {
+                if (focusLog.isLoggable(PlatformLogger.Level.FINER)) {
                     focusLog.finer("default component is " + toFocus);
                 }
             }
@@ -7886,7 +7886,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
             }
             candidate = toFocus;
         }
-        if (focusLog.isLoggable(PlatformLogger.FINER)) {
+        if (focusLog.isLoggable(PlatformLogger.Level.FINER)) {
             focusLog.finer("Focus transfer candidate: " + candidate);
         }
         return candidate;
@@ -7923,12 +7923,12 @@ public abstract class Component implements ImageObserver, MenuContainer,
             }
         }
         if (clearOnFailure && !res) {
-            if (focusLog.isLoggable(PlatformLogger.FINER)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINER)) {
                 focusLog.finer("clear global focus owner");
             }
             KeyboardFocusManager.getCurrentKeyboardFocusManager().clearGlobalFocusOwner();
         }
-        if (focusLog.isLoggable(PlatformLogger.FINER)) {
+        if (focusLog.isLoggable(PlatformLogger.Level.FINER)) {
             focusLog.finer("returning result: " + res);
         }
         return res;
@@ -9700,7 +9700,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
         checkTreeLock();
 
         if (!areBoundsValid()) {
-            if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+            if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
                 mixingLog.fine("this = " + this + "; areBoundsValid = " + areBoundsValid());
             }
             return;
@@ -9736,7 +9736,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
                     }
                     this.compoundShape = shape;
                     Point compAbsolute = getLocationOnWindow();
-                    if (mixingLog.isLoggable(PlatformLogger.FINER)) {
+                    if (mixingLog.isLoggable(PlatformLogger.Level.FINER)) {
                         mixingLog.fine("this = " + this +
                                 "; compAbsolute=" + compAbsolute + "; shape=" + shape);
                     }
@@ -9870,7 +9870,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
         checkTreeLock();
         Region s = getNormalShape();
 
-        if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+        if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
             mixingLog.fine("this = " + this + "; normalShape=" + s);
         }
 
@@ -9904,7 +9904,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
             }
         }
 
-        if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+        if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
             mixingLog.fine("currentShape=" + s);
         }
 
@@ -9914,12 +9914,12 @@ public abstract class Component implements ImageObserver, MenuContainer,
     void applyCurrentShape() {
         checkTreeLock();
         if (!areBoundsValid()) {
-            if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+            if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
                 mixingLog.fine("this = " + this + "; areBoundsValid = " + areBoundsValid());
             }
             return; // Because applyCompoundShape() ignores such components anyway
         }
-        if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+        if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
             mixingLog.fine("this = " + this);
         }
         applyCompoundShape(calculateCurrentShape());
@@ -9928,7 +9928,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
     final void subtractAndApplyShape(Region s) {
         checkTreeLock();
 
-        if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+        if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
             mixingLog.fine("this = " + this + "; s=" + s);
         }
 
@@ -9975,7 +9975,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
 
     void mixOnShowing() {
         synchronized (getTreeLock()) {
-            if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+            if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
                 mixingLog.fine("this = " + this);
             }
             if (!isMixingNeeded()) {
@@ -9993,7 +9993,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
         // We cannot be sure that the peer exists at this point, so we need the argument
         //    to find out whether the hiding component is (well, actually was) a LW or a HW.
         synchronized (getTreeLock()) {
-            if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+            if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
                 mixingLog.fine("this = " + this + "; isLightweight = " + isLightweight);
             }
             if (!isMixingNeeded()) {
@@ -10007,7 +10007,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
 
     void mixOnReshaping() {
         synchronized (getTreeLock()) {
-            if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+            if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
                 mixingLog.fine("this = " + this);
             }
             if (!isMixingNeeded()) {
@@ -10026,7 +10026,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
             boolean becameHigher = newZorder < oldZorder;
             Container parent = getContainer();
 
-            if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+            if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
                 mixingLog.fine("this = " + this +
                     "; oldZorder=" + oldZorder + "; newZorder=" + newZorder + "; parent=" + parent);
             }
@@ -10070,13 +10070,13 @@ public abstract class Component implements ImageObserver, MenuContainer,
 
     final boolean isMixingNeeded() {
         if (SunToolkit.getSunAwtDisableMixing()) {
-            if (mixingLog.isLoggable(PlatformLogger.FINEST)) {
+            if (mixingLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 mixingLog.finest("this = " + this + "; Mixing disabled via sun.awt.disableMixing");
             }
             return false;
         }
         if (!areBoundsValid()) {
-            if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+            if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
                 mixingLog.fine("this = " + this + "; areBoundsValid = " + areBoundsValid());
             }
             return false;
@@ -10084,7 +10084,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
         Window window = getContainingWindow();
         if (window != null) {
             if (!window.hasHeavyweightDescendants() || !window.hasLightweightDescendants() || window.isDisposing()) {
-                if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+                if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
                     mixingLog.fine("containing window = " + window +
                             "; has h/w descendants = " + window.hasHeavyweightDescendants() +
                             "; has l/w descendants = " + window.hasLightweightDescendants() +
@@ -10093,7 +10093,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
                 return false;
             }
         } else {
-            if (mixingLog.isLoggable(PlatformLogger.FINE)) {
+            if (mixingLog.isLoggable(PlatformLogger.Level.FINE)) {
                 mixingLog.fine("this = " + this + "; containing window is null");
             }
             return false;

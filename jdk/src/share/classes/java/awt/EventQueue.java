@@ -755,7 +755,7 @@ public class EventQueue {
                 dispatchThread.stopDispatching();
             }
         } else {
-            if (getEventLog().isLoggable(PlatformLogger.FINE)) {
+            if (getEventLog().isLoggable(PlatformLogger.Level.FINE)) {
                 getEventLog().fine("Unable to dispatch event: " + event);
             }
         }
@@ -853,7 +853,7 @@ public class EventQueue {
      * @since           1.2
      */
     public void push(EventQueue newEventQueue) {
-        if (getEventLog().isLoggable(PlatformLogger.FINE)) {
+        if (getEventLog().isLoggable(PlatformLogger.Level.FINE)) {
             getEventLog().fine("EventQueue.push(" + newEventQueue + ")");
         }
 
@@ -877,7 +877,7 @@ public class EventQueue {
                     // Use getNextEventPrivate() as it doesn't call flushPendingEvents()
                     newEventQueue.postEventPrivate(topQueue.getNextEventPrivate());
                 } catch (InterruptedException ie) {
-                    if (getEventLog().isLoggable(PlatformLogger.FINE)) {
+                    if (getEventLog().isLoggable(PlatformLogger.Level.FINE)) {
                         getEventLog().fine("Interrupted push", ie);
                     }
                 }
@@ -916,7 +916,7 @@ public class EventQueue {
      * @since           1.2
      */
     protected void pop() throws EmptyStackException {
-        if (getEventLog().isLoggable(PlatformLogger.FINE)) {
+        if (getEventLog().isLoggable(PlatformLogger.Level.FINE)) {
             getEventLog().fine("EventQueue.pop(" + this + ")");
         }
 
@@ -939,7 +939,7 @@ public class EventQueue {
                 try {
                     prevQueue.postEventPrivate(topQueue.getNextEventPrivate());
                 } catch (InterruptedException ie) {
-                    if (getEventLog().isLoggable(PlatformLogger.FINE)) {
+                    if (getEventLog().isLoggable(PlatformLogger.Level.FINE)) {
                         getEventLog().fine("Interrupted pop", ie);
                     }
                 }

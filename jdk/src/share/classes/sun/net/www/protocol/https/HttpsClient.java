@@ -246,7 +246,7 @@ final class HttpsClient extends HttpClient
                 int connectTimeout)
         throws IOException {
         PlatformLogger logger = HttpURLConnection.getHttpLogger();
-        if (logger.isLoggable(PlatformLogger.FINEST)) {
+        if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
              logger.finest("Creating new HttpsClient with url:" + url + " and proxy:" + proxy +
              " with connect timeout:" + connectTimeout);
         }
@@ -319,7 +319,7 @@ final class HttpsClient extends HttpClient
             p = Proxy.NO_PROXY;
         }
         PlatformLogger logger = HttpURLConnection.getHttpLogger();
-        if (logger.isLoggable(PlatformLogger.FINEST)) {
+        if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
             logger.finest("Looking for HttpClient for URL " + url +
                 " and proxy value of " + p);
         }
@@ -343,7 +343,7 @@ final class HttpsClient extends HttpClient
                         ret.inCache = false;
                         if (httpuc != null && ret.needsTunneling())
                             httpuc.setTunnelState(TUNNELING);
-                        if (logger.isLoggable(PlatformLogger.FINEST)) {
+                        if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
                             logger.finest("KeepAlive stream retrieved from the cache, " + ret);
                         }
                     }
@@ -353,7 +353,7 @@ final class HttpsClient extends HttpClient
                     // This should be fine as it is very rare that a connection
                     // to the same host will not use the same proxy.
                     synchronized(ret) {
-                        if (logger.isLoggable(PlatformLogger.FINEST)) {
+                        if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
                             logger.finest("Not returning this connection to cache: " + ret);
                         }
                         ret.inCache = false;

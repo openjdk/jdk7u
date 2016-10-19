@@ -401,7 +401,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
                     ((Component)e.getSource()).dispatchEvent(e);
                 }
             }, PeerEvent.ULTIMATE_PRIORITY_EVENT);
-        if (focusLog.isLoggable(PlatformLogger.FINER) && (e instanceof FocusEvent)) {
+        if (focusLog.isLoggable(PlatformLogger.Level.FINER) && (e instanceof FocusEvent)) {
             focusLog.finer("Sending " + e);
         }
         XToolkit.postEvent(XToolkit.targetToAppContext(e.getSource()), pe);
@@ -651,7 +651,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
         if (isEventDisabled(xev)) {
             return;
         }
-        if (eventLog.isLoggable(PlatformLogger.FINE)) {
+        if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
             eventLog.fine(xbe.toString());
         }
         long when;
@@ -687,7 +687,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
             /*
                multiclick checking
             */
-            if (eventLog.isLoggable(PlatformLogger.FINEST)) {
+            if (eventLog.isLoggable(PlatformLogger.Level.FINEST)) {
                 eventLog.finest("lastWindow = " + lastWindow + ", lastButton "
                 + lastButton + ", lastTime " + lastTime + ", multiClickTime "
                 + XToolkit.getMultiClickTime());
@@ -880,7 +880,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
         super.handleXCrossingEvent(xev);
         XCrossingEvent xce = xev.get_xcrossing();
 
-        if (eventLog.isLoggable(PlatformLogger.FINEST)) {
+        if (eventLog.isLoggable(PlatformLogger.Level.FINEST)) {
             eventLog.finest(xce.toString());
         }
 
@@ -984,7 +984,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
         Rectangle oldBounds = getBounds();
 
         super.handleConfigureNotifyEvent(xev);
-        if (insLog.isLoggable(PlatformLogger.FINER)) {
+        if (insLog.isLoggable(PlatformLogger.Level.FINER)) {
             insLog.finer("Configure, {0}, event disabled: {1}",
                      xev.get_xconfigure(), isEventDisabled(xev));
         }
@@ -1006,7 +1006,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
 
     public void handleMapNotifyEvent(XEvent xev) {
         super.handleMapNotifyEvent(xev);
-        if (log.isLoggable(PlatformLogger.FINE)) {
+        if (log.isLoggable(PlatformLogger.Level.FINE)) {
             log.fine("Mapped {0}", this);
         }
         if (isEventDisabled(xev)) {
@@ -1030,7 +1030,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
     }
 
     private void dumpKeysymArray(XKeyEvent ev) {
-        if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+        if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
             keyEventLog.fine("  "+Long.toHexString(XlibWrapper.XKeycodeToKeysym(XToolkit.getDisplay(), ev.get_keycode(), 0))+
                              "\n        "+Long.toHexString(XlibWrapper.XKeycodeToKeysym(XToolkit.getDisplay(), ev.get_keycode(), 1))+
                              "\n        "+Long.toHexString(XlibWrapper.XKeycodeToKeysym(XToolkit.getDisplay(), ev.get_keycode(), 2))+
@@ -1060,18 +1060,18 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
         //return (uni > 0? uni + 0x01000000 : 0);
     }
     void logIncomingKeyEvent(XKeyEvent ev) {
-        if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+        if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
             keyEventLog.fine("--XWindow.java:handleKeyEvent:"+ev);
         }
         dumpKeysymArray(ev);
-        if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+        if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
             keyEventLog.fine("XXXXXXXXXXXXXX javakeycode will be most probably:0x"+ Integer.toHexString(XKeysym.getJavaKeycodeOnly(ev)));
         }
     }
     public void handleKeyPress(XEvent xev) {
         super.handleKeyPress(xev);
         XKeyEvent ev = xev.get_xkey();
-        if (eventLog.isLoggable(PlatformLogger.FINE)) {
+        if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
             eventLog.fine(ev.toString());
         }
         if (isEventDisabled(xev)) {
@@ -1086,14 +1086,14 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
         int unicodeKey = 0;
         keysym[0] = XConstants.NoSymbol;
 
-        if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+        if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
             logIncomingKeyEvent( ev );
         }
         if ( //TODO check if there's an active input method instance
              // without calling a native method. Is it necessary though?
             haveCurrentX11InputMethodInstance()) {
             if (x11inputMethodLookupString(ev.pData, keysym)) {
-                if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+                if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
                     keyEventLog.fine("--XWindow.java XIM did process event; return; dec keysym processed:"+(keysym[0])+
                                    "; hex keysym processed:"+Long.toHexString(keysym[0])
                                    );
@@ -1101,7 +1101,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
                 return;
             }else {
                 unicodeKey = keysymToUnicode( keysym[0], ev.get_state() );
-                if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+                if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
                     keyEventLog.fine("--XWindow.java XIM did NOT process event, hex keysym:"+Long.toHexString(keysym[0])+"\n"+
                                      "                                         unicode key:"+Integer.toHexString((int)unicodeKey));
                 }
@@ -1111,7 +1111,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
             // Produce do-it-yourself keysym and perhaps unicode character.
             keysym[0] = xkeycodeToKeysym(ev);
             unicodeKey = keysymToUnicode( keysym[0], ev.get_state() );
-            if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+            if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
                 keyEventLog.fine("--XWindow.java XIM is absent;             hex keysym:"+Long.toHexString(keysym[0])+"\n"+
                                  "                                         unicode key:"+Integer.toHexString((int)unicodeKey));
             }
@@ -1137,7 +1137,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
         // is undefined, we still have a guess of what has been engraved on a keytop.
         int unicodeFromPrimaryKeysym = keysymToUnicode( xkeycodeToPrimaryKeysym(ev) ,0);
 
-        if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+        if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
             keyEventLog.fine(">>>Fire Event:"+
                (ev.get_type() == XConstants.KeyPress ? "KEY_PRESSED; " : "KEY_RELEASED; ")+
                "jkeycode:decimal="+jkc.getJavaKeycode()+
@@ -1162,7 +1162,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
 
 
         if (unicodeKey > 0 && !isDeadKey) {
-                if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+                if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
                     keyEventLog.fine("fire _TYPED on "+unicodeKey);
                 }
                 postKeyEvent( java.awt.event.KeyEvent.KEY_TYPED,
@@ -1182,7 +1182,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
     public void handleKeyRelease(XEvent xev) {
         super.handleKeyRelease(xev);
         XKeyEvent ev = xev.get_xkey();
-        if (eventLog.isLoggable(PlatformLogger.FINE)) {
+        if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
             eventLog.fine(ev.toString());
         }
         if (isEventDisabled(xev)) {
@@ -1194,7 +1194,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
     private void handleKeyRelease(XKeyEvent ev) {
         int unicodeKey = 0;
 
-        if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+        if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
             logIncomingKeyEvent( ev );
         }
         // Keysym should be converted to Unicode, if possible and necessary,
@@ -1209,7 +1209,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
         if( jkc == null ) {
             jkc = new XKeysym.Keysym2JavaKeycode(java.awt.event.KeyEvent.VK_UNDEFINED, java.awt.event.KeyEvent.KEY_LOCATION_UNKNOWN);
         }
-        if (keyEventLog.isLoggable(PlatformLogger.FINE)) {
+        if (keyEventLog.isLoggable(PlatformLogger.Level.FINE)) {
             keyEventLog.fine(">>>Fire Event:"+
                (ev.get_type() == XConstants.KeyPress ? "KEY_PRESSED; " : "KEY_RELEASED; ")+
                "jkeycode:decimal="+jkc.getJavaKeycode()+
@@ -1346,12 +1346,12 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
     void updateSizeHints(int x, int y, int width, int height) {
         long flags = XUtilConstants.PSize | (isLocationByPlatform() ? 0 : (XUtilConstants.PPosition | XUtilConstants.USPosition));
         if (!isResizable()) {
-            if (log.isLoggable(PlatformLogger.FINER)) {
+            if (log.isLoggable(PlatformLogger.Level.FINER)) {
                 log.finer("Window {0} is not resizable", this);
             }
             flags |= XUtilConstants.PMinSize | XUtilConstants.PMaxSize;
         } else {
-            if (log.isLoggable(PlatformLogger.FINER)) {
+            if (log.isLoggable(PlatformLogger.Level.FINER)) {
                 log.finer("Window {0} is resizable", this);
             }
         }
@@ -1361,12 +1361,12 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
     void updateSizeHints(int x, int y) {
         long flags = isLocationByPlatform() ? 0 : (XUtilConstants.PPosition | XUtilConstants.USPosition);
         if (!isResizable()) {
-            if (log.isLoggable(PlatformLogger.FINER)) {
+            if (log.isLoggable(PlatformLogger.Level.FINER)) {
                 log.finer("Window {0} is not resizable", this);
             }
             flags |= XUtilConstants.PMinSize | XUtilConstants.PMaxSize | XUtilConstants.PSize;
         } else {
-            if (log.isLoggable(PlatformLogger.FINER)) {
+            if (log.isLoggable(PlatformLogger.Level.FINER)) {
                 log.finer("Window {0} is resizable", this);
             }
         }

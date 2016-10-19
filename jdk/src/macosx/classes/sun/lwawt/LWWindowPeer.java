@@ -1250,7 +1250,7 @@ public class LWWindowPeer
      * In case of a simple window, triggers appropriate java focus change.
      */
     public boolean requestWindowFocus(CausedFocusEvent.Cause cause) {
-        if (focusLog.isLoggable(PlatformLogger.FINE)) {
+        if (focusLog.isLoggable(PlatformLogger.Level.FINE)) {
             focusLog.fine("requesting native focus to " + this);
         }
 
@@ -1276,7 +1276,7 @@ public class LWWindowPeer
             // If owner is not natively active, request native
             // activation on it w/o sending events up to java.
             if (owner != null && !owner.platformWindow.isActive()) {
-                if (focusLog.isLoggable(PlatformLogger.FINE)) {
+                if (focusLog.isLoggable(PlatformLogger.Level.FINE)) {
                     focusLog.fine("requesting native focus to the owner " + owner);
                 }
                 LWWindowPeer currentActivePeer = (currentActive != null ?
@@ -1284,7 +1284,7 @@ public class LWWindowPeer
 
                 // Ensure the opposite is natively active and suppress sending events.
                 if (currentActivePeer != null && currentActivePeer.platformWindow.isActive()) {
-                    if (focusLog.isLoggable(PlatformLogger.FINE)) {
+                    if (focusLog.isLoggable(PlatformLogger.Level.FINE)) {
                         focusLog.fine("the opposite is " + currentActivePeer);
                     }
                     currentActivePeer.skipNextFocusChange = true;
@@ -1347,7 +1347,7 @@ public class LWWindowPeer
      * Changes focused window on java level.
      */
     private void changeFocusedWindow(boolean becomesFocused, Window opposite) {
-        if (focusLog.isLoggable(PlatformLogger.FINE)) {
+        if (focusLog.isLoggable(PlatformLogger.Level.FINE)) {
             focusLog.fine((becomesFocused?"gaining":"loosing") + " focus window: " + this);
         }
         if (skipNextFocusChange) {
@@ -1362,7 +1362,7 @@ public class LWWindowPeer
         if (becomesFocused) {
             synchronized (getPeerTreeLock()) {
                 if (blocker != null) {
-                    if (focusLog.isLoggable(PlatformLogger.FINEST)) {
+                    if (focusLog.isLoggable(PlatformLogger.Level.FINEST)) {
                         focusLog.finest("the window is blocked by " + blocker);
                     }
                     return;
@@ -1376,7 +1376,7 @@ public class LWWindowPeer
         if (!becomesFocused &&
             (isGrabbing() || this.isOneOfOwnersOf(grabbingWindow)))
         {
-            if (focusLog.isLoggable(PlatformLogger.FINE)) {
+            if (focusLog.isLoggable(PlatformLogger.Level.FINE)) {
                 focusLog.fine("ungrabbing on " + grabbingWindow);
             }
             // ungrab a simple window if its owner looses activation.
