@@ -28,7 +28,7 @@
 #
 
 BUILDDIR = ../../../../..
-
+JAVAC_MAX_WARNINGS = true
 # dns should probably be its own module
 PACKAGE = sun.net.spi.nameservice.dns
 PRODUCT = sun
