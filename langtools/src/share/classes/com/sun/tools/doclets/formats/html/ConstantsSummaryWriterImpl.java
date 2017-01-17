@@ -297,7 +297,7 @@ public class ConstantsSummaryWriterImpl extends HtmlDocletWriter
     /**
      * {@inheritDoc}
      */
-    public void printDocument(Content contentTree) {
+    public void printDocument(Content contentTree) throws IOException {
         printHtmlDocument(null, true, contentTree);
     }
 }

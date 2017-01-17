@@ -25,6 +25,8 @@
 
 package com.sun.tools.doclets.formats.html;
 
+import java.io.IOException;
+
 import com.sun.javadoc.*;
 import com.sun.tools.doclets.internal.toolkit.*;
 import com.sun.tools.doclets.internal.toolkit.util.*;
@@ -187,7 +189,7 @@ public class AnnotationTypeWriterImpl extends SubWriterHolderWriter
     /**
      * {@inheritDoc}
      */
-    public void printDocument(Content contentTree) {
+    public void printDocument(Content contentTree) throws IOException {
         printHtmlDocument(configuration.metakeywords.getMetaKeywords(annotationType),
                 true, contentTree);
     }

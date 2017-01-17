@@ -25,6 +25,9 @@
 
 package com.sun.tools.doclets.formats.html.markup;
 
+import java.io.IOException;
+import java.io.Writer;
+
 import com.sun.tools.doclets.internal.toolkit.Content;
 import com.sun.tools.doclets.internal.toolkit.util.*;
 
@@ -107,7 +110,9 @@ public class DocType extends Content{
     /**
      * {@inheritDoc}
      */
-    public void write(StringBuilder contentBuilder) {
-        contentBuilder.append(docType);
+    @Override
+    public boolean write(Writer out, boolean atNewline) throws IOException {
+        out.write(docType);
+        return true; // guaranteed by constructor
     }
 }

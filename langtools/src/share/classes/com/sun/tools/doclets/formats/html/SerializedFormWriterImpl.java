@@ -36,7 +36,7 @@ import com.sun.tools.doclets.internal.toolkit.*;
  * @author Atul M Dambalkar
  */
 public class SerializedFormWriterImpl extends SubWriterHolderWriter
-    implements com.sun.tools.doclets.internal.toolkit.SerializedFormWriter {
+    implements SerializedFormWriter {
 
     private static final String FILE_NAME = "serialized-form.html";
 
@@ -225,7 +225,7 @@ public class SerializedFormWriterImpl extends SubWriterHolderWriter
     /**
      * {@inheritDoc}
      */
-    public void printDocument(Content serializedTree) {
+    public void printDocument(Content serializedTree) throws IOException {
         printHtmlDocument(null, true, serializedTree);
     }
 
