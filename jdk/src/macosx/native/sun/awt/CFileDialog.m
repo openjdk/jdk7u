@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,7 +88,6 @@ canChooseDirectories:(BOOL)inChooseDirectories
 
     [super dealloc];
 }
-//- (void)finalize { [super finalize]; }
 
 - (void)safeSaveOrLoad {
     NSSavePanel *thePanel = nil;
@@ -160,9 +159,9 @@ canChooseDirectories:(BOOL)inChooseDirectories
     }
 
     // ask the file filter up in Java
-    CFStringRef filePath = CFURLCopyFileSystemPath((CFURLRef)url, kCFURLPOSIXPathStyle);
-    BOOL shouldEnableFile = [self askFilenameFilter:(NSString *)filePath];
-    CFRelease(filePath);
+    NSString* filePath = (NSString*)CFURLCopyFileSystemPath((CFURLRef)url, kCFURLPOSIXPathStyle);
+    BOOL shouldEnableFile = [self askFilenameFilter:filePath];
+    [filePath release];
     return shouldEnableFile;
 }
 
