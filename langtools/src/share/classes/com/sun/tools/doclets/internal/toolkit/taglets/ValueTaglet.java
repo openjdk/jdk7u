@@ -123,7 +123,7 @@ public class ValueTaglet extends BaseInlineTaglet {
                 return (FieldDoc) tag.holder();
             } else {
                 //This should never ever happen.
-                throw new DocletAbortException();
+                throw new DocletAbortException("should not happen");
             }
         }
         StringTokenizer st = new StringTokenizer(name, "#");

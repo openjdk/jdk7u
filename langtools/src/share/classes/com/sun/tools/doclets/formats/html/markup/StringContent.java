@@ -66,7 +66,7 @@ public class StringContent extends Content{
      *                              is not supported.
      */
     public void addContent(Content content) {
-        throw new DocletAbortException();
+        throw new DocletAbortException("not supported");
     }
 
     /**

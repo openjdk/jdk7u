@@ -109,7 +109,7 @@ public class PackageFrameWriter extends HtmlDocletWriter {
             configuration.standardmessage.error(
                     "doclet.exception_encountered",
                     exc.toString(), OUTPUT_FILE_NAME);
-            throw new DocletAbortException();
+            throw new DocletAbortException(exc);
         }
     }
 

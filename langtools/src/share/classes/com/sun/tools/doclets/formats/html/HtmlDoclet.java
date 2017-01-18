@@ -187,7 +187,7 @@ public class HtmlDoclet extends AbstractDoclet {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                throw new DocletAbortException();
+                throw new DocletAbortException(e);
             }
         }
     }
@@ -278,7 +278,7 @@ public class HtmlDoclet extends AbstractDoclet {
                 error((SourcePosition) null,
                     "doclet.perform_copy_exception_encountered",
                     exc.toString());
-            throw new DocletAbortException();
+            throw new DocletAbortException(exc);
         }
     }
 }

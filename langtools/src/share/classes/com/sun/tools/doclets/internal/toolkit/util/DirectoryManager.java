@@ -278,7 +278,7 @@ public class DirectoryManager {
             } else {
                 configuration.message.error(
                        "doclet.Unable_to_create_directory_0", path);
-                throw new DocletAbortException();
+                throw new DocletAbortException("Unable to create directory");
             }
         }
     }

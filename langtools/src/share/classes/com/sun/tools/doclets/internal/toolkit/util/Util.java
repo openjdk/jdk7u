@@ -281,9 +281,9 @@ public class Util {
                 }
             }
         } catch (SecurityException exc) {
-            throw new DocletAbortException();
+            throw new DocletAbortException(exc);
         } catch (IOException exc) {
-            throw new DocletAbortException();
+            throw new DocletAbortException(exc);
         }
     }
 
@@ -396,7 +396,7 @@ public class Util {
             }
         } catch (IOException ie) {
             ie.printStackTrace(System.err);
-            throw new DocletAbortException();
+            throw new DocletAbortException(ie);
         }
     }
 

@@ -60,7 +60,7 @@ public class RawHtml extends Content{
      *                              is not supported.
      */
     public void addContent(Content content) {
-        throw new DocletAbortException();
+        throw new DocletAbortException("not supported");
     }
 
     /**
@@ -72,7 +72,7 @@ public class RawHtml extends Content{
      *                              is not supported.
      */
     public void addContent(String stringContent) {
-        throw new DocletAbortException();
+        throw new DocletAbortException("not supported");
     }
 
     /**

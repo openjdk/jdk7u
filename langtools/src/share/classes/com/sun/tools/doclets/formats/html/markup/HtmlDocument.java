@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,7 +86,7 @@ public class HtmlDocument extends Content {
      *                              is not supported.
      */
     public void addContent(String stringContent) {
-        throw new DocletAbortException();
+        throw new DocletAbortException("not supported");
     }
 
     /**

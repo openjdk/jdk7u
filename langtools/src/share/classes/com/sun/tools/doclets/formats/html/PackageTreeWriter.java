@@ -102,7 +102,7 @@ public class PackageTreeWriter extends AbstractTreeWriter {
             configuration.standardmessage.error(
                         "doclet.exception_encountered",
                         exc.toString(), filename);
-            throw new DocletAbortException();
+            throw new DocletAbortException(exc);
         }
     }
 
