@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -150,7 +150,11 @@ public class HtmlWriter {
 
     public final Content descfrmInterfaceLabel;
 
-    private final Writer writer;
+    private final File file;
+
+    private final String docEncoding;
+
+    private Writer writer;
 
     /**
      * Constructor.
@@ -168,8 +172,9 @@ public class HtmlWriter {
     public HtmlWriter(Configuration configuration,
                       String path, String filename, String docencoding)
                       throws IOException, UnsupportedEncodingException {
-        writer = Util.genWriter(configuration, path, filename, docencoding);
+        file = Util.genWriterFile(configuration, path, filename);
         this.configuration = configuration;
+        this.docEncoding = docencoding;
         htmlFilename = filename;
         this.memberDetailsListPrinted = false;
         packageTableHeader = new String[] {
@@ -219,6 +224,7 @@ public class HtmlWriter {
     }
 
     public void write(Content c) throws IOException {
+        writer = Util.genWriter(file, docEncoding);
         c.write(writer, true);
     }
 

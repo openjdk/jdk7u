@@ -646,14 +646,47 @@ public class Util {
             String path, String filename,
             String docencoding)
         throws IOException, UnsupportedEncodingException {
-        FileOutputStream fos;
+        return genWriter(genWriterFile(configuration, path, filename), docencoding);
+    }
+
+    /**
+     * Create the directory path for the file to be generated.
+     *
+     * @param path The directory path to be created for this file.
+     * @param filename File Name to which the PrintWriter will do the Output.
+     * @exception IOException Exception raised by the FileWriter is passed on
+     * to next level.
+     * @exception UnsupportedEncodingException Exception raised by the
+     * OutputStreamWriter is passed on to next level.
+     * @return the file getting generated.
+     */
+    public static File genWriterFile(Configuration configuration,
+                                     String path, String filename) {
         if (path != null) {
             DirectoryManager.createDirectory(configuration, path);
-            fos = new FileOutputStream(((path.length() > 0)?
-                                                  path + File.separator: "") + filename);
+            return new File(((path.length() > 0)? path + File.separator: "") + filename);
         } else {
-            fos = new FileOutputStream(filename);
+            return new File(filename);
         }
+    }
+
+    /**
+     * Constructs FileOutputStream and OutputStreamWriter,
+     * depending upon docencoding.
+     *
+     * @param file file to which the PrintWriter will do the Output.
+     * @param docencoding Encoding to be used for this file.
+     * @exception IOException Exception raised by the FileWriter is passed on
+     * to next level.
+     * @exception UnsupportedEncodingException Exception raised by the
+     * OutputStreamWriter is passed on to next level.
+     * @return Writer Writer for the file getting generated.
+     * @see java.io.FileOutputStream
+     * @see java.io.OutputStreamWriter
+     */
+    public static Writer genWriter(File file, String docencoding)
+        throws IOException, UnsupportedEncodingException {
+        FileOutputStream fos = new FileOutputStream(file);
         if (docencoding == null) {
             return new BufferedWriter(new OutputStreamWriter(fos));
         } else {
