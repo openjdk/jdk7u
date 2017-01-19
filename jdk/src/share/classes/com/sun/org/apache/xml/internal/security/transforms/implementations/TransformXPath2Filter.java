@@ -96,9 +96,9 @@ public class TransformXPath2Filter extends TransformSpi {
            throws TransformationException {
           CachedXPathAPIHolder.setDoc(_transformObject.getElement().getOwnerDocument());
       try {
-          List unionNodes=new ArrayList();
-           List substractNodes=new ArrayList();
-           List intersectNodes=new ArrayList();
+          List<NodeList> unionNodes=new ArrayList<NodeList>();
+          List<NodeList> substractNodes=new ArrayList<NodeList>();
+          List<NodeList> intersectNodes=new ArrayList<NodeList>();
 
          CachedXPathFuncHereAPI xPathFuncHereAPI =
             new CachedXPathFuncHereAPI(CachedXPathAPIHolder.getCachedXPathAPI());
@@ -185,9 +185,9 @@ class XPath2NodeFilter implements NodeFilter {
                 hasIntersectFilter=!intersectNodes.isEmpty();
                 this.intersectNodes=convertNodeListToSet(intersectNodes);
         }
-        Set unionNodes;
-        Set substractNodes;
-        Set intersectNodes;
+        Set<Node> unionNodes;
+        Set<Node> substractNodes;
+        Set<Node> intersectNodes;
 
 
    /**
@@ -267,19 +267,18 @@ class XPath2NodeFilter implements NodeFilter {
     *
     * @return if rooted bye the rootnodes
     */
-   static boolean  rooted(Node currentNode, Set nodeList ) {
+   static boolean  rooted(Node currentNode, Set<Node> nodeList ) {
            if (nodeList.isEmpty()) {
                return false;
            }
            if (nodeList.contains(currentNode)) {
                    return true;
            }
-           Iterator it=nodeList.iterator();
-           while (it.hasNext()) {
-                        Node rootNode = (Node) it.next();
-                        if (XMLUtils.isDescendantOrSelf(rootNode,currentNode)) {
-                                   return true;
-                        }
+
+           for(Node rootNode : nodeList) {
+               if (XMLUtils.isDescendantOrSelf(rootNode,currentNode)) {
+                   return true;
+               }
            }
            return false;
    }
@@ -291,14 +290,14 @@ class XPath2NodeFilter implements NodeFilter {
        *
        * @return if rooted bye the rootnodes
        */
-      static boolean  inList(Node currentNode, Set nodeList ) {
+      static boolean  inList(Node currentNode, Set<Node> nodeList ) {
               return nodeList.contains(currentNode);
       }
 
-    private static Set convertNodeListToSet(List l){
-        Set result=new HashSet();
-        for (int j=0;j<l.size();j++) {
-             NodeList rootNodes=(NodeList) l.get(j);
+    private static Set<Node> convertNodeListToSet(List<NodeList> l){
+           Set<Node> result=new HashSet<Node>();
+
+           for (NodeList rootNodes : l) {
              int length = rootNodes.getLength();
              for (int i = 0; i < length; i++) {
                  Node rootNode = rootNodes.item(i);

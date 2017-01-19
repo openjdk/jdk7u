@@ -75,7 +75,7 @@ public class XMLSignatureInput implements Cloneable {
     /**
      * The original NodeSet for this XMLSignatureInput
      */
-    Set _inputNodeSet = null;
+    Set<Node> _inputNodeSet = null;
     /**
      * The original Element
      */
@@ -108,7 +108,7 @@ public class XMLSignatureInput implements Cloneable {
     /**
      * Node Filter list.
      */
-    List nodeFilters=new ArrayList();
+    List<NodeFilter> nodeFilters=new ArrayList<NodeFilter>();
 
     boolean needsToBeExpanded=false;
     OutputStream outputStream=null;
@@ -165,6 +165,7 @@ public class XMLSignatureInput implements Cloneable {
      * @deprecated
      * @param inputStr the input String which including XML document or node
      */
+    @Deprecated
     public XMLSignatureInput(String inputStr) {
         this(inputStr.getBytes());
     }
@@ -180,6 +181,7 @@ public class XMLSignatureInput implements Cloneable {
      * @param encoding the encoding of <code>inputStr</code>
      * @throws UnsupportedEncodingException
      */
+    @Deprecated
     public XMLSignatureInput(String inputStr, String encoding)
            throws UnsupportedEncodingException {
         this(inputStr.getBytes(encoding));
@@ -202,7 +204,7 @@ public class XMLSignatureInput implements Cloneable {
      * @param inputNodeSet
      * @param usedXPathAPI
      */
-    public XMLSignatureInput(Set inputNodeSet) {
+    public XMLSignatureInput(Set<Node> inputNodeSet) {
         this._inputNodeSet = inputNodeSet;
     }
 
@@ -216,7 +218,7 @@ public class XMLSignatureInput implements Cloneable {
      * @throws ParserConfigurationException
      * @throws CanonicalizationException
      */
-    public Set getNodeSet() throws CanonicalizationException,
+    public Set<Node> getNodeSet() throws CanonicalizationException,
         ParserConfigurationException, IOException, SAXException {
         return getNodeSet(false);
     }
@@ -232,7 +234,7 @@ public class XMLSignatureInput implements Cloneable {
      * @throws ParserConfigurationException
      * @throws CanonicalizationException
      */
-    public Set getNodeSet(boolean circumvent)
+    public Set<Node> getNodeSet(boolean circumvent)
            throws ParserConfigurationException, IOException, SAXException,
                   CanonicalizationException {
         if (this._inputNodeSet!=null) {
@@ -243,13 +245,13 @@ public class XMLSignatureInput implements Cloneable {
             if (circumvent) {
                 XMLUtils.circumventBug2650(XMLUtils.getOwnerDocument(_subNode));
             }
-            this._inputNodeSet = new LinkedHashSet();
+            this._inputNodeSet = new LinkedHashSet<Node>();
             XMLUtils.getSet(_subNode,this._inputNodeSet, excludeNode, this.excludeComments);
 
             return this._inputNodeSet;
         } else if (this.isOctetStream()) {
             convertToNodes();
-            LinkedHashSet result = new LinkedHashSet();
+            LinkedHashSet<Node> result = new LinkedHashSet<Node>();
             XMLUtils.getSet(_subNode, result,null,false);
             //this._inputNodeSet=result;
             return result;
@@ -448,7 +450,7 @@ public class XMLSignatureInput implements Cloneable {
      * @throws XMLSignatureException
      * @return The HTML representation for this XMLSignature
      */
-    public String getHTMLRepresentation(Set inclusiveNamespaces)
+    public String getHTMLRepresentation(Set<String> inclusiveNamespaces)
            throws XMLSignatureException {
 
         XMLSignatureInputDebugger db = new XMLSignatureInputDebugger( this,
@@ -585,7 +587,7 @@ public class XMLSignatureInput implements Cloneable {
     /**
      * @return the node filters
      */
-    public List getNodeFilters() {
+    public List<NodeFilter> getNodeFilters() {
         // TODO Auto-generated method stub
         return nodeFilters;
     }

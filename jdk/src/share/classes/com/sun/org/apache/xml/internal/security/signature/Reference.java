@@ -435,6 +435,7 @@ private Element digestValueElement;
     *
     * @deprecated use getContentsBeforeTransformation
     */
+   @Deprecated
    public XMLSignatureInput getTransformsInput() throws ReferenceNotInitializedException
         {
                 XMLSignatureInput input=getContentsBeforeTransformation();
@@ -556,7 +557,7 @@ private Element digestValueElement;
 
       try {
          XMLSignatureInput nodes = this.getNodesetBeforeFirstCanonicalization();
-         Set inclusiveNamespaces = new HashSet();
+         Set<String> inclusiveNamespaces = new HashSet<String>();
 
          {
             Transforms transforms = this.getTransforms();
@@ -709,7 +710,7 @@ private Element digestValueElement;
          XMLSignatureInput output=this.dereferenceURIandPerformTransforms(os);
          // if signing and c14n11 property == true explicitly add
          // C14N11 transform if needed
-         if (this.useC14N11 && !validating &&
+         if (Reference.useC14N11 && !validating &&
              !output.isOutputStreamSet() && !output.isOctetStream()) {
              if (transforms == null) {
                  transforms = new Transforms(this._doc);

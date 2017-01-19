@@ -30,6 +30,7 @@
 BUILDDIR = ../../../../..
 PACKAGE = com.sun.org.apache.xml
 PRODUCT = xml
+JAVAC_MAX_WARNINGS = true
 include $(BUILDDIR)/common/Defs.gmk
 
 #
