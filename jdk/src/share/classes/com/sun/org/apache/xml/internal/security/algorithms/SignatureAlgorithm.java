@@ -75,7 +75,7 @@ public class SignatureAlgorithm extends Algorithm {
         this.algorithmURI = algorithmURI;
 
         signatureAlgorithm = getSignatureAlgorithmSpi(algorithmURI);
-        signatureAlgorithm.engineGetContextFromElement(this._constructionElement);
+        signatureAlgorithm.engineGetContextFromElement(this.constructionElement);
     }
 
     /**
@@ -93,10 +93,10 @@ public class SignatureAlgorithm extends Algorithm {
         this.algorithmURI = algorithmURI;
 
         signatureAlgorithm = getSignatureAlgorithmSpi(algorithmURI);
-        signatureAlgorithm.engineGetContextFromElement(this._constructionElement);
+        signatureAlgorithm.engineGetContextFromElement(this.constructionElement);
 
         signatureAlgorithm.engineSetHMACOutputLength(hmacOutputLength);
-        ((IntegrityHmac)signatureAlgorithm).engineAddContextToElement(_constructionElement);
+        ((IntegrityHmac)signatureAlgorithm).engineAddContextToElement(constructionElement);
     }
 
     /**
@@ -137,7 +137,7 @@ public class SignatureAlgorithm extends Algorithm {
         }
 
         signatureAlgorithm = getSignatureAlgorithmSpi(algorithmURI);
-        signatureAlgorithm.engineGetContextFromElement(this._constructionElement);
+        signatureAlgorithm.engineGetContextFromElement(this.constructionElement);
     }
 
     /**
@@ -311,7 +311,7 @@ public class SignatureAlgorithm extends Algorithm {
      * @return the URI representation of Transformation algorithm
      */
     public final String getURI() {
-        return _constructionElement.getAttributeNS(null, Constants._ATT_ALGORITHM);
+        return constructionElement.getAttributeNS(null, Constants._ATT_ALGORITHM);
     }
 
     /**
@@ -387,9 +387,7 @@ public class SignatureAlgorithm extends Algorithm {
      * This method registers the default algorithms.
      */
     public static void registerDefaultAlgorithms() {
-        algorithmHash.put(
-            XMLSignature.ALGO_ID_SIGNATURE_DSA, SignatureDSA.class
-        );
+        algorithmHash.put(SignatureDSA.URI, SignatureDSA.class);
         algorithmHash.put(
             XMLSignature.ALGO_ID_SIGNATURE_RSA_SHA1, SignatureBaseRSA.SignatureRSASHA1.class
         );
@@ -415,6 +413,15 @@ public class SignatureAlgorithm extends Algorithm {
         );
         algorithmHash.put(
             XMLSignature.ALGO_ID_SIGNATURE_ECDSA_SHA1, SignatureECDSA.SignatureECDSASHA1.class
+        );
+        algorithmHash.put(
+            XMLSignature.ALGO_ID_SIGNATURE_ECDSA_SHA256, SignatureECDSA.SignatureECDSASHA256.class
+        );
+        algorithmHash.put(
+            XMLSignature.ALGO_ID_SIGNATURE_ECDSA_SHA384, SignatureECDSA.SignatureECDSASHA384.class
+        );
+        algorithmHash.put(
+            XMLSignature.ALGO_ID_SIGNATURE_ECDSA_SHA512, SignatureECDSA.SignatureECDSASHA512.class
         );
         algorithmHash.put(
             XMLSignature.ALGO_ID_MAC_HMAC_NOT_RECOMMENDED_MD5, IntegrityHmac.IntegrityHmacMD5.class
