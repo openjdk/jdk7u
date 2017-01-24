@@ -862,7 +862,7 @@ public class JDialog extends Dialog implements WindowConstants,
      * {@code setLayout} are forwarded to the {@code contentPane}.
      *
      * @return true if {@code add} and {@code setLayout}
-     *         are fowarded; false otherwise
+     *         are forwarded; false otherwise
      *
      * @see #addImpl
      * @see #setLayout
@@ -1024,7 +1024,7 @@ public class JDialog extends Dialog implements WindowConstants,
      * This method is called by the constructor.
      * <p>
      * Swing's painting architecture requires an opaque {@code JComponent}
-     * in the containment hiearchy. This is typically provided by the
+     * in the containment hierarchy. This is typically provided by the
      * content pane. If you replace the content pane it is recommended you
      * replace it with an opaque {@code JComponent}.
      * @see JRootPane

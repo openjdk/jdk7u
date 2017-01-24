@@ -63,7 +63,7 @@ package java.util;
  * java.util.concurrent.PriorityBlockingQueue} class.
  *
  * <p>Implementation note: this implementation provides
- * O(log(n)) time for the enqueing and dequeing methods
+ * O(log(n)) time for the enqueuing and dequeuing methods
  * ({@code offer}, {@code poll}, {@code remove()} and {@code add});
  * linear time for the {@code remove(Object)} and {@code contains(Object)}
  * methods; and constant time for the retrieval methods

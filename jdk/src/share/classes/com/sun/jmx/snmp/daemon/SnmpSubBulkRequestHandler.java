@@ -56,7 +56,7 @@ class SnmpSubBulkRequestHandler extends SnmpSubRequestHandler {
     private SnmpAdaptorServer server = null;
 
     /**
-     * The constuctor initialize the subrequest with the whole varbind list contained
+     * The constructor initialize the subrequest with the whole varbind list contained
      * in the original request.
      */
     protected SnmpSubBulkRequestHandler(SnmpEngine engine,
@@ -72,7 +72,7 @@ class SnmpSubBulkRequestHandler extends SnmpSubRequestHandler {
     }
 
     /**
-     * The constuctor initialize the subrequest with the whole varbind list contained
+     * The constructor initialize the subrequest with the whole varbind list contained
      * in the original request.
      */
     protected SnmpSubBulkRequestHandler(SnmpAdaptorServer server,

@@ -953,7 +953,7 @@ public class Container extends Component {
      *
      * @param     comp the component to be added
      * @param     constraints an object expressing
-     *                  layout contraints for this component
+     *                  layout constraints for this component
      * @exception NullPointerException if {@code comp} is {@code null}
      * @see #addImpl
      * @see #invalidate
@@ -980,7 +980,7 @@ public class Container extends Component {
      *
      *
      * @param comp the component to be added
-     * @param constraints an object expressing layout contraints for this
+     * @param constraints an object expressing layout constraints for this
      * @param index the position in the container's list at which to insert
      * the component; <code>-1</code> means insert at the end
      * component

@@ -94,7 +94,7 @@ public class ActionEvent extends AWTEvent {
     public static final int ACTION_LAST                 = 1001;
 
     /**
-     * This event id indicates that a meaningful action occured.
+     * This event id indicates that a meaningful action occurred.
      */
     public static final int ACTION_PERFORMED    = ACTION_FIRST; //Event.ACTION_EVENT
 

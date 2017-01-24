@@ -1151,7 +1151,7 @@ public class IndexColorModel extends ColorModel {
      * @throws ClassCastException if <code>pixel</code> is not a
      *            primitive array of type <code>transferType</code>
      * @throws UnsupportedOperationException if <code>transferType</code>
-     *         is not one of the supported transer types
+     *         is not one of the supported transfer types
      * @see ColorModel#hasAlpha
      * @see ColorModel#getNumComponents
      */
@@ -1270,7 +1270,7 @@ public class IndexColorModel extends ColorModel {
      *  array is not large enough to hold all of the color and alpha
      *  components starting at <code>offset</code>
      * @throws UnsupportedOperationException if <code>transferType</code>
-     *         is not one of the supported transer types
+     *         is not one of the supported transfer types
      * @see WritableRaster#setDataElements
      * @see SampleModel#setDataElements
      */

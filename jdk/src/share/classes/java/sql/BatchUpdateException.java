@@ -117,7 +117,7 @@ public class BatchUpdateException extends SQLException {
    * initialized by a call to the
    * {@link Throwable#initCause(java.lang.Throwable)} method.  The
    * <code>SQLState</code> is initialized to <code>null</code>
-   * and the vender code is initialized to 0.
+   * and the vendor code is initialized to 0.
    * <p>
    *
    *

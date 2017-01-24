@@ -575,7 +575,7 @@ public final class Connection implements Runnable {
             //System.err.println("ldap.abandon: " + ex);
         }
 
-        // Dont expect any response for the abandon request.
+        // Don't expect any response for the abandon request.
     }
 
     synchronized void abandonOutstandingReqs(Control[] reqCtls) {
@@ -630,7 +630,7 @@ public final class Connection implements Runnable {
             //System.err.println("ldap.unbind: " + ex);
         }
 
-        // Dont expect any response for the unbind request.
+        // Don't expect any response for the unbind request.
     }
 
     /**

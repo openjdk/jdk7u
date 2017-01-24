@@ -1314,7 +1314,7 @@ public class VariableHeightLayoutCache extends AbstractLayoutCache {
         //
 
         /**
-         * Recreates the receivers path, and all its childrens paths.
+         * Recreates the receivers path, and all its children's paths.
          */
         protected void resetChildrenPaths(TreePath parentPath) {
             removeMapping(this);

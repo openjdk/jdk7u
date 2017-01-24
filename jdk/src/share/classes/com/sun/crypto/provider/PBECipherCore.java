@@ -412,7 +412,7 @@ final class PBECipherCore {
      * no padding has been requested (only in encryption mode), and the total
      * input length of the data processed by this cipher is not a multiple of
      * block size
-     * @exception BadPaddingException if decrypting and padding is choosen,
+     * @exception BadPaddingException if decrypting and padding is chosen,
      * but the last input data does not have proper padding bytes.
      */
     byte[] doFinal(byte[] input, int inputOffset, int inputLen)
@@ -452,7 +452,7 @@ final class PBECipherCore {
      * block size
      * @exception ShortBufferException if the given output buffer is too small
      * to hold the result
-     * @exception BadPaddingException if decrypting and padding is choosen,
+     * @exception BadPaddingException if decrypting and padding is chosen,
      * but the last input data does not have proper padding bytes.
      */
     int doFinal(byte[] input, int inputOffset, int inputLen,

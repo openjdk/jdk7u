@@ -43,7 +43,7 @@ import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 import sun.security.util.DerValue;
 
 /**
- * EC KeyFactory implemenation.
+ * EC KeyFactory implementation.
  *
  * @author  Andreas Sterbenz
  * @since   1.6
