@@ -38,13 +38,13 @@ package javax.security.sasl;
  *<p>
  * Here's an example of how an LDAP library might use a {@code SaslClient}.
  * It first gets an instance of a {@code SaslClient}:
- *<blockquote><pre>
+ *<blockquote><pre>{@code
  * SaslClient sc = Sasl.createSaslClient(mechanisms,
  *     authorizationId, protocol, serverName, props, callbackHandler);
- *</pre></blockquote>
+ *}</pre></blockquote>
  * It can then proceed to use the client for authentication.
  * For example, an LDAP library might use the client as follows:
- *<blockquote><pre>
+ *<blockquote><pre>{@code
  * // Get initial response and send to server
  * byte[] response = (sc.hasInitialResponse() ? sc.evaluateChallenge(new byte[0]) :
  *     null);
@@ -74,7 +74,7 @@ package javax.security.sasl;
  *      ldap.out = new SecureOutputStream(sc, ldap.out);
  *    }
  * }
- *</pre></blockquote>
+ *}</pre></blockquote>
  *
  * If the mechanism has an initial response, the library invokes
  * {@code evaluateChallenge()} with an empty

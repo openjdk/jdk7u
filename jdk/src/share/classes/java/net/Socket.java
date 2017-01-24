@@ -1085,7 +1085,7 @@ class Socket implements java.io.Closeable {
      *  a <B>java.net.SocketTimeoutException</B> is raised, though the
      *  Socket is still valid. The option <B>must</B> be enabled
      *  prior to entering the blocking operation to have effect. The
-     *  timeout must be > 0.
+     *  timeout must be {@code > 0}.
      *  A timeout of zero is interpreted as an infinite timeout.
      * @param timeout the specified timeout, in milliseconds.
      * @exception SocketException if there is an error
@@ -1286,8 +1286,8 @@ class Socket implements java.io.Closeable {
      * As the underlying network implementation may ignore this
      * value applications should consider it a hint.
      *
-     * <P> The tc <B>must</B> be in the range <code> 0 <= tc <=
-     * 255</code> or an IllegalArgumentException will be thrown.
+     * <P> The tc <B>must</B> be in the range {@code 0 <= tc <=
+     * 255} or an IllegalArgumentException will be thrown.
      * <p>Notes:
      * <p>For Internet Protocol v4 the value consists of an
      * <code>integer</code>, the least significant 8 bits of which

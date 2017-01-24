@@ -136,7 +136,7 @@ public class MemoryHandler extends Handler {
      * @param size    the number of log records to buffer (must be greater than zero)
      * @param pushLevel  message level to push on
      *
-     * @throws IllegalArgumentException if size is <= 0
+     * @throws IllegalArgumentException if {@code size is <= 0}
      */
     public MemoryHandler(Handler target, int size, Level pushLevel) {
         if (target == null || pushLevel == null) {

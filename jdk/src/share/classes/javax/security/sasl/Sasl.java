@@ -266,7 +266,7 @@ public class Sasl {
      *
      * This method uses the
 <a href="{@docRoot}/../technotes/guides/security/crypto/CryptoSpec.html#Provider">JCA Security Provider Framework</a>, described in the
-     * "Java Cryptography Architecture API Specification & Reference", for
+     * "Java Cryptography Architecture API Specification &amp; Reference", for
      * locating and selecting a {@code SaslClient} implementation.
      *
      * First, it
@@ -291,7 +291,7 @@ public class Sasl {
      * {@code SaslClientFactory.DIGEST-MD5 com.wiz.sasl.digest.ClientFactory}
      *<p>
      * See the
-     * "Java Cryptography Architecture API Specification & Reference"
+     * "Java Cryptography Architecture API Specification &amp; Reference"
      * for information about how to install and configure security service
      *  providers.
      *
@@ -416,7 +416,7 @@ public class Sasl {
      * This method uses the
 <a href="{@docRoot}/../technotes/guides/security/crypto/CryptoSpec.html#Provider">JCA Security Provider Framework</a>,
      * described in the
-     * "Java Cryptography Architecture API Specification & Reference", for
+     * "Java Cryptography Architecture API Specification &amp; Reference", for
      * locating and selecting a {@code SaslServer} implementation.
      *
      * First, it
@@ -441,7 +441,7 @@ public class Sasl {
      * {@code SaslServerFactory.DIGEST-MD5  com.wiz.sasl.digest.ServerFactory}
      *<p>
      * See the
-     * "Java Cryptography Architecture API Specification & Reference"
+     * "Java Cryptography Architecture API Specification &amp; Reference"
      * for information about how to install and configure security
      * service providers.
      *
