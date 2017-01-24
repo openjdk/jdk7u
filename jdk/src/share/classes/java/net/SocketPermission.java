@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -114,7 +114,7 @@ import sun.security.util.Debug;
  * </pre>
  *
  * is granted to some code, it allows that code to connect to port 7777 on
- * <code>puffin.eng.sun.com</code>, and to accept connections on that port.
+ * {@code puffin.eng.sun.com}, and to accept connections on that port.
  *
  * <p>Similarly, if the following permission:
  *
@@ -811,7 +811,7 @@ implements java.io.Serializable
      * port range is ignored when p only contains the action, 'resolve'.<p>
      * </ul>
      *
-     * Then <code>implies</code> checks each of the following, in order,
+     * Then {@code implies} checks each of the following, in order,
      * and for each returns true if the stated condition is true:<p>
      * <ul>
      * <li> If this object was initialized with a single IP address and one of <i>p</i>'s
@@ -825,7 +825,7 @@ implements java.io.Serializable
      * <li>If this canonical name equals <i>p</i>'s canonical name.<p>
      * </ul>
      *
-     * If none of the above are true, <code>implies</code> returns false.
+     * If none of the above are true, {@code implies} returns false.
      * @param p the permission to check against.
      *
      * @return true if the specified permission is implied by this object,
@@ -1161,7 +1161,7 @@ implements java.io.Serializable
      * <p>
      * SocketPermission objects must be stored in a manner that allows them
      * to be inserted into the collection in any order, but that also enables the
-     * PermissionCollection <code>implies</code>
+     * PermissionCollection {@code implies}
      * method to be implemented in an efficient (and consistent) manner.
      *
      * @return a new PermissionCollection object suitable for storing SocketPermissions.
