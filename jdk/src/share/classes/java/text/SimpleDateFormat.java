@@ -399,7 +399,7 @@ import static java.text.DateFormatSymbols.*;
  * If multiple threads access a format concurrently, it must be synchronized
  * externally.
  *
- * @see          <a href="http://docs.oracle.com/javase/tutorial/i18n/format/simpleDateFormat.html">Java Tutorial</a>
+ * @see          <a href="https://docs.oracle.com/javase/tutorial/i18n/format/simpleDateFormat.html">Java Tutorial</a>
  * @see          java.util.Calendar
  * @see          java.util.TimeZone
  * @see          DateFormat
