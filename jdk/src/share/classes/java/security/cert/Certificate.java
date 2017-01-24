@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,8 +89,8 @@ public abstract class Certificate implements java.io.Serializable {
 
     /**
      * Compares this certificate for equality with the specified
-     * object. If the <code>other</code> object is an
-     * <code>instanceof</code> <code>Certificate</code>, then
+     * object. If the {@code other} object is an
+     * {@code instanceof} {@code Certificate}, then
      * its encoded form is retrieved and compared with the
      * encoded form of this certificate.
      *
