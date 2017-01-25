@@ -53,10 +53,10 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
     public final static String PROPERTY_TLS_DISABLED_ALGS =
             "jdk.tls.disabledAlgorithms";
 
-    private static Map<String, String[]> disabledAlgorithmsMap =
-            Collections.synchronizedMap(new HashMap<String, String[]>());
-    private static Map<String, KeySizeConstraints> keySizeConstraintsMap =
-        Collections.synchronizedMap(new HashMap<String, KeySizeConstraints>());
+    private final static Map<String, String[]> disabledAlgorithmsMap =
+                                                            new HashMap<>();
+    private final static Map<String, KeySizeConstraints> keySizeConstraintsMap =
+                                                            new HashMap<>();
 
     // the known security property, jdk.jar.disabledAlgorithms
     public static final String PROPERTY_JAR_DISABLED_ALGS =
