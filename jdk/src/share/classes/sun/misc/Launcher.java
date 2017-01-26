@@ -385,7 +385,7 @@ public class Launcher {
             } else {
                 urls = new URL[0];
             }
-            bcp = new URLClassPath(urls, factory);
+            bcp = new URLClassPath(urls, factory, null);
         }
     }
 
