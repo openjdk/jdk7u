@@ -222,7 +222,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
     public Key engineGetKey(String alias, char[] password)
         throws NoSuchAlgorithmException, UnrecoverableKeyException
     {
-        KeyEntry entry = entries.get(alias.toLowerCase());
+        KeyEntry entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
         Key key = null;
 
         if (entry == null) {
@@ -313,7 +313,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
      * <i>key entry</i> without a certificate chain).
      */
     public Certificate[] engineGetCertificateChain(String alias) {
-        KeyEntry entry = entries.get(alias.toLowerCase());
+        KeyEntry entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
         if (entry != null) {
             if (entry.chain == null) {
                 return null;
@@ -341,7 +341,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
      * does not contain a certificate.
      */
     public Certificate engineGetCertificate(String alias) {
-        KeyEntry entry = entries.get(alias.toLowerCase());
+        KeyEntry entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
         if (entry != null) {
             if (entry.chain == null) {
                 return null;
@@ -362,7 +362,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
      * not exist
      */
     public Date engineGetCreationDate(String alias) {
-        KeyEntry entry = entries.get(alias.toLowerCase());
+        KeyEntry entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
         if (entry != null) {
             return new Date(entry.date.getTime());
         } else {
@@ -426,10 +426,10 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             // set the keyId to current date
             entry.keyId = ("Time " + (entry.date).getTime()).getBytes("UTF8");
             // set the alias
-            entry.alias = alias.toLowerCase();
+            entry.alias = alias.toLowerCase(Locale.ENGLISH);
 
             // add the entry
-            entries.put(alias.toLowerCase(), entry);
+            entries.put(alias.toLowerCase(Locale.ENGLISH), entry);
         } catch (Exception nsae) {
             throw new KeyStoreException("Key protection " +
                        " algorithm not found: " + nsae, nsae);
@@ -482,7 +482,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             // Won't happen
         }
         // set the alias
-        entry.alias = alias.toLowerCase();
+        entry.alias = alias.toLowerCase(Locale.ENGLISH);
 
         entry.protectedPrivKey = key.clone();
         if (chain != null) {
@@ -495,7 +495,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
         }
 
         // add the entry
-        entries.put(alias.toLowerCase(), entry);
+        entries.put(alias.toLowerCase(Locale.ENGLISH), entry);
     }
 
 
@@ -640,7 +640,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
     public synchronized void engineSetCertificateEntry(String alias,
         Certificate cert) throws KeyStoreException
     {
-        KeyEntry entry = entries.get(alias.toLowerCase());
+        KeyEntry entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
         if (entry != null) {
             throw new KeyStoreException("Cannot overwrite own certificate");
         } else
@@ -657,7 +657,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
     public synchronized void engineDeleteEntry(String alias)
         throws KeyStoreException
     {
-        entries.remove(alias.toLowerCase());
+        entries.remove(alias.toLowerCase(Locale.ENGLISH));
     }
 
     /**
@@ -677,7 +677,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
      * @return true if the alias exists, false otherwise
      */
     public boolean engineContainsAlias(String alias) {
-        return entries.containsKey(alias.toLowerCase());
+        return entries.containsKey(alias.toLowerCase(Locale.ENGLISH));
     }
 
     /**
@@ -697,7 +697,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
      * <i>key entry</i>, false otherwise.
      */
     public boolean engineIsKeyEntry(String alias) {
-        KeyEntry entry = entries.get(alias.toLowerCase());
+        KeyEntry entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
         if (entry != null) {
             return true;
         } else {
@@ -1309,7 +1309,8 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
         if (password != null && s.available() > 0) {
            MacData macData = new MacData(s);
            try {
-                String algName = macData.getDigestAlgName().toUpperCase();
+                String algName =
+                        macData.getDigestAlgName().toUpperCase(Locale.ENGLISH);
                 if (algName.equals("SHA")  ||
                     algName.equals("SHA1") ||
                     algName.equals("SHA-1")) {
@@ -1531,7 +1532,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 if (alias == null)
                    alias = getUnfriendlyName();
                 entry.alias = alias;
-                entries.put(alias.toLowerCase(), entry);
+                entries.put(alias.toLowerCase(Locale.ENGLISH), entry);
             } else if (bagItem instanceof X509Certificate) {
                 X509Certificate cert = (X509Certificate)bagItem;
                 // Insert a localKeyID for the corresponding cert

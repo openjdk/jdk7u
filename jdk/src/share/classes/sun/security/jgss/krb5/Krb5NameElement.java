@@ -36,6 +36,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.Provider;
+import java.util.Locale;
 
 /**
  * Implements the GSSNameSpi for the krb5 mechanism.
@@ -197,7 +198,7 @@ public class Krb5NameElement
             } catch (UnknownHostException e) {
                 // use hostname as it is
             }
-            hostName = hostName.toLowerCase();
+            hostName = hostName.toLowerCase(Locale.ENGLISH);
 
             temp = temp.append('/').append(hostName);
             return temp.toString();

@@ -35,6 +35,7 @@ import sun.security.krb5.internal.*;
 import sun.security.util.*;
 import java.net.*;
 import java.util.Vector;
+import java.util.Locale;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -416,14 +417,14 @@ public class PrincipalName implements Cloneable {
                     // Looks if canonicalized is a longer format of hostName,
                     // we accept cases like
                     //     bunny -> bunny.rabbit.hole
-                    if (canonicalized.toLowerCase()
-                            .startsWith(hostName.toLowerCase()+".")) {
+                    if (canonicalized.toLowerCase(Locale.ENGLISH).startsWith(
+                                hostName.toLowerCase(Locale.ENGLISH)+".")) {
                         hostName = canonicalized;
                     }
                 } catch (UnknownHostException | SecurityException e) {
                     // not canonicalized or no permission to do so, use old
                 }
-                nameParts[1] = hostName.toLowerCase();
+                nameParts[1] = hostName.toLowerCase(Locale.ENGLISH);
             }
             nameStrings = nameParts;
             nameType = type;

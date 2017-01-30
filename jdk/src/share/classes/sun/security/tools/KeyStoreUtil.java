@@ -37,6 +37,8 @@ import java.security.KeyStore;
 
 import java.text.Collator;
 
+import java.util.Locale;
+
 /**
  * <p> This class provides several utilities to <code>KeyStore</code>.
  *
@@ -74,7 +76,7 @@ public class KeyStoreUtil {
         } else if(storetype.equalsIgnoreCase("Windows-ROOT")) {
             return "Windows-ROOT";
         } else {
-            return storetype.toUpperCase();
+            return storetype.toUpperCase(Locale.ENGLISH);
         }
     }
 
