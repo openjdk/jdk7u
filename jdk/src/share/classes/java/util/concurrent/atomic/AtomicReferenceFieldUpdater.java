@@ -187,7 +187,7 @@ public abstract class AtomicReferenceFieldUpdater<T, V> {
         private final long offset;
         private final Class<T> tclass;
         private final Class<V> vclass;
-        private final Class cclass;
+        private final Class<?> cclass;
 
         /*
          * Internal type checks within all update methods contain
@@ -206,7 +206,7 @@ public abstract class AtomicReferenceFieldUpdater<T, V> {
                                         String fieldName,
                                         Class<?> caller) {
             Field field = null;
-            Class fieldClass = null;
+            Class<?> fieldClass = null;
             int modifiers = 0;
             try {
                 field = tclass.getDeclaredField(fieldName);
@@ -285,6 +285,7 @@ public abstract class AtomicReferenceFieldUpdater<T, V> {
             unsafe.putOrderedObject(obj, offset, newValue);
         }
 
+        @SuppressWarnings("unchecked")
         public V get(T obj) {
             if (obj == null || obj.getClass() != tclass || cclass != null)
                 targetCheck(obj);
