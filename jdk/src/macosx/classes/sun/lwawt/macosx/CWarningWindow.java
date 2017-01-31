@@ -441,4 +441,3 @@ public final class CWarningWindow extends CPlatformWindow
     private ScheduledFuture hidingTaskHandle;
     private ScheduledFuture showingTaskHandle;
 }
-

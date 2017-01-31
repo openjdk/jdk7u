@@ -32,6 +32,7 @@ import javax.swing.*;
 import javax.swing.plaf.MenuBarUI;
 
 import com.apple.laf.ScreenMenuBar;
+import sun.lwawt.macosx.CFRetainedResource;
 import sun.lwawt.macosx.CMenuBar;
 
 import com.apple.laf.AquaMenuBarUI;
@@ -121,7 +122,12 @@ class _AppMenuBarHandler {
         }
 
         // grab the pointer to the CMenuBar, and retain it in native
-        nativeSetDefaultMenuBar(((CMenuBar)peer).getModel());
+        ((CMenuBar) peer).execute(new CFRetainedResource.CFNativeAction() {
+                @Override
+                public void run(long ptr) {
+                    _AppMenuBarHandler.nativeSetDefaultMenuBar(ptr);
+                }
+            });
     }
 
     void setAboutMenuItemVisible(final boolean present) {

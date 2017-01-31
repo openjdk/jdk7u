@@ -36,6 +36,7 @@ import java.awt.geom.Point2D;
 
 import sun.misc.Unsafe;
 import java.awt.peer.ComponentPeer;
+import java.awt.peer.MenuComponentPeer;
 
 import java.lang.reflect.InvocationTargetException;
 import java.security.AccessControlContext;
@@ -455,6 +456,11 @@ public final class AWTAccessor {
          * Gets the font used for this menu component.
          */
         Font getFont_NoClientCode(MenuComponent menuComp);
+
+        /**
+         * Returns the peer of the menu component.
+         */
+        <T extends MenuComponentPeer> T getPeer(MenuComponent menuComp);
     }
 
     /**
