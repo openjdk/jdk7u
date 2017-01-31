@@ -34,7 +34,11 @@
  */
 
 package java.util.concurrent.atomic;
-import java.lang.reflect.*;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
+import java.security.PrivilegedActionException;
 import sun.misc.Unsafe;
 import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
@@ -88,7 +92,9 @@ public abstract class AtomicReferenceFieldUpdater<T, V> {
      * @return the updater
      * @throws IllegalArgumentException if the field is not a volatile reference type.
      * @throws RuntimeException with a nested reflection-based
-     * exception if the class does not hold field or is the wrong type.
+     * exception if the class does not hold field or is the wrong type,
+     * or the field is inaccessible to the caller according to Java language
+     * access control
      */
     @CallerSensitive
     public static <U, W> AtomicReferenceFieldUpdater<U,W> newUpdater(Class<U> tclass, Class<W> vclass, String fieldName) {
@@ -201,20 +207,32 @@ public abstract class AtomicReferenceFieldUpdater<T, V> {
          * screenings fail.
          */
 
-        AtomicReferenceFieldUpdaterImpl(Class<T> tclass,
+        AtomicReferenceFieldUpdaterImpl(final Class<T> tclass,
                                         Class<V> vclass,
-                                        String fieldName,
+                                        final String fieldName,
                                         Class<?> caller) {
             Field field = null;
             Class<?> fieldClass = null;
             int modifiers = 0;
             try {
-                field = tclass.getDeclaredField(fieldName);
+                field = AccessController.doPrivileged(
+                    new PrivilegedExceptionAction<Field>() {
+                        public Field run() throws NoSuchFieldException {
+                            return tclass.getDeclaredField(fieldName);
+                        }
+                    });
                 modifiers = field.getModifiers();
                 sun.reflect.misc.ReflectUtil.ensureMemberAccess(
-                    caller, tclass, null, modifiers);
-                sun.reflect.misc.ReflectUtil.checkPackageAccess(tclass);
+                                                                caller, tclass, null, modifiers);
+                ClassLoader cl = tclass.getClassLoader();
+                ClassLoader ccl = caller.getClassLoader();
+                if ((ccl != null) && (ccl != cl) &&
+                    ((cl == null) || !isAncestor(cl, ccl))) {
+                    sun.reflect.misc.ReflectUtil.checkPackageAccess(tclass);
+                }
                 fieldClass = field.getType();
+            } catch (PrivilegedActionException pae) {
+                throw new RuntimeException(pae.getException());
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
@@ -235,6 +253,22 @@ public abstract class AtomicReferenceFieldUpdater<T, V> {
             else
                 this.vclass = vclass;
             offset = unsafe.objectFieldOffset(field);
+        }
+
+        /**
+         * Returns true if the second classloader can be found in the first
+         * classloader's delegation chain.
+         * Equivalent to the inaccessible: first.isAncestor(second).
+         */
+        private static boolean isAncestor(ClassLoader first, ClassLoader second) {
+            ClassLoader acl = first;
+            do {
+                acl = acl.getParent();
+                if (second == acl) {
+                    return true;
+                }
+            } while (acl != null);
+            return false;
         }
 
         void targetCheck(T obj) {
@@ -286,7 +320,7 @@ public abstract class AtomicReferenceFieldUpdater<T, V> {
         }
 
         @SuppressWarnings("unchecked")
-        public V get(T obj) {
+            public V get(T obj) {
             if (obj == null || obj.getClass() != tclass || cclass != null)
                 targetCheck(obj);
             return (V)unsafe.getObjectVolatile(obj, offset);
@@ -297,14 +331,14 @@ public abstract class AtomicReferenceFieldUpdater<T, V> {
                 return;
             }
             throw new RuntimeException(
-                new IllegalAccessException("Class " +
-                    cclass.getName() +
-                    " can not access a protected member of class " +
-                    tclass.getName() +
-                    " using an instance of " +
-                    obj.getClass().getName()
-                )
-            );
+                                       new IllegalAccessException("Class " +
+                                                                  cclass.getName() +
+                                                                  " can not access a protected member of class " +
+                                                                  tclass.getName() +
+                                                                  " using an instance of " +
+                                                                  obj.getClass().getName()
+                                                                  )
+                                       );
         }
     }
 }
