@@ -107,7 +107,7 @@ import java.security.cert.CertificateFactory;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.*;
 import java.security.interfaces.*;
-import java.util.Base64;
+import sun.misc.BASE64Decoder;
 
 public class DHEKeySizing {
 
@@ -416,7 +416,7 @@ public class DHEKeySizing {
         // generate the private key.
         String keySpecStr = targetPrivateKey;
         PKCS8EncodedKeySpec priKeySpec = new PKCS8EncodedKeySpec(
-                            Base64.getMimeDecoder().decode(keySpecStr));
+                            new BASE64Decoder().decodeBuffer(keySpecStr));
         KeyFactory kf = KeyFactory.getInstance("RSA");
         RSAPrivateKey priKey = (RSAPrivateKey)kf.generatePrivate(priKeySpec);
 
