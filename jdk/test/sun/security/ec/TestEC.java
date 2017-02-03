@@ -33,6 +33,7 @@
  * @run main/othervm -Djdk.tls.namedGroups="secp256r1,sect193r1" TestEC
  */
 
+import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.Security;
 
@@ -67,7 +68,12 @@ public class TestEC {
     }
 
     public static void main0(String[] args) throws Exception {
-        Provider p = new sun.security.ec.SunEC();
+        Provider p = Security.getProvider("SunEC");
+
+        if (p == null) {
+            throw new NoSuchProviderException("Can't get SunEC provider");
+        }
+
         System.out.println("Running tests with " + p.getName() +
             " provider...\n");
         long start = System.currentTimeMillis();
