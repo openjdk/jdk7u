@@ -57,23 +57,38 @@
 // Check whether val is not-null-decoded compressed oop,
 // i.e. will grab into the base of the heap if it represents NULL.
 static bool accesses_heap_base_zone(Node *val) {
-  if (UseCompressedOops && Universe::narrow_oop_base() > 0) {
+  if (Universe::narrow_oop_base() > 0) { // Implies UseCompressedOops.
     if (val && val->is_Mach()) {
-        if (val->as_Mach()->ideal_Opcode() == Op_DecodeN) {
-          // This assumes all Decodes with TypePtr::NotNull are matched to nodes that
-          // decode NULL to point to the heap base (Decode_NN).
-          if (val->bottom_type()->is_oopptr()->ptr() == TypePtr::NotNull) {
-            return true;
-          }
+      if (val->as_Mach()->ideal_Opcode() == Op_DecodeN) {
+        // This assumes all Decodes with TypePtr::NotNull are matched to nodes that
+        // decode NULL to point to the heap base (Decode_NN).
+        if (val->bottom_type()->is_oopptr()->ptr() == TypePtr::NotNull) {
+          return true;
         }
-        // Must recognize load operation with Decode matched in memory operand.
-        // We should not reach here, as os::zero_page_read_protected()
-        // returns true everywhere exept for AIX. On AIX, no such memory operands
-        // exist.
-        NOT_AIX(Unimplemented());
       }
+      // Must recognize load operation with Decode matched in memory operand.
+      // We should not reach here exept for PPC/AIX, as os::zero_page_read_protected()
+      // returns true everywhere else. On PPC, no such memory operands
+      // exist, therefore we did not yet implement a check for such operands.
+      NOT_AIX(Unimplemented());
+    }
   }
   return false;
+}
+
+static bool needs_explicit_null_check_for_read(Node *val) {
+  // On some OSes (AIX) the page at address 0 is only write protected.
+  // If so, only Store operations will trap.
+  if (os::zero_page_read_protected()) {
+    return false;  // Implicit null check will work.
+  }
+  // Also a read accessing the base of a heap-based compressed heap will trap.
+  if (accesses_heap_base_zone(val) &&                    // Hits the base zone page.
+      Universe::narrow_oop_use_implicit_null_checks()) { // Base zone page is protected.
+    return false;
+  }
+
+  return true;
 }
 
 //------------------------------implicit_null_check----------------------------
@@ -233,14 +248,8 @@ void Block::implicit_null_check(PhaseCFG *cfg, Node *proj, Node *val, int allowe
     // On some OSes (AIX) the page at address 0 is only write protected.
     // If so, only Store operations will trap.
     // But a read accessing the base of a heap-based compressed heap will trap.
-    if (!was_store && !os::zero_page_read_protected()) {
-      if (!(accesses_heap_base_zone(val) &&                    // Hits the base zone page.
-            Universe::narrow_oop_use_implicit_null_checks())) { // Page is protected.
-        continue;
-      } else {
-        tty->print("Found load accessing heap base on AIX\n");
-        Unimplemented();
-      }
+    if (!was_store && needs_explicit_null_check_for_read(val)) {
+      continue;
     }
 
     // check if the offset is not too high for implicit exception
