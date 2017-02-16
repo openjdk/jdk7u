@@ -1038,8 +1038,9 @@ static int  openSocket(JNIEnv *env, int proto){
 }
 
 
-/** Linux, AIX **/
-#if !defined(__solaris__)
+/** Linux, AIX. For Solaris and BSD there are similar sections below. **/
+#if !defined(__solaris__) && !defined(_ALLBSD_SOURCE)
+
 /* Open socket for further ioct calls, try v4 socket first and
  * if it falls return v6 socket
  */
