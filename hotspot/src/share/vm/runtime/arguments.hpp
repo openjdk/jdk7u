@@ -265,6 +265,9 @@ class Arguments : AllStatic {
   static bool   _has_profile;
   static bool   _has_alloc_profile;
   static const char*  _gc_log_filename;
+  // Value of the conservative maximum heap alignment needed
+  static size_t  _conservative_max_heap_alignment;
+
   static uintx  _min_heap_size;
 
   // -Xrun arguments
@@ -310,6 +313,7 @@ class Arguments : AllStatic {
   // Garbage-First (UseG1GC)
   static void set_g1_gc_flags();
   // GC ergonomics
+  static void set_conservative_max_heap_alignment();
   static void set_ergonomics_flags();
   static void set_shared_spaces_flags();
   // limits the given memory size by the maximum amount of memory this process is
@@ -416,8 +420,10 @@ class Arguments : AllStatic {
   static char*  SharedArchivePath;
 
  public:
-  // Parses the arguments
+  // Parses the arguments, first phase
   static jint parse(const JavaVMInitArgs* args);
+  // Apply ergonomics
+  static jint apply_ergo();
   // Verifies that the given value will fit as a MinHeapFreeRatio. If not, an error
   // message is returned in the provided buffer.
   static bool verify_MinHeapFreeRatio(FormatBuffer<80>& err_msg, uintx min_heap_free_ratio);
@@ -432,6 +438,10 @@ class Arguments : AllStatic {
   static bool check_stack_pages();
   // Used by os_solaris
   static bool process_settings_file(const char* file_name, bool should_exist, jboolean ignore_unrecognized);
+
+  static size_t conservative_max_heap_alignment() { return _conservative_max_heap_alignment; }
+  // Return the maximum size a heap with compressed oops can take
+  static size_t max_heap_for_compressed_oops();
 
   // return a char* array containing all options
   static char** jvm_flags_array()          { return _jvm_flags_array; }

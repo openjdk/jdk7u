@@ -3858,8 +3858,6 @@ jint os::init_2(void) {
 #endif
   }
 
-  os::large_page_init();
-
   // Setup Windows Exceptions
 
   // On Itanium systems, Structured Exception Handling does not
