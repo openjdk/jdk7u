@@ -34,7 +34,9 @@ define_pd_global(uintx, JVMInvokeMethodSlack,    12288);
 define_pd_global(intx, CompilerThreadStackSize,  0);
 
 // Only used on 64 bit platforms
-define_pd_global(uintx, HeapBaseMinAddress,      4*G);
+// use 6G as default base address because by default the OS maps the application
+// to 4G on Solaris-Sparc. This leaves at least 2G for the native heap.
+define_pd_global(uintx, HeapBaseMinAddress,      CONST64(6)*G);
 // Only used on 64 bit Windows platforms
 define_pd_global(bool, UseVectoredExceptions,    false);
 
