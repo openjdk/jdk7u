@@ -358,7 +358,7 @@ class oopDesc {
   oop forwardee() const;
 
   // Age of object during scavenge
-  int age() const;
+  uint age() const;
   void incr_age();
 
   // Adjust all pointers in this object to point at it's forwarded location and

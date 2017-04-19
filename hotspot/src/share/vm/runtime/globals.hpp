@@ -484,7 +484,7 @@ class CommandLineFlags {
   develop(bool, CleanChunkPoolAsync, falseInEmbedded,                       \
           "Whether to clean the chunk pool asynchronously")                 \
                                                                             \
-  /* Temporary: See 6948537 */                                             \
+  /* Temporary: See 6948537 */                                              \
   experimental(bool, UseMemSetInBOT, true,                                  \
           "(Unstable) uses memset in BOT updates in GC code")               \
                                                                             \
@@ -1658,7 +1658,7 @@ class CommandLineFlags {
           "Use BinaryTreeDictionary as default in the CMS generation")      \
                                                                             \
   product(uintx, CMSIndexedFreeListReplenish, 4,                            \
-          "Replenish an indexed free list with this number of chunks")     \
+          "Replenish an indexed free list with this number of chunks")      \
                                                                             \
   product(bool, CMSReplenishIntermediate, true,                             \
           "Replenish all intermediate free-list caches")                    \
@@ -2105,7 +2105,7 @@ class CommandLineFlags {
   product(uintx, TenuredGenerationSizeSupplementDecay, 2,                   \
           "Decay factor to TenuredGenerationSizeIncrement")                 \
                                                                             \
-  product(uintx, MaxGCPauseMillis, max_uintx,                           \
+  product(uintx, MaxGCPauseMillis, max_uintx,                               \
           "Adaptive size policy maximum GC pause time goal in msec, "       \
           "or (G1 Only) the max. GC time per MMU time slice")               \
                                                                             \
@@ -2320,7 +2320,7 @@ class CommandLineFlags {
   develop(bool, TraceGCTaskQueue, false,                                    \
           "Trace actions of the GC task queues")                            \
                                                                             \
-  diagnostic(bool, TraceGCTaskThread, false,                                   \
+  diagnostic(bool, TraceGCTaskThread, false,                                \
           "Trace actions of the GC task threads")                           \
                                                                             \
   product(bool, PrintParallelOldGCPhaseTimes, false,                        \
@@ -2844,7 +2844,7 @@ class CommandLineFlags {
   product(intx, SafepointTimeoutDelay, 10000,                               \
           "Delay in milliseconds for option SafepointTimeout")              \
                                                                             \
-  product(intx, NmethodSweepFraction, 16,                                    \
+  product(intx, NmethodSweepFraction, 16,                                   \
           "Number of invocations of sweeper to cover all nmethods")         \
                                                                             \
   product(intx, NmethodSweepCheckInterval, 5,                               \
@@ -2970,7 +2970,7 @@ class CommandLineFlags {
           "if non-zero, start verifying C heap after Nth call to "          \
           "malloc/realloc/free")                                            \
                                                                             \
-  product(intx, TypeProfileWidth,     2,                                   \
+  product(intx, TypeProfileWidth,     2,                                    \
           "number of receiver types to record in call/cast profile")        \
                                                                             \
   develop(intx, BciProfileWidth,      2,                                    \
@@ -3090,10 +3090,10 @@ class CommandLineFlags {
   diagnostic(intx, VerifyGCLevel,     0,                                    \
           "Generation level at which to start +VerifyBefore/AfterGC")       \
                                                                             \
-  product(intx, MaxTenuringThreshold,    15,                                \
+  product(uintx, MaxTenuringThreshold,    15,                               \
           "Maximum value for tenuring threshold")                           \
                                                                             \
-  product(intx, InitialTenuringThreshold,     7,                            \
+  product(uintx, InitialTenuringThreshold,    7,                            \
           "Initial value for tenuring threshold")                           \
                                                                             \
   product(intx, TargetSurvivorRatio,    50,                                 \
