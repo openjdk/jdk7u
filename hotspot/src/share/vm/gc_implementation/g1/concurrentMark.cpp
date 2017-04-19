@@ -1680,7 +1680,6 @@ class G1ParNoteEndTask;
 
 class G1NoteEndOfConcMarkClosure : public HeapRegionClosure {
   G1CollectedHeap* _g1;
-  int _worker_num;
   size_t _max_live_bytes;
   uint _regions_claimed;
   size_t _freed_bytes;
@@ -1693,12 +1692,11 @@ class G1NoteEndOfConcMarkClosure : public HeapRegionClosure {
 
 public:
   G1NoteEndOfConcMarkClosure(G1CollectedHeap* g1,
-                             int worker_num,
                              FreeRegionList* local_cleanup_list,
                              OldRegionSet* old_proxy_set,
                              HumongousRegionSet* humongous_proxy_set,
                              HRRSCleanupTask* hrrs_cleanup_task) :
-    _g1(g1), _worker_num(worker_num),
+    _g1(g1),
     _max_live_bytes(0), _regions_claimed(0),
     _freed_bytes(0),
     _claimed_region_time(0.0), _max_region_time(0.0),
@@ -1762,7 +1760,7 @@ public:
     OldRegionSet old_proxy_set("Local Cleanup Old Proxy Set");
     HumongousRegionSet humongous_proxy_set("Local Cleanup Humongous Proxy Set");
     HRRSCleanupTask hrrs_cleanup_task;
-    G1NoteEndOfConcMarkClosure g1_note_end(_g1h, worker_id, &local_cleanup_list,
+    G1NoteEndOfConcMarkClosure g1_note_end(_g1h, &local_cleanup_list,
                                            &old_proxy_set,
                                            &humongous_proxy_set,
                                            &hrrs_cleanup_task);
