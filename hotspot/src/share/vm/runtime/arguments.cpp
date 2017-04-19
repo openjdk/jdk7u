@@ -548,7 +548,7 @@ char* SysClassPath::add_jars_to_path(char* path, const char* directory) {
 // Parses a memory size specification string.
 static bool atomull(const char *s, julong* result) {
   julong n = 0;
-  int args_read = sscanf(s, os::julong_format_specifier(), &n);
+  int args_read = sscanf(s, JULONG_FORMAT, &n);
   if (args_read != 1) {
     return false;
   }

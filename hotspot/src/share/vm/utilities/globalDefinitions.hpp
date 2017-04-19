@@ -1237,6 +1237,14 @@ inline int build_int_from_shorts( jushort low, jushort high ) {
 
 #define PTR64_FORMAT           "0x%016" PRIx64
 
+// Format jlong, if necessary
+#ifndef JLONG_FORMAT
+#define JLONG_FORMAT           INT64_FORMAT
+#endif
+#ifndef JULONG_FORMAT
+#define JULONG_FORMAT          UINT64_FORMAT
+#endif
+
 // Format pointers which change size between 32- and 64-bit.
 #ifdef  _LP64
 #define INTPTR_FORMAT "0x%016" PRIxPTR

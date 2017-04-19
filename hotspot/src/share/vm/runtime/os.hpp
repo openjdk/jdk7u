@@ -685,10 +685,6 @@ class os: AllStatic {
 
   static struct hostent* get_host_by_name(char* name);
 
-  // Printing 64 bit integers
-  static const char* jlong_format_specifier();
-  static const char* julong_format_specifier();
-
   // Support for signals (see JVM_RaiseSignal, JVM_RegisterSignal)
   static void  signal_init();
   static void  signal_init_pd();

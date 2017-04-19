@@ -291,7 +291,7 @@ void Universe::check_alignment(uintx size, uintx alignment, const char* name) {
   if (size < alignment || size % alignment != 0) {
     ResourceMark rm;
     stringStream st;
-    st.print("Size of %s (%ld bytes) must be aligned to %ld bytes", name, size, alignment);
+    st.print("Size of %s (" UINTX_FORMAT " bytes) must be aligned to " UINTX_FORMAT " bytes", name, size, alignment);
     char* error = st.as_string();
     vm_exit_during_initialization(error);
   }

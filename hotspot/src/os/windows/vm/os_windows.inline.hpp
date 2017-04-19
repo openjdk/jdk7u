@@ -37,9 +37,6 @@ inline const char* os::line_separator()                { return "\r\n"; }
 inline const char* os::path_separator()                { return ";"; }
 inline const char* os::dll_file_extension()            { return ".dll"; }
 
-inline const char* os::jlong_format_specifier()        { return "%I64d"; }
-inline const char* os::julong_format_specifier()       { return "%I64u"; }
-
 inline const int os::default_file_open_flags() { return O_BINARY | O_NOINHERIT;}
 
 // File names are case-insensitive on windows only
