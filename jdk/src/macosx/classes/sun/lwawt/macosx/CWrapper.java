@@ -40,6 +40,7 @@ final class CWrapper {
         // The levels: (these are NOT real constants, these are keys. See native code.)
         static final int NSNormalWindowLevel = 0;
         static final int NSFloatingWindowLevel = 1;
+        static final int NSPopUpMenuWindowLevel = 2;
 
         // 'level' is one of the keys defined above
         static native void setLevel(long window, int level);
