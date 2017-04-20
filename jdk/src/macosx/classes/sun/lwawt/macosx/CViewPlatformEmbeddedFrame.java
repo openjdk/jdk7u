@@ -212,14 +212,4 @@ public class CViewPlatformEmbeddedFrame implements PlatformWindow {
     public boolean isUnderMouse() {
         return view.isUnderMouse();
     }
-
-    @Override
-    public Image createBackBuffer() {
-        return view.createBackBuffer();
-    }
-
-    @Override
-    public void flip(int x1, int y1, int x2, int y2, FlipContents flipAction) {
-        throw new RuntimeException("Not implemented");
-    }
 }

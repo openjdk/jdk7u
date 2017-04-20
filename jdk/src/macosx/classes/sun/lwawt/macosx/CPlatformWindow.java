@@ -25,7 +25,6 @@
 
 package sun.lwawt.macosx;
 
-import java.awt.BufferCapabilities.FlipContents;
 import java.awt.*;
 import java.awt.Dialog.ModalityType;
 import java.awt.event.*;
@@ -431,11 +430,6 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     }
 
     @Override // PlatformWindow
-    public Image createBackBuffer() {
-        return contentView.createBackBuffer();
-    }
-
-    @Override // PlatformWindow
     public void dispose() {
         if (owner != null) {
             CWrapper.NSWindow.removeChildWindow(owner.getNSWindowPtr(), getNSWindowPtr());
@@ -443,12 +437,6 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         contentView.dispose();
         nativeDispose(getNSWindowPtr());
         CPlatformWindow.super.dispose();
-    }
-
-    @Override // PlatformWindow
-    public void flip(int x1, int y1, int x2, int y2, FlipContents flipAction) {
-        // TODO: not implemented
-        (new RuntimeException("unimplemented")).printStackTrace();
     }
 
     @Override // PlatformWindow

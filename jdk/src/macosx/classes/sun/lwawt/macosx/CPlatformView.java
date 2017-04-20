@@ -28,7 +28,6 @@ package sun.lwawt.macosx;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.Rectangle2D;
-import java.awt.image.VolatileImage;
 
 import sun.awt.CGraphicsConfig;
 import sun.awt.CGraphicsEnvironment;
@@ -100,26 +99,6 @@ public class CPlatformView extends CFRetainedResource {
     // ----------------------------------------------------------------------
     // PAINTING METHODS
     // ----------------------------------------------------------------------
-
-    public void drawImageOnPeer(VolatileImage xBackBuffer, int x1, int y1, int x2, int y2) {
-        Graphics g = peer.getGraphics();
-        try {
-            g.drawImage(xBackBuffer, x1, y1, x2, y2, x1, y1, x2, y2, null);
-        } finally {
-            g.dispose();
-        }
-    }
-
-    public Image createBackBuffer() {
-        Rectangle r = getBounds();
-        Image im = null;
-        if (!r.isEmpty()) {
-            int transparency = (isOpaque() ? Transparency.OPAQUE : Transparency.TRANSLUCENT);
-            im = getGraphicsConfiguration().createCompatibleImage(r.width, r.height, transparency);
-        }
-        return im;
-    }
-
     public SurfaceData replaceSurfaceData() {
         if (!LWCToolkit.getSunAwtDisableCALayers()) {
             surfaceData = windowLayer.replaceSurfaceData();
