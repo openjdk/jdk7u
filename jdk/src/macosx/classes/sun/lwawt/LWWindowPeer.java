@@ -523,6 +523,12 @@ public class LWWindowPeer
     }
 
     @Override
+    public void setBackground(final Color c) {
+        super.setBackground(c);
+        updateOpaque();
+    }
+
+    @Override
     public void setOpacity(float opacity) {
         getPlatformWindow().setOpacity(opacity);
         repaintPeer();
