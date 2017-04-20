@@ -109,7 +109,6 @@ FILES_export = \
         sun/lwawt/LWToolkit.java \
         sun/lwawt/LWWindowPeer.java \
         sun/lwawt/PlatformWindow.java \
-        sun/lwawt/SelectionClearListener.java \
         sun/lwawt/macosx/CPrinterDevice.java \
         sun/lwawt/macosx/CPrinterDialog.java \
         sun/lwawt/macosx/CPrinterDialogPeer.java \
