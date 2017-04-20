@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,10 +28,11 @@ package sun.lwawt;
 
 import sun.awt.CGraphicsConfig;
 
+import java.awt.AWTException;
 import java.awt.BufferCapabilities;
 import java.awt.BufferCapabilities.FlipContents;
-import java.awt.Canvas;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GraphicsConfiguration;
@@ -41,22 +42,21 @@ import java.awt.peer.CanvasPeer;
 
 import javax.swing.JComponent;
 
-final class LWCanvasPeer extends LWComponentPeer<Component, JComponent>
-        implements CanvasPeer {
+class LWCanvasPeer<T extends Component, D extends JComponent>
+        extends LWComponentPeer<T, D> implements CanvasPeer {
 
     /**
      * The back buffer provide user with a BufferStrategy.
      */
     private VolatileImage backBuffer;
 
-    LWCanvasPeer(final Canvas target,
-                 final PlatformComponent platformComponent) {
+    LWCanvasPeer(final T target, final PlatformComponent platformComponent) {
         super(target, platformComponent);
     }
 
     @Override
-    public void createBuffers(final int numBuffers,
-                              final BufferCapabilities caps) {
+    public void createBuffers(int numBuffers, BufferCapabilities caps)
+            throws AWTException {
         //TODO parameters should be used.
         final CGraphicsConfig gc = (CGraphicsConfig) getGraphicsConfiguration();
         final VolatileImage buffer = gc.createBackBufferImage(getTarget(), 0);
@@ -110,10 +110,20 @@ final class LWCanvasPeer extends LWComponentPeer<Component, JComponent>
     }
 
     @Override
-    public GraphicsConfiguration getAppropriateGraphicsConfiguration(
+    public final GraphicsConfiguration getAppropriateGraphicsConfiguration(
             GraphicsConfiguration gc)
     {
         // TODO
         return gc;
+    }
+
+    @Override
+    public final Dimension getPreferredSize() {
+        return getMinimumSize();
+    }
+
+    @Override
+    public final Dimension getMinimumSize() {
+        return getBounds().getSize();
     }
 }

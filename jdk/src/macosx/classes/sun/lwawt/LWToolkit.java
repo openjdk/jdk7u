@@ -313,7 +313,7 @@ public abstract class LWToolkit extends SunToolkit implements Runnable {
     @Override
     public CanvasPeer createCanvas(Canvas target) {
         PlatformComponent platformComponent = createPlatformComponent();
-        LWCanvasPeer peer = new LWCanvasPeer(target, platformComponent);
+        LWCanvasPeer<?, ?> peer = new LWCanvasPeer<>(target, platformComponent);
         targetCreatedPeer(target, peer);
         peer.initialize();
         return peer;
