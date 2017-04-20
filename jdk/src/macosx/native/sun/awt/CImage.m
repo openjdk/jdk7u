@@ -156,7 +156,6 @@ JNF_COCOA_ENTER(env);
     if ([reps count]) {
         NSImage *nsImage = [[[NSImage alloc] initWithSize:NSMakeSize(0, 0)] retain];
         [nsImage addRepresentations: reps];
-        [reps release];
         result = ptr_to_jlong(nsImage);
     }
 
