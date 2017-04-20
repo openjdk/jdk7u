@@ -148,11 +148,6 @@ public class CViewPlatformEmbeddedFrame implements PlatformWindow {
     }
 
     @Override
-    public PlatformWindow getTopmostPlatformWindowUnderMouse() {
-        return null;
-    }
-
-    @Override
     public void updateFocusableWindowState() {
     }
 

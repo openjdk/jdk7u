@@ -767,4 +767,9 @@ public final class LWCToolkit extends LWToolkit {
     public boolean enableInputMethodsForTextComponent() {
         return true;
     }
+
+    @Override
+    protected PlatformWindow getPlatformWindowUnderMouse() {
+        return CPlatformWindow.nativeGetTopmostPlatformWindowUnderMouse();
+    }
 }

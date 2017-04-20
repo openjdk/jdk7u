@@ -384,6 +384,8 @@ public abstract class LWToolkit extends SunToolkit implements Runnable {
         return peer;
     }
 
+    protected abstract PlatformWindow getPlatformWindowUnderMouse();
+
     @Override
     public TextFieldPeer createTextField(TextField target) {
         PlatformComponent platformComponent = createPlatformComponent();

@@ -826,8 +826,7 @@ public class LWWindowPeer
                 lastMouseEventPeer = targetPeer;
             }
         } else {
-            PlatformWindow topmostPlatformWindow =
-                    platformWindow.getTopmostPlatformWindowUnderMouse();
+            PlatformWindow topmostPlatformWindow = LWToolkit.getLWToolkit().getPlatformWindowUnderMouse();
 
             LWWindowPeer topmostWindowPeer =
                     topmostPlatformWindow != null ? topmostPlatformWindow.getPeer() : null;
@@ -841,8 +840,7 @@ public class LWWindowPeer
                         screenX, screenY, modifiers, clickCount, popupTrigger,
                         targetPeer);
             } else {
-                LWComponentPeer<?, ?> topmostTargetPeer =
-                        topmostWindowPeer != null ? topmostWindowPeer.findPeerAt(r.x + x, r.y + y) : null;
+                LWComponentPeer<?, ?> topmostTargetPeer = topmostWindowPeer.findPeerAt(r.x + x, r.y + y);
                 topmostWindowPeer.generateMouseEnterExitEventsForComponents(when, button, x, y,
                         screenX, screenY, modifiers, clickCount, popupTrigger,
                         topmostTargetPeer);
