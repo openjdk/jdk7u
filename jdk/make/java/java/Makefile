@@ -216,7 +216,7 @@ INSTALL_DOT_LIB = true
 ifeq ($(PLATFORM),windows)
 OTHER_LDLIBS += $(JVMLIB) -libpath:$(OBJDIR)/../../../fdlibm/$(OBJDIRNAME) fdlibm.lib \
 		       -libpath:$(OBJDIR)/../../../verify/$(OBJDIRNAME) verify.lib \
-		       shell32.lib delayimp.lib /DELAYLOAD:shell32.dll
+		       shell32.lib delayimp.lib /DELAYLOAD:shell32.dll version.lib
 else
 OTHER_LDLIBS += $(JVMLIB) -lverify $(LIBSOCKET) $(LIBNSL) $(LIBSCF) $(LIBDL) \
 		-L$(OBJDIR)/../../../fdlibm/$(OBJDIRNAME) -lfdlibm.$(ARCH)
