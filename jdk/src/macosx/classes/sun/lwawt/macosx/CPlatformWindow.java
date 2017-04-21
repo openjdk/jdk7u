@@ -227,6 +227,8 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     private volatile boolean isFullScreenMode;
     private boolean isFullScreenAnimationOn;
 
+    private volatile boolean isIconifyAnimationActive;
+
     private Window target;
     private LWWindowPeer peer;
     protected CPlatformView contentView;
@@ -1185,6 +1187,9 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         if (peer != null) {
             peer.notifyIconify(iconify);
         }
+        if (iconify) {
+            isIconifyAnimationActive = false;
+        }
     }
 
     private void deliverZoom(final boolean isZoomed) {
@@ -1246,6 +1251,17 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         return true;
     }
 
+    private boolean isIconified() {
+        boolean isIconified = false;
+        if (target instanceof Frame) {
+            int state = ((Frame)target).getExtendedState();
+            if ((state & Frame.ICONIFIED) != 0) {
+                isIconified = true;
+            }
+        }
+        return isIconifyAnimationActive || isIconified;
+    }
+
     private boolean isOneOfOwnersOrSelf(CPlatformWindow window) {
         while (window != null) {
             if (this == window) {
@@ -1269,7 +1285,7 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         // the windows are ordered above their nearest owner; ancestors of the window,
         // which is going to become 'main window', are placed above their siblings.
         CPlatformWindow rootOwner = getRootOwner();
-        if (rootOwner.isVisible()) {
+        if (rootOwner.isVisible() && !rootOwner.isIconified()) {
             rootOwner.execute(new CFNativeAction() {
                 @Override
                 public void run(long ptr) {
@@ -1277,8 +1293,11 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
                 }
             });
         }
-        final WindowAccessor windowAccessor = AWTAccessor.getWindowAccessor();
-        orderAboveSiblingsImpl(windowAccessor.getOwnedWindows(rootOwner.target));
+        // Do not order child windows of iconified owner.
+        if (!rootOwner.isIconified()) {
+            final WindowAccessor windowAccessor = AWTAccessor.getWindowAccessor();
+            orderAboveSiblingsImpl(windowAccessor.getOwnedWindows(rootOwner.target));
+        }
     }
 
     private void orderAboveSiblingsImpl(Window[] windows) {
@@ -1289,10 +1308,12 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
         // Go through the list of windows and perform ordering.
         for (Window w : windows) {
+            boolean iconified = false;
             final Object p = componentAccessor.getPeer(w);
             if (p instanceof LWWindowPeer) {
                 final CPlatformWindow pw = (CPlatformWindow)((LWWindowPeer)p).getPlatformWindow();
-                if (pw != null && pw.isVisible()) {
+                iconified = isIconified();
+                if (pw != null && pw.isVisible() && !iconified) {
                     // If the window is one of ancestors of 'main window' or is going to become main by itself,
                     // the window should be ordered above its siblings; otherwise the window is just ordered
                     // above its nearest parent.
@@ -1319,10 +1340,13 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
                     pw.applyWindowLevel(w);
                 }
             }
-            // Retrieve the child windows for each window from the list and store them for future use.
+            // Retrieve the child windows for each window from the list except iconified ones
+            // and store them for future use.
             // Note: we collect data about child windows even for invisible owners, since they may have
             // visible children.
-            childWindows.addAll(Arrays.asList(windowAccessor.getOwnedWindows(w)));
+            if (!iconified) {
+                childWindows.addAll(Arrays.asList(windowAccessor.getOwnedWindows(w)));
+            }
         }
         // If some windows, which have just been ordered, have any child windows, let's start new iteration
         // and order these child windows.
@@ -1352,6 +1376,10 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     // ----------------------------------------------------------------------
     //                          NATIVE CALLBACKS
     // ----------------------------------------------------------------------
+
+    private void windowWillMiniaturize() {
+        isIconifyAnimationActive = true;
+    }
 
     private void windowDidBecomeMain() {
         assert CThreading.assertAppKit();
