@@ -35,6 +35,7 @@ import java.awt.image.BufferedImage;
 import java.awt.peer.TrayIconPeer;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
     private TrayIcon target;
@@ -84,10 +85,6 @@ public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
 
     private long createModel() {
         return nativeCreate();
-    }
-
-    private long getModel() {
-        return ptr;
     }
 
     private native long nativeCreate();
@@ -142,8 +139,13 @@ public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
     }
 
     @Override
-    public void setToolTip(String tooltip) {
-        nativeSetToolTip(getModel(), tooltip);
+    public void setToolTip(final String tooltip) {
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                nativeSetToolTip(ptr, tooltip);
+            }
+        });
     }
 
     //adds tooltip to the NSStatusBar's NSButton.
@@ -172,7 +174,18 @@ public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
         }
 
         CImage cimage = CImage.getCreator().createFromImage(image);
-        setNativeImage(getModel(), cimage.ptr, target.isImageAutoSize());
+        final boolean imageAutoSize = target.isImageAutoSize();
+        cimage.execute(new CFNativeAction() {
+            @Override
+            public void run(final long imagePtr) {
+                execute(new CFNativeAction() {
+                    @Override
+                    public void run(long ptr) {
+                        setNativeImage(ptr, imagePtr, imageAutoSize);
+                    }
+                });
+            }
+        });
     }
 
     private native void setNativeImage(final long model, final long nsimage, final boolean autosize);
@@ -349,7 +362,17 @@ public class CTrayIcon extends CFRetainedResource implements TrayIconPeer {
     private void showMessageDialog() {
 
         Dimension screenSize = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
-        Point2D iconLoc = nativeGetIconLocation(getModel());
+        final AtomicReference<Point2D> ref = new AtomicReference<>();
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                ref.set(nativeGetIconLocation(ptr));
+            }
+        });
+        Point2D iconLoc = ref.get();
+        if (iconLoc == null) {
+            return;
+        }
 
         int dialogY = (int)iconLoc.getY();
         int dialogX = (int)iconLoc.getX();

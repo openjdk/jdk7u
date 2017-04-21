@@ -31,6 +31,9 @@ import java.awt.event.*;
 import java.awt.peer.WindowPeer;
 import java.beans.*;
 import java.lang.reflect.InvocationTargetException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.List;
 import java.util.Objects;
 
@@ -178,16 +181,31 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
             c.setStyleBits(FULLSCREENABLE, Boolean.parseBoolean(value.toString()));
         }},
         new Property<CPlatformWindow>(WINDOW_SHADOW_REVALIDATE_NOW) { public void applyProperty(final CPlatformWindow c, final Object value) {
-            nativeRevalidateNSWindowShadow(c.getNSWindowPtr());
+                c.execute(new CFNativeAction() {
+                    @Override
+                    public void run(long ptr) {
+                        nativeRevalidateNSWindowShadow(ptr);
+                    }
+                });
         }},
         new Property<CPlatformWindow>(WINDOW_DOCUMENT_FILE) { public void applyProperty(final CPlatformWindow c, final Object value) {
             if (value == null || !(value instanceof java.io.File)) {
-                nativeSetNSWindowRepresentedFilename(c.getNSWindowPtr(), null);
+                c.execute(new CFNativeAction() {
+                    @Override
+                    public void run(long ptr) {
+                        nativeSetNSWindowRepresentedFilename(ptr, null);
+                    }
+                });
                 return;
             }
 
             final String filename = ((java.io.File)value).getAbsolutePath();
-            nativeSetNSWindowRepresentedFilename(c.getNSWindowPtr(), filename);
+            c.execute(new CFNativeAction() {
+                @Override
+                public void run(long ptr) {
+                    nativeSetNSWindowRepresentedFilename(ptr, filename);
+                }
+            });
         }}
     }) {
         public CPlatformWindow convertJComponentToTarget(final JRootPane p) {
@@ -236,8 +254,7 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         contentView = createContentView();
         contentView.initialize(peer, responder);
 
-        final long ownerPtr = owner != null ? owner.getNSWindowPtr() : 0L;
-        Rectangle bounds;
+        final Rectangle bounds;
         if (!IS(DECORATED, styleBits)) {
             // For undecorated frames the move/resize event does not come if the frame is centered on the screen
             // so we need to set a stub location to force an initial move/resize. Real bounds would be set later.
@@ -245,9 +262,27 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         } else {
             bounds = _peer.constrainBounds(_target.getBounds());
         }
-        final long nativeWindowPtr = nativeCreateNSWindow(contentView.getAWTView(),
-                ownerPtr, styleBits, bounds.x, bounds.y, bounds.width, bounds.height);
-        setPtr(nativeWindowPtr);
+        final AtomicLong ref = new AtomicLong();
+        contentView.execute(new CFNativeAction() {
+            @Override
+            public void run(final long viewPtr) {
+                if (owner != null) {
+                    owner.execute(new CFNativeAction() {
+                        @Override
+                        public void run(long ownerPtr) {
+                            ref.set(nativeCreateNSWindow(viewPtr, ownerPtr, styleBits,
+                                                         bounds.x, bounds.y,
+                                                         bounds.width, bounds.height));
+                        }
+                    });
+                } else {
+                    ref.set(nativeCreateNSWindow(viewPtr, 0,
+                                                 styleBits, bounds.x, bounds.y,
+                                                 bounds.width, bounds.height));
+                }
+            }
+        });
+        setPtr(ref.get());
 
         // TODO: implement on top of JObjC bridged class
     //    NSWindow window = JObjC.getInstance().AppKit().NSWindow().getInstance(nativeWindowPtr, JObjCRuntime.getInstance());
@@ -404,35 +439,54 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
     // this is the counter-point to -[CWindow _nativeSetStyleBit:]
     protected void setStyleBits(final int mask, final boolean value) {
-        nativeSetNSWindowStyleBits(getNSWindowPtr(), mask, value ? mask : 0);
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                nativeSetNSWindowStyleBits(ptr, mask, value ? mask : 0);
+            }
+        });
     }
 
     private native void _toggleFullScreenMode(final long model);
 
     public void toggleFullScreen() {
-        _toggleFullScreenMode(getNSWindowPtr());
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                _toggleFullScreenMode(ptr);
+            }
+        });
     }
 
     @Override // PlatformWindow
     public void setMenuBar(MenuBar mb) {
-        final long nsWindowPtr = getNSWindowPtr();
-        CMenuBar mbPeer = (CMenuBar)LWToolkit.targetToPeer(mb);
-        if (mbPeer != null) {
-            mbPeer.execute(new CFNativeAction() {
-                    @Override
-                    public void run(long ptr) {
-                        nativeSetNSWindowMenuBar(nsWindowPtr, ptr);
-                    }
-                });
-        } else {
-            nativeSetNSWindowMenuBar(nsWindowPtr, 0);
-        }
+        final CMenuBar mbPeer = (CMenuBar)LWToolkit.targetToPeer(mb);
+        execute(new CFNativeAction() {
+            @Override
+            public void run(final long nsWindowPtr) {
+                if (mbPeer != null) {
+                    mbPeer.execute(new CFNativeAction() {
+                        @Override
+                        public void run(long ptr) {
+                            nativeSetNSWindowMenuBar(nsWindowPtr, ptr);
+                        }
+                    });
+                } else {
+                    nativeSetNSWindowMenuBar(nsWindowPtr, 0);
+                }
+            }
+        });
     }
 
     @Override // PlatformWindow
     public void dispose() {
         contentView.dispose();
-        nativeDispose(getNSWindowPtr());
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CPlatformWindow.nativeDispose(ptr);
+            }
+        });
         CPlatformWindow.super.dispose();
     }
 
@@ -445,7 +499,14 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
     @Override // PlatformWindow
     public Insets getInsets() {
-        return nativeGetNSWindowInsets(getNSWindowPtr());
+        final AtomicReference<Insets> ref = new AtomicReference<>();
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                ref.set(nativeGetNSWindowInsets(ptr));
+            }
+        });
+        return ref.get() != null ? ref.get() : new Insets(0, 0, 0, 0);
     }
 
     @Override // PlatformWindow
@@ -470,9 +531,14 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     }
 
     @Override // PlatformWindow
-    public void setBounds(int x, int y, int w, int h) {
+    public void setBounds(final int x, final int y, final int w, final int h) {
 //        assert CThreading.assertEventQueue();
-        nativeSetNSWindowBounds(getNSWindowPtr(), x, y, w, h);
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                nativeSetNSWindowBounds(ptr, x, y, w, h);
+            }
+        });
     }
 
     public boolean isVisible() {
@@ -480,8 +546,17 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     }
 
     private boolean isMaximized() {
-        return undecorated ? this.normalBounds != null
-                : CWrapper.NSWindow.isZoomed(getNSWindowPtr());
+        if (undecorated) {
+            return this.normalBounds != null;
+        }
+        final AtomicBoolean ref = new AtomicBoolean();
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                ref.set(CWrapper.NSWindow.isZoomed(ptr));
+            }
+        });
+        return ref.get();
     }
 
     private void maximize() {
@@ -489,7 +564,12 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
             return;
         }
         if (!undecorated) {
-            CWrapper.NSWindow.zoom(getNSWindowPtr());
+            execute(new CFNativeAction() {
+                @Override
+                public void run(long ptr) {
+                    CWrapper.NSWindow.zoom(ptr);
+                }
+            });
         } else {
             deliverZoom(true);
 
@@ -510,7 +590,12 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
             return;
         }
         if (!undecorated) {
-            CWrapper.NSWindow.zoom(getNSWindowPtr());
+            execute(new CFNativeAction() {
+                @Override
+                public void run(long ptr) {
+                    CWrapper.NSWindow.zoom(ptr);
+                }
+            });
         } else {
             deliverZoom(false);
 
@@ -522,8 +607,6 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
     @Override // PlatformWindow
     public void setVisible(boolean visible) {
-        final long nsWindowPtr = getNSWindowPtr();
-
         // Configure stuff
         updateIconImages();
         updateFocusabilityForAutoRequestFocus(false);
@@ -533,30 +616,64 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         if (blocker == null || !visible) {
             // If it ain't blocked, or is being hidden, go regular way
             if (visible) {
-                CWrapper.NSWindow.makeFirstResponder(nsWindowPtr, contentView.getAWTView());
+                contentView.execute(new CFNativeAction() {
+                    @Override
+                    public void run(final long viewPtr) {
+                        execute(new CFNativeAction() {
+                            @Override
+                            public void run(long ptr) {
+                                CWrapper.NSWindow.makeFirstResponder(ptr,
+                                                                     viewPtr);
+                            }
+                        });
+                    }
+                });
 
-                boolean isPopup = (target.getType() == Window.Type.POPUP);
-                if (isPopup) {
-                    // Popups in applets don't activate applet's process
-                    CWrapper.NSWindow.orderFrontRegardless(nsWindowPtr);
-                } else {
-                    CWrapper.NSWindow.orderFront(nsWindowPtr);
-                }
+                final boolean isPopup = (target.getType() == Window.Type.POPUP);
+                execute(new CFNativeAction() {
+                    @Override
+                    public void run(long ptr) {
+                        if (isPopup) {
+                            // Popups in applets don't activate applet's process
+                            CWrapper.NSWindow.orderFrontRegardless(ptr);
+                        } else {
+                            CWrapper.NSWindow.orderFront(ptr);
+                        }
 
-                boolean isKeyWindow = CWrapper.NSWindow.isKeyWindow(nsWindowPtr);
-                if (!isKeyWindow) {
-                    CWrapper.NSWindow.makeKeyWindow(nsWindowPtr);
-                }
+                        boolean isKeyWindow = CWrapper.NSWindow.isKeyWindow(ptr);
+                        if (!isKeyWindow) {
+                            CWrapper.NSWindow.makeKeyWindow(ptr);
+                        }
+                    }
+                });
             } else {
-                // immediately hide the window
-                CWrapper.NSWindow.orderOut(nsWindowPtr);
-                // process the close
-                CWrapper.NSWindow.close(nsWindowPtr);
+                execute(new CFNativeAction() {
+                    @Override
+                    public void run(long ptr) {
+                        // immediately hide the window
+                        CWrapper.NSWindow.orderOut(ptr);
+                        // process the close
+                        CWrapper.NSWindow.close(ptr);
+                    }
+                });
             }
         } else {
             // otherwise, put it in a proper z-order
-            CWrapper.NSWindow.orderWindow(nsWindowPtr, CWrapper.NSWindow.NSWindowBelow,
-                    ((CPlatformWindow)blocker.getPlatformWindow()).getNSWindowPtr());
+            CPlatformWindow bw
+                    = (CPlatformWindow) blocker.getPlatformWindow();
+            bw.execute(new CFNativeAction() {
+                @Override
+                public void run(final long blockerPtr) {
+                    execute(new CFNativeAction() {
+                        @Override
+                        public void run(long ptr) {
+                            CWrapper.NSWindow.orderWindow(ptr,
+                                                          CWrapper.NSWindow.NSWindowBelow,
+                                                          blockerPtr);
+                        }
+                    });
+                }
+            });
         }
         this.visible = visible;
 
@@ -571,7 +688,12 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
                 }
                 switch (frameState) {
                     case Frame.ICONIFIED:
-                        CWrapper.NSWindow.miniaturize(nsWindowPtr);
+                        execute(new CFNativeAction() {
+                            @Override
+                            public void run(long ptr) {
+                                CWrapper.NSWindow.miniaturize(ptr);
+                            }
+                        });
                         break;
                     case Frame.MAXIMIZED_BOTH:
                         maximize();
@@ -592,7 +714,17 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         if (visible) {
             // Order myself above my parent
             if (owner != null && owner.isVisible()) {
-                CWrapper.NSWindow.orderWindow(nsWindowPtr, CWrapper.NSWindow.NSWindowAbove, owner.getNSWindowPtr());
+                owner.execute(new CFNativeAction() {
+                    @Override
+                    public void run(final long ownerPtr) {
+                        execute(new CFNativeAction() {
+                            @Override
+                            public void run(long ptr) {
+                                CWrapper.NSWindow.orderWindow(ptr, CWrapper.NSWindow.NSWindowAbove, ownerPtr);
+                            }
+                        });
+                    }
+                });
                 applyWindowLevel(target);
             }
 
@@ -602,7 +734,17 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
                 if (p instanceof LWWindowPeer) {
                     CPlatformWindow pw = (CPlatformWindow)((LWWindowPeer)p).getPlatformWindow();
                     if (pw != null && pw.isVisible()) {
-                        CWrapper.NSWindow.orderWindow(pw.getNSWindowPtr(), CWrapper.NSWindow.NSWindowAbove, nsWindowPtr);
+                        pw.execute(new CFNativeAction() {
+                            @Override
+                            public void run(final long childPtr) {
+                                execute(new CFNativeAction() {
+                                    @Override
+                                    public void run(long ptr) {
+                                        CWrapper.NSWindow.orderWindow(childPtr, CWrapper.NSWindow.NSWindowAbove, ptr);
+                                    }
+                                });
+                            }
+                        });
                         pw.applyWindowLevel(w);
                     }
                 }
@@ -617,26 +759,34 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     }
 
     @Override // PlatformWindow
-    public void setTitle(String title) {
-        nativeSetNSWindowTitle(getNSWindowPtr(), title);
+    public void setTitle(final String title) {
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                nativeSetNSWindowTitle(ptr, title);
+            }
+        });
     }
 
     // Should be called on every window key property change.
     @Override // PlatformWindow
     public void updateIconImages() {
-        final long nsWindowPtr = getNSWindowPtr();
         final CImage cImage = getImageForTarget();
-        nativeSetNSWindowMinimizedIcon(nsWindowPtr, cImage == null ? 0L : cImage.ptr);
-    }
-
-    public long getNSWindowPtr() {
-        final long nsWindowPtr = ptr;
-        if (nsWindowPtr == 0L) {
-            if(logger.isLoggable(PlatformLogger.Level.FINE)) {
-                logger.fine("NSWindow already disposed?", new Exception("Pointer to native NSWindow is invalid."));
+        execute(new CFNativeAction() {
+            @Override
+            public void run(final long ptr) {
+                if (cImage == null) {
+                    nativeSetNSWindowMinimizedIcon(ptr, 0L);
+                } else {
+                    cImage.execute(new CFNativeAction() {
+                        @Override
+                        public void run(long imagePtr) {
+                            nativeSetNSWindowMinimizedIcon(ptr, imagePtr);
+                        }
+                    });
+                }
             }
-        }
-        return nsWindowPtr;
+        });
     }
 
     public SurfaceData getSurfaceData() {
@@ -645,13 +795,16 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
     @Override  // PlatformWindow
     public void toBack() {
-        final long nsWindowPtr = getNSWindowPtr();
-        nativePushNSWindowToBack(nsWindowPtr);
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CPlatformWindow.nativePushNSWindowToBack(ptr);
+            }
+        });
     }
 
     @Override  // PlatformWindow
     public void toFront() {
-        final long nsWindowPtr = getNSWindowPtr();
         LWCToolkit lwcToolkit = (LWCToolkit) Toolkit.getDefaultToolkit();
         Window w = DefaultKeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
         if( w != null && w.getPeer() != null
@@ -660,7 +813,12 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
             lwcToolkit.activateApplicationIgnoringOtherApps();
         }
         updateFocusabilityForAutoRequestFocus(false);
-        nativePushNSWindowToFront(nsWindowPtr);
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CPlatformWindow.nativePushNSWindowToFront(ptr);
+            }
+        });
         updateFocusabilityForAutoRequestFocus(true);
     }
 
@@ -681,8 +839,13 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     }
 
     @Override
-    public void setSizeConstraints(int minW, int minH, int maxW, int maxH) {
-        nativeSetNSWindowMinMax(getNSWindowPtr(), minW, minH, maxW, maxH);
+    public void setSizeConstraints(final int minW, final int minH, final int maxW, final int maxH) {
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                nativeSetNSWindowMinMax(ptr, minW, minH, maxW, maxH);
+            }
+        });
     }
 
     @Override
@@ -699,19 +862,28 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
     @Override
     public boolean requestWindowFocus() {
-
-        long ptr = getNSWindowPtr();
-        if (CWrapper.NSWindow.canBecomeMainWindow(ptr)) {
-            CWrapper.NSWindow.makeMainWindow(ptr);
-        }
-        CWrapper.NSWindow.makeKeyAndOrderFront(ptr);
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                if (CWrapper.NSWindow.canBecomeMainWindow(ptr)) {
+                    CWrapper.NSWindow.makeMainWindow(ptr);
+                }
+                CWrapper.NSWindow.makeKeyAndOrderFront(ptr);
+            }
+        });
         return true;
     }
 
     @Override
     public boolean isActive() {
-        long ptr = getNSWindowPtr();
-        return CWrapper.NSWindow.isKeyWindow(ptr);
+        final AtomicBoolean ref = new AtomicBoolean();
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                ref.set(CWrapper.NSWindow.isKeyWindow(ptr));
+            }
+        });
+        return ref.get();
     }
 
     @Override
@@ -732,22 +904,42 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     }
 
     @Override
-    public void setOpacity(float opacity) {
-        CWrapper.NSWindow.setAlphaValue(getNSWindowPtr(), opacity);
+    public void setOpacity(final float opacity) {
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CWrapper.NSWindow.setAlphaValue(ptr, opacity);
+            }
+        });
     }
 
     @Override
-    public void setOpaque(boolean isOpaque) {
-        CWrapper.NSWindow.setOpaque(getNSWindowPtr(), isOpaque);
+    public void setOpaque(final boolean isOpaque) {
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CWrapper.NSWindow.setOpaque(ptr, isOpaque);
+            }
+        });
         boolean isTextured = (peer == null) ? false : peer.isTextured();
         if (!isTextured) {
             if (!isOpaque) {
-                CWrapper.NSWindow.setBackgroundColor(getNSWindowPtr(), 0);
+                execute(new CFNativeAction() {
+                    @Override
+                    public void run(long ptr) {
+                        CWrapper.NSWindow.setBackgroundColor(ptr, 0);
+                    }
+                });
             } else if (peer != null) {
                 Color color = peer.getBackground();
                 if (color != null) {
-                    int rgb = color.getRGB();
-                    CWrapper.NSWindow.setBackgroundColor(getNSWindowPtr(), rgb);
+                    final int rgb = color.getRGB();
+                    execute(new CFNativeAction() {
+                        @Override
+                        public void run(long ptr) {
+                            CWrapper.NSWindow.setBackgroundColor(ptr, rgb);
+                        }
+                    });
                 }
             }
         }
@@ -765,12 +957,22 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     @Override
     public void enterFullScreenMode() {
         isFullScreenMode = true;
-        nativeEnterFullScreenMode(getNSWindowPtr());
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CPlatformWindow.nativeEnterFullScreenMode(ptr);
+            }
+        });
     }
 
     @Override
     public void exitFullScreenMode() {
-        nativeExitFullScreenMode(getNSWindowPtr());
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CPlatformWindow.nativeExitFullScreenMode(ptr);
+            }
+        });
         isFullScreenMode = false;
     }
 
@@ -789,7 +991,6 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         int prevWindowState = peer.getState();
         if (prevWindowState == windowState) return;
 
-        final long nsWindowPtr = getNSWindowPtr();
         if ((windowState & Frame.ICONIFIED) != 0) {
             // Treat all state bit masks with ICONIFIED bit as ICONIFIED state.
             windowState = Frame.ICONIFIED;
@@ -801,18 +1002,33 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
                     // the zoom call toggles between the normal and the max states
                     unmaximize();
                 }
-                CWrapper.NSWindow.miniaturize(nsWindowPtr);
+                execute(new CFNativeAction() {
+                    @Override
+                    public void run(long ptr) {
+                        CWrapper.NSWindow.miniaturize(ptr);
+                    }
+                });
                 break;
             case Frame.MAXIMIZED_BOTH:
                 if (prevWindowState == Frame.ICONIFIED) {
                     // let's return into the normal states first
-                    CWrapper.NSWindow.deminiaturize(nsWindowPtr);
+                    execute(new CFNativeAction() {
+                        @Override
+                        public void run(long ptr) {
+                            CWrapper.NSWindow.deminiaturize(ptr);
+                        }
+                    });
                 }
                 maximize();
                 break;
             case Frame.NORMAL:
                 if (prevWindowState == Frame.ICONIFIED) {
-                    CWrapper.NSWindow.deminiaturize(nsWindowPtr);
+                    execute(new CFNativeAction() {
+                        @Override
+                        public void run(long ptr) {
+                            CWrapper.NSWindow.deminiaturize(ptr);
+                        }
+                    });
                 } else if (prevWindowState == Frame.MAXIMIZED_BOTH) {
                     // the zoom call toggles between the normal and the max states
                     unmaximize();
@@ -829,17 +1045,27 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     }
 
     @Override
-    public void setModalBlocked(boolean blocked) {
+    public void setModalBlocked(final boolean blocked) {
         if (target.getModalExclusionType() == Dialog.ModalExclusionType.APPLICATION_EXCLUDE) {
             return;
         }
 
-        nativeSetEnabled(getNSWindowPtr(), !blocked);
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                nativeSetEnabled(ptr, !blocked);
+            }
+        });
     }
 
 
     public final void invalidateShadow(){
-        nativeRevalidateNSWindowShadow(getNSWindowPtr());
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                nativeRevalidateNSWindowShadow(ptr);
+            }
+        });
     }
 
     // ----------------------------------------------------------------------
@@ -1005,11 +1231,14 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
         pWindow.orderAboveSiblings();
 
-        final long nsWindowPtr = pWindow.getNSWindowPtr();
-        CWrapper.NSWindow.orderFrontRegardless(nsWindowPtr);
-        CWrapper.NSWindow.makeKeyAndOrderFront(nsWindowPtr);
-        CWrapper.NSWindow.makeMainWindow(nsWindowPtr);
-
+        pWindow.execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CWrapper.NSWindow.orderFrontRegardless(ptr);
+                CWrapper.NSWindow.makeKeyAndOrderFront(ptr);
+                CWrapper.NSWindow.makeMainWindow(ptr);
+            }
+        });
         return true;
     }
 
@@ -1029,10 +1258,18 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
             owner.orderAboveSiblings();
 
             // Order the window to front of the stack of child windows
-            final long nsWindowSelfPtr = getNSWindowPtr();
-            final long nsWindowOwnerPtr = owner.getNSWindowPtr();
-            CWrapper.NSWindow.orderFront(nsWindowOwnerPtr);
-            CWrapper.NSWindow.orderWindow(nsWindowSelfPtr, CWrapper.NSWindow.NSWindowAbove, nsWindowOwnerPtr);
+            owner.execute(new CFNativeAction() {
+                @Override
+                public void run(final long nsWindowOwnerPtr) {
+                    execute(new CFNativeAction() {
+                        @Override
+                        public void run(long nsWindowSelfPtr) {
+                            CWrapper.NSWindow.orderFront(nsWindowOwnerPtr);
+                            CWrapper.NSWindow.orderWindow(nsWindowSelfPtr, CWrapper.NSWindow.NSWindowAbove, nsWindowOwnerPtr);
+                        }
+                    });
+                }
+            });
         }
 
         applyWindowLevel(target);
@@ -1040,9 +1277,19 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
     protected void applyWindowLevel(Window target) {
         if (target.isAlwaysOnTop() && target.getType() != Window.Type.POPUP) {
-            CWrapper.NSWindow.setLevel(getNSWindowPtr(), CWrapper.NSWindow.NSFloatingWindowLevel);
+            execute(new CFNativeAction() {
+                @Override
+                public void run(long ptr) {
+                    CWrapper.NSWindow.setLevel(ptr, CWrapper.NSWindow.NSFloatingWindowLevel);
+                }
+            });
         } else if (target.getType() == Window.Type.POPUP) {
-            CWrapper.NSWindow.setLevel(getNSWindowPtr(), CWrapper.NSWindow.NSPopUpMenuWindowLevel);
+            execute(new CFNativeAction() {
+                @Override
+                public void run(long ptr) {
+                    CWrapper.NSWindow.setLevel(ptr, CWrapper.NSWindow.NSPopUpMenuWindowLevel);
+                }
+            });
         }
     }
 

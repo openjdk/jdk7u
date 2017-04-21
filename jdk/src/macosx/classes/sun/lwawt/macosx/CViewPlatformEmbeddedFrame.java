@@ -78,13 +78,23 @@ public class CViewPlatformEmbeddedFrame implements PlatformWindow {
 
     @Override
     public void dispose() {
-        CWrapper.NSView.removeFromSuperview(view.getAWTView());
+        view.execute(new CFRetainedResource.CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CWrapper.NSView.removeFromSuperview(ptr);
+            }
+        });
         view.dispose();
     }
 
     @Override
-    public void setVisible(boolean visible) {
-        CWrapper.NSView.setHidden(view.getAWTView(), !visible);
+    public void setVisible(final boolean visible) {
+        view.execute(new CFRetainedResource.CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CWrapper.NSView.setHidden(ptr, !visible);
+            }
+        });
     }
 
     @Override
