@@ -71,7 +71,7 @@ final class PBEKey implements SecretKey {
         type = keytype;
     }
 
-    public byte[] getEncoded() {
+    public synchronized byte[] getEncoded() {
         return this.key.clone();
     }
 
@@ -146,9 +146,11 @@ final class PBEKey implements SecretKey {
      */
     protected void finalize() throws Throwable {
         try {
-            if (this.key != null) {
-                java.util.Arrays.fill(this.key, (byte)0x00);
-                this.key = null;
+            synchronized (this) {
+                if (this.key != null) {
+                    java.util.Arrays.fill(this.key, (byte)0x00);
+                    this.key = null;
+                }
             }
         } finally {
             super.finalize();
