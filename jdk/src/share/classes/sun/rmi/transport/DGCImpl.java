@@ -68,6 +68,7 @@ import sun.security.action.GetPropertyAction;
  *
  * @author Ann Wollrath
  */
+@SuppressWarnings("deprecation")
 final class DGCImpl implements DGC {
 
     /* dgc system log */

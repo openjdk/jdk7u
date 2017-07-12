@@ -87,6 +87,7 @@ import sun.security.action.GetPropertyAction;
  * @author Ann Wollrath
  * @author Peter Jones
  */
+@SuppressWarnings("deprecation")
 public class TCPTransport extends Transport {
 
     /* tcp package log */

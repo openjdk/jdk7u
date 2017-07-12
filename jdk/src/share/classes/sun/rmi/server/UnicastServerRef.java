@@ -74,6 +74,7 @@ import sun.security.action.GetBooleanAction;
  * @author  Roger Riggs
  * @author  Peter Jones
  */
+@SuppressWarnings("deprecation")
 public class UnicastServerRef extends UnicastRef
     implements ServerRef, Dispatcher
 {
