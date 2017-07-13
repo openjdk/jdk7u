@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -55,8 +55,7 @@ include $(BUILDDIR)/common/Rules.gmk
 # Full package names of implementations requiring stubs
 #
 REMOTE_impls = \
-	sun.rmi.registry.RegistryImpl \
-	sun.rmi.transport.DGCImpl
+	sun.rmi.registry.RegistryImpl
 
 #
 # The java-rmi.cgi script in bin/ only gets delivered in certain situations
@@ -84,17 +83,18 @@ clean clobber:: bin.clean
 #  though it exists. Not sure why, but a check for file existence
 #  has been added...
 #
-$(CLASSBINDIR)/%_Skel.class $(CLASSBINDIR)/%_Stub.class: $(CLASSBINDIR)/%.class
+REMOTE_files  = $(subst .,/,$(REMOTE_impls))
+FILES_classes = $(REMOTE_files:%=$(CLASSBINDIR)/%.class)
+FILES_stubs   = $(REMOTE_files:%=$(CLASSBINDIR)/%_Stub.class)
+FILES_skels   = $(REMOTE_files:%=$(CLASSBINDIR)/%_Skel.class)
+
+$(FILES_stubs) $(FILES_skels): $(FILES_classes)
 	if [ ! -s $@ ] ; \
 	then $(RMIC) -v1.1 -classpath \
 	"$(CLASSBINDIR)" \
 	-d $(CLASSBINDIR) '$(subst /,.,$(<:$(CLASSBINDIR)/%.class=%))' ; \
 	fi
 	@$(java-vm-cleanup)
-
-REMOTE_files = $(subst .,/,$(REMOTE_impls))
-FILES_stubs  = $(REMOTE_files:%=$(CLASSBINDIR)/%_Stub.class)
-FILES_skels  = $(REMOTE_files:%=$(CLASSBINDIR)/%_Skel.class)
 
 stubs: $(FILES_stubs) $(FILES_skels)
 
