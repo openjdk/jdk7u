@@ -147,12 +147,14 @@ package.access=sun.,\
                com.sun.org.apache.xalan.internal.xsltc.trax.,\
                com.sun.org.apache.xalan.internal.xsltc.util.,\
                com.sun.org.apache.xml.internal.res.,\
+               com.sun.org.apache.xml.internal.resolver.helpers.,\
+               com.sun.org.apache.xml.internal.resolver.readers.,\
+               com.sun.org.apache.xml.internal.security.,\
                com.sun.org.apache.xml.internal.serializer.utils.,\
                com.sun.org.apache.xml.internal.utils.,\
-               com.sun.org.apache.xml.internal.security.,\
                com.sun.org.glassfish.,\
-               org.jcp.xml.dsig.internal.,\
-               oracle.jrockit.jfr.
+               oracle.jrockit.jfr.,\
+               org.jcp.xml.dsig.internal.
 #
 # List of comma-separated packages that start with or equal this string
 # will cause a security exception to be thrown when
@@ -187,12 +189,14 @@ package.definition=sun.,\
                    com.sun.org.apache.xalan.internal.xsltc.trax.,\
                    com.sun.org.apache.xalan.internal.xsltc.util.,\
                    com.sun.org.apache.xml.internal.res.,\
+                   com.sun.org.apache.xml.internal.resolver.helpers.,\
+                   com.sun.org.apache.xml.internal.resolver.readers.,\
+                   com.sun.org.apache.xml.internal.security.,\
                    com.sun.org.apache.xml.internal.serializer.utils.,\
                    com.sun.org.apache.xml.internal.utils.,\
-                   com.sun.org.apache.xml.internal.security.,\
                    com.sun.org.glassfish.,\
-                   org.jcp.xml.dsig.internal.,\
-                   oracle.jrockit.jfr.
+                   oracle.jrockit.jfr.,\
+                   org.jcp.xml.dsig.internal.
 #
 # Determines whether this properties file can be appended to
 # or overridden on the command line via -Djava.security.properties
