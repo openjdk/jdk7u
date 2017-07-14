@@ -34,6 +34,10 @@
  */
 
 package java.util.concurrent;
+
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -566,6 +570,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      */
     private static final RuntimePermission shutdownPerm =
         new RuntimePermission("modifyThread");
+
+    /* The context to be used when executing the finalizer, or null. */
+    private final AccessControlContext acc;
 
     /**
      * Class Worker mainly maintains interrupt control state for
@@ -1310,6 +1317,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             throw new IllegalArgumentException();
         if (workQueue == null || threadFactory == null || handler == null)
             throw new NullPointerException();
+        this.acc = System.getSecurityManager() == null ?
+                null :
+                AccessController.getContext();
         this.corePoolSize = corePoolSize;
         this.maximumPoolSize = maximumPoolSize;
         this.workQueue = workQueue;
@@ -1475,9 +1485,24 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
     /**
      * Invokes {@code shutdown} when this executor is no longer
      * referenced and it has no threads.
+     *
+     * <p>This method is invoked with privileges that are restricted by
+     * the security context of the caller that invokes the constructor.
      */
     protected void finalize() {
-        shutdown();
+        SecurityManager sm = System.getSecurityManager();
+        if (sm == null || acc == null) {
+            shutdown();
+        } else {
+            PrivilegedAction<Void> pa = new PrivilegedAction<Void>() {
+                @Override
+                public Void run() {
+                    shutdown();
+                    return null;
+                }
+            };
+            AccessController.doPrivileged(pa, acc);
+        }
     }
 
     /**
@@ -2099,4 +2124,3 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
         }
     }
 }
-
