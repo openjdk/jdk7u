@@ -52,15 +52,9 @@ AUTO_FILES_JAVA_DIRS = \
 include $(BUILDDIR)/common/Rules.gmk
 
 #
-# Full package names of implementations requiring stubs
-#
-REMOTE_impls = \
-	sun.rmi.registry.RegistryImpl
-
-#
 # The java-rmi.cgi script in bin/ only gets delivered in certain situations
 #
-BUILD_TARGETS = stubs
+BUILD_TARGETS =
 ifeq ($(PLATFORM), linux)
   BUILD_TARGETS += bin
 endif
@@ -74,30 +68,6 @@ build: $(BUILD_TARGETS)
 
 clean clobber:: bin.clean
 
-
-#
-# Compile stubs and skeletons for remote implementations
-# (use -v1.1 for backward interoperability)
-#
-#  gnumake 3.78.1 on windows attempts to build the target even
-#  though it exists. Not sure why, but a check for file existence
-#  has been added...
-#
-REMOTE_files  = $(subst .,/,$(REMOTE_impls))
-FILES_classes = $(REMOTE_files:%=$(CLASSBINDIR)/%.class)
-FILES_stubs   = $(REMOTE_files:%=$(CLASSBINDIR)/%_Stub.class)
-FILES_skels   = $(REMOTE_files:%=$(CLASSBINDIR)/%_Skel.class)
-
-$(FILES_stubs) $(FILES_skels): $(FILES_classes)
-	if [ ! -s $@ ] ; \
-	then $(RMIC) -v1.1 -classpath \
-	"$(CLASSBINDIR)" \
-	-d $(CLASSBINDIR) '$(subst /,.,$(<:$(CLASSBINDIR)/%.class=%))' ; \
-	fi
-	@$(java-vm-cleanup)
-
-stubs: $(FILES_stubs) $(FILES_skels)
-
 bin: $(BINDIR)/java-rmi.cgi
 
 $(BINDIR)/java-rmi.cgi: $(PLATFORM_SRC)/bin/java-rmi.cgi.sh
@@ -107,5 +77,5 @@ $(BINDIR)/java-rmi.cgi: $(PLATFORM_SRC)/bin/java-rmi.cgi.sh
 bin.clean:
 	$(RM) $(BINDIR)/java-rmi.cgi
 
-.PHONY: stubs bin bin.clean
+.PHONY: bin bin.clean
 
