@@ -5177,6 +5177,8 @@ void AwtComponent::SynthesizeMouseMessage(JNIEnv *env, jobject mouseEvent)
                 message = WM_MBUTTONDOWN; break;
             case java_awt_event_MouseEvent_BUTTON2:
                 message = WM_RBUTTONDOWN; break;
+            default:
+                return;
           }
           break;
       }
@@ -5188,6 +5190,8 @@ void AwtComponent::SynthesizeMouseMessage(JNIEnv *env, jobject mouseEvent)
                 message = WM_MBUTTONUP; break;
             case java_awt_event_MouseEvent_BUTTON2:
                 message = WM_RBUTTONUP; break;
+            default:
+                return;
           }
           break;
       }
