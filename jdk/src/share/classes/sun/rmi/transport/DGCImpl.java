@@ -345,7 +345,13 @@ final class DGCImpl implements DGC {
                         final ObjID dgcID = new ObjID(ObjID.DGC_ID);
                         LiveRef ref = new LiveRef(dgcID, 0);
                         final UnicastServerRef disp = new UnicastServerRef(ref,
-                                                                           inputFilter());
+                               new ObjectInputFilter() {
+                                   @Override
+                                   public ObjectInputFilter.Status checkInput(ObjectInputFilter.FilterInfo filterInfo) {
+                                       return DGCImpl.checkInput(filterInfo);
+                                   }
+                               }
+                        );
                         final Remote stub =
                             Util.createProxy(DGCImpl.class,
                                              new UnicastRef(ref), true);
@@ -386,46 +392,42 @@ final class DGCImpl implements DGC {
      *          {@link ObjectInputFilter.Status#REJECTED} if rejected,
      *          otherwise {@link ObjectInputFilter.Status#UNDECIDED}
      */
-    private static ObjectInputFilter inputFilter() {
-        return new ObjectInputFilter() {
-            @Override
-            public ObjectInputFilter.Status checkInput(ObjectInputFilter.FilterInfo filterInfo) {
-                if (dgcFilter != null) {
-                    ObjectInputFilter.Status status = dgcFilter.checkInput(filterInfo);
-                    if (status != ObjectInputFilter.Status.UNDECIDED) {
-                        // The DGC filter can override the built-in white-list
-                        return status;
-                    }
-                }
+    private static ObjectInputFilter.Status checkInput(ObjectInputFilter.FilterInfo filterInfo) {
+        if (dgcFilter != null) {
+            ObjectInputFilter.Status status = dgcFilter.checkInput(filterInfo);
+            if (status != ObjectInputFilter.Status.UNDECIDED) {
+                // The DGC filter can override the built-in white-list
+                return status;
+            }
+        }
 
-                if (filterInfo.depth() > DGC_MAX_DEPTH) {
+        if (filterInfo.depth() > DGC_MAX_DEPTH) {
+            return ObjectInputFilter.Status.REJECTED;
+        }
+        Class<?> clazz = filterInfo.serialClass();
+        if (clazz != null) {
+            while (clazz.isArray()) {
+                if (filterInfo.arrayLength() >= 0 && filterInfo.arrayLength() > DGC_MAX_ARRAY_SIZE) {
                     return ObjectInputFilter.Status.REJECTED;
                 }
-                Class<?> clazz = filterInfo.serialClass();
-                if (clazz != null) {
-                    while (clazz.isArray()) {
-                        if (filterInfo.arrayLength() >= 0 && filterInfo.arrayLength() > DGC_MAX_ARRAY_SIZE) {
-                            return ObjectInputFilter.Status.REJECTED;
-                        }
-                        // Arrays are allowed depending on the component type
-                        clazz = clazz.getComponentType();
-                    }
-                    if (clazz.isPrimitive()) {
-                        // Arrays of primitives are allowed
-                        return ObjectInputFilter.Status.ALLOWED;
-                    }
-                    return (clazz == ObjID.class ||
-                            clazz == UID.class ||
-                            clazz == VMID.class ||
-                            clazz == Lease.class)
-                        ? ObjectInputFilter.Status.ALLOWED
-                        : ObjectInputFilter.Status.REJECTED;
-                }
-                // Not a class, not size limited
-                return ObjectInputFilter.Status.UNDECIDED;
+                // Arrays are allowed depending on the component type
+                clazz = clazz.getComponentType();
             }
-        };
+            if (clazz.isPrimitive()) {
+                // Arrays of primitives are allowed
+                return ObjectInputFilter.Status.ALLOWED;
+            }
+            return (clazz == ObjID.class ||
+                    clazz == UID.class ||
+                    clazz == VMID.class ||
+                    clazz == Lease.class)
+                    ? ObjectInputFilter.Status.ALLOWED
+                    : ObjectInputFilter.Status.REJECTED;
+        }
+        // Not a class, not size limited
+        return ObjectInputFilter.Status.UNDECIDED;
     }
+
 
     private static class LeaseInfo {
         VMID vmid;
