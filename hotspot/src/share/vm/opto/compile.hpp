@@ -399,6 +399,9 @@ class Compile : public Phase {
   // Expensive nodes list already sorted?
   bool expensive_nodes_sorted() const;
 
+  // Are we within a PreserveJVMState block?
+  int _preserve_jvm_state;
+
  public:
 
   outputStream* print_inlining_stream() const {
@@ -789,7 +792,9 @@ class Compile : public Phase {
 
   // Decide how to build a call.
   // The profile factor is a discount to apply to this site's interp. profile.
-  CallGenerator*    call_generator(ciMethod* call_method, int vtable_index, bool call_does_dispatch, JVMState* jvms, bool allow_inline, float profile_factor, bool allow_intrinsics = true, bool delayed_forbidden = false);
+  CallGenerator*    call_generator(ciMethod* call_method, int vtable_index, bool call_does_dispatch,
+                                   JVMState* jvms, bool allow_inline, float profile_factor, bool allow_intrinsics = true,
+                                   bool delayed_forbidden = false);
   bool should_delay_inlining(ciMethod* call_method, JVMState* jvms);
 
   // Helper functions to identify inlining potential at call-site
@@ -1121,6 +1126,21 @@ class Compile : public Phase {
 
   // Definitions of pd methods
   static void pd_compiler2_init();
+
+  // enter a PreserveJVMState block
+  void inc_preserve_jvm_state() {
+    _preserve_jvm_state++;
+  }
+
+  // exit a PreserveJVMState block
+  void dec_preserve_jvm_state() {
+    _preserve_jvm_state--;
+    assert(_preserve_jvm_state >= 0, "_preserve_jvm_state shouldn't be negative");
+  }
+
+  bool has_preserve_jvm_state() const {
+    return _preserve_jvm_state > 0;
+  }
 };
 
 #endif // SHARE_VM_OPTO_COMPILE_HPP

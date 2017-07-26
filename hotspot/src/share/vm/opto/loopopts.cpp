@@ -234,8 +234,8 @@ void PhaseIdealLoop::dominated_by( Node *prevdom, Node *iff, bool flip, bool exc
   // for lower and upper bounds.
   ProjNode* unc_proj = iff->as_If()->proj_out(1 - dp->as_Proj()->_con)->as_Proj();
   if (exclude_loop_predicate &&
-      (is_uncommon_trap_proj(unc_proj, Deoptimization::Reason_predicate) ||
-       is_uncommon_trap_proj(unc_proj, Deoptimization::Reason_range_check))) {
+      (unc_proj->is_uncommon_trap_proj(Deoptimization::Reason_predicate) ||
+       unc_proj->is_uncommon_trap_proj(Deoptimization::Reason_range_check))) {
     // If this is a range check (IfNode::is_range_check), do not
     // reorder because Compile::allow_range_check_smearing might have
     // changed the check.

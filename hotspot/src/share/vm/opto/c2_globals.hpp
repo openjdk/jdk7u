@@ -637,6 +637,9 @@
                                                                             \
   diagnostic(bool, OptimizeExpensiveOps, true,                              \
           "Find best control for expensive operations")                     \
+                                                                            \
+  experimental(bool, ReplaceInParentMaps, false,                            \
+          "Propagate type improvements in callers of inlinee if possible")
 
 
 C2_FLAGS(DECLARE_DEVELOPER_FLAG, DECLARE_PD_DEVELOPER_FLAG, DECLARE_PRODUCT_FLAG, DECLARE_PD_PRODUCT_FLAG, DECLARE_DIAGNOSTIC_FLAG, DECLARE_EXPERIMENTAL_FLAG, DECLARE_NOTPRODUCT_FLAG)

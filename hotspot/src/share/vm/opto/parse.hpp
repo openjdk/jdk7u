@@ -348,13 +348,15 @@ class Parse : public GraphKit {
   int _est_switch_depth;        // Debugging SwitchRanges.
 #endif
 
+  // parser for the caller of the method of this object
+  Parse* const _parent;
+
  public:
   // Constructor
-  Parse(JVMState* caller, ciMethod* parse_method, float expected_uses);
+  Parse(JVMState* caller, ciMethod* parse_method, float expected_uses, Parse* parent);
 
   virtual Parse* is_Parse() const { return (Parse*)this; }
 
- public:
   // Accessors.
   JVMState*     caller()        const { return _caller; }
   float         expected_uses() const { return _expected_uses; }
@@ -405,6 +407,8 @@ class Parse : public GraphKit {
   Block* successor_for_bci(int bci) {
     return block()->successor_for_bci(bci);
   }
+
+  Parse* parent_parser() const { return _parent; }
 
  private:
   // Create a JVMS & map for the initial state of this method.
