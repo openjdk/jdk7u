@@ -59,7 +59,7 @@ class LibraryIntrinsic : public InlineCallGenerator {
   virtual bool is_intrinsic() const { return true; }
   virtual bool is_virtual()   const { return _is_virtual; }
   virtual bool is_predicted()   const { return _is_predicted; }
-  virtual JVMState* generate(JVMState* jvms, Parse* parent_parser);
+  virtual JVMState* generate(JVMState* jvms);
   virtual Node* generate_predicate(JVMState* jvms);
   vmIntrinsics::ID intrinsic_id() const { return _intrinsic_id; }
 };
@@ -520,7 +520,7 @@ void Compile::register_library_intrinsics() {
   // Nothing to do here.
 }
 
-JVMState* LibraryIntrinsic::generate(JVMState* jvms, Parse* parent_parser) {
+JVMState* LibraryIntrinsic::generate(JVMState* jvms) {
   LibraryCallKit kit(jvms, this);
   Compile* C = kit.C;
   int nodes = C->unique();

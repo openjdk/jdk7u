@@ -399,6 +399,11 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
   uint next = 0;
   while (next < useful.size()) {
     Node *n = useful.at(next++);
+    if (n->is_SafePoint()) {
+      // We're done with a parsing phase. Replaced nodes are not valid
+      // beyond that point.
+      n->as_SafePoint()->delete_replaced_nodes();
+    }
     // Use raw traversal of out edges since this code removes out edges
     int max = n->outcnt();
     for (int j = 0; j < max; ++j) {
@@ -661,8 +666,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                   _inlining_progress(false),
                   _inlining_incrementally(false),
                   _print_inlining_list(NULL),
-                  _print_inlining_idx(0),
-                  _preserve_jvm_state(0) {
+                  _print_inlining_idx(0) {
   C = this;
 
   CompileWrapper cw(this);
@@ -771,7 +775,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
       return;
     }
     JVMState* jvms = build_start_state(start(), tf());
-    if ((jvms = cg->generate(jvms, NULL)) == NULL) {
+    if ((jvms = cg->generate(jvms)) == NULL) {
       record_method_not_compilable("method parse failed");
       return;
     }
@@ -949,8 +953,7 @@ Compile::Compile( ciEnv* ci_env,
     _inlining_progress(false),
     _inlining_incrementally(false),
     _print_inlining_list(NULL),
-    _print_inlining_idx(0),
-    _preserve_jvm_state(0) {
+    _print_inlining_idx(0) {
   C = this;
 
 #ifndef PRODUCT
@@ -1897,8 +1900,8 @@ void Compile::inline_incrementally(PhaseIterGVN& igvn) {
     if (live_nodes() > (uint)LiveNodeCountInliningCutoff) {
       if (low_live_nodes < (uint)LiveNodeCountInliningCutoff * 8 / 10) {
         // PhaseIdealLoop is expensive so we only try it once we are
-        // out of loop and we only try it again if the previous helped
-        // got the number of nodes down significantly
+        // out of live nodes and we only try it again if the previous
+        // helped got the number of nodes down significantly
         PhaseIdealLoop ideal_loop( igvn, false, true );
         if (failing())  return;
         low_live_nodes = live_nodes();

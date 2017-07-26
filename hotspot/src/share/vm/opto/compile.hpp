@@ -399,9 +399,6 @@ class Compile : public Phase {
   // Expensive nodes list already sorted?
   bool expensive_nodes_sorted() const;
 
-  // Are we within a PreserveJVMState block?
-  int _preserve_jvm_state;
-
  public:
 
   outputStream* print_inlining_stream() const {
@@ -1126,21 +1123,6 @@ class Compile : public Phase {
 
   // Definitions of pd methods
   static void pd_compiler2_init();
-
-  // enter a PreserveJVMState block
-  void inc_preserve_jvm_state() {
-    _preserve_jvm_state++;
-  }
-
-  // exit a PreserveJVMState block
-  void dec_preserve_jvm_state() {
-    _preserve_jvm_state--;
-    assert(_preserve_jvm_state >= 0, "_preserve_jvm_state shouldn't be negative");
-  }
-
-  bool has_preserve_jvm_state() const {
-    return _preserve_jvm_state > 0;
-  }
 };
 
 #endif // SHARE_VM_OPTO_COMPILE_HPP
