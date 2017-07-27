@@ -445,4 +445,10 @@ public class WsimportOptions extends Options {
             }
         }
     }
+
+    @Override
+    protected void disableXmlSecurity() {
+        super.disableXmlSecurity();
+        schemaCompiler.getOptions().disableXmlSecurity = true;
+    }
 }
