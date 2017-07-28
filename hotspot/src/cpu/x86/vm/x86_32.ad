@@ -5105,8 +5105,6 @@ operand cmpOpU_commute() %{
     greater_equal(0x6, "be");
     less_equal(0x3, "nb");
     greater(0x2, "b");
-    overflow(0x0, "o");
-    no_overflow(0x1, "no");
   %}
 %}
 
