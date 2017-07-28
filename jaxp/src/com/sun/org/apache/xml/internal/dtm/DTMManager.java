@@ -23,6 +23,7 @@ import com.sun.org.apache.xml.internal.res.XMLErrorResources;
 import com.sun.org.apache.xml.internal.res.XMLMessages;
 import com.sun.org.apache.xml.internal.utils.PrefixResolver;
 import com.sun.org.apache.xml.internal.utils.XMLStringFactory;
+import com.sun.org.apache.xalan.internal.utils.ObjectFactory;
 
 /**
  * A DTMManager instance can be used to create DTM and
