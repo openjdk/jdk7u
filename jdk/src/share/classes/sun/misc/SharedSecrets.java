@@ -25,16 +25,16 @@
 
 package sun.misc;
 
-import java.io.ObjectInputStream;
-import java.util.jar.JarFile;
 import java.io.Console;
 import java.io.FileDescriptor;
 import java.io.ObjectInputStream;
-import java.security.ProtectionDomain;
-import java.util.zip.Adler32;
-import javax.security.auth.kerberos.KeyTab;
-
 import java.security.AccessController;
+import java.security.ProtectionDomain;
+import java.util.GregorianCalendar;
+import java.util.jar.JarFile;
+import java.util.zip.Adler32;
+
+import javax.security.auth.kerberos.KeyTab;
 
 /** A repository of "shared secrets", which are a mechanism for
     calling implementation-private methods in another package without
@@ -62,6 +62,7 @@ public class SharedSecrets {
     private static JavaAWTAccess javaAWTAccess;
     private static JavaOISAccess javaOISAccess;
     private static JavaObjectInputStreamAccess javaObjectInputStreamAccess;
+    private static JavaUtilCalendarAccess javaUtilCalendarAccess;
 
     public static JavaUtilJarAccess javaUtilJarAccess() {
         if (javaUtilJarAccess == null) {
@@ -225,5 +226,16 @@ public class SharedSecrets {
 
     public static void setJavaObjectInputStreamAccess(JavaObjectInputStreamAccess access) {
         javaObjectInputStreamAccess = access;
+    }
+
+    public static JavaUtilCalendarAccess getJavaUtilCalendarAccess() {
+        if (javaUtilCalendarAccess == null) {
+            unsafe.ensureClassInitialized(GregorianCalendar.class);
+        }
+        return javaUtilCalendarAccess;
+    }
+
+    public static void setJavaUtilCalendarAccess(JavaUtilCalendarAccess access) {
+        javaUtilCalendarAccess = access;
     }
 }

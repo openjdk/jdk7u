@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.cert.CertStore;
+import java.security.cert.CertStoreException;
 import java.security.cert.X509CertSelector;
 import java.security.cert.X509CRLSelector;
 import javax.security.auth.x500.X500Principal;
@@ -82,9 +83,8 @@ public abstract class CertStoreHelper {
                                 = (CertStoreHelper)c.newInstance();
                             cache.put(type, csh);
                             return csh;
-                        } catch (InstantiationException e) {
-                            throw new AssertionError(e);
-                        } catch (IllegalAccessException e) {
+                        } catch (InstantiationException |
+                                 IllegalAccessException e) {
                             throw new AssertionError(e);
                         }
                     }
@@ -93,6 +93,25 @@ public abstract class CertStoreHelper {
         } catch (PrivilegedActionException e) {
             throw new NoSuchAlgorithmException(type + " not available",
                                                e.getException());
+        }
+    }
+
+    static boolean isCausedByNetworkIssue(String type, CertStoreException cse) {
+        switch (type) {
+            case "LDAP":
+            case "SSLServer":
+                try {
+                    CertStoreHelper csh = CertStoreHelper.getInstance(type);
+                    return csh.isCausedByNetworkIssue(cse);
+                } catch (NoSuchAlgorithmException nsae) {
+                    return false;
+                }
+            case "URI":
+                Throwable t = cse.getCause();
+                return (t != null && t instanceof IOException);
+            default:
+                // we don't know about any other remote CertStore types
+                return false;
         }
     }
 
@@ -119,4 +138,10 @@ public abstract class CertStoreHelper {
                          Collection<X500Principal> certIssuers,
                          String dn)
         throws IOException;
+
+    /**
+     * Returns true if the cause of the CertStoreException is a network
+     * related issue.
+     */
+    public abstract boolean isCausedByNetworkIssue(CertStoreException e);
 }

@@ -243,6 +243,9 @@ demo/jvmti/compiledMethodLoad/CompiledMethodLoadTest.java       generic-all
 # 7056489
 com/sun/jndi/ldap/ReadTimeoutTest.java                          generic-all
 
+# 8160071 ClientJSSEServerJSSE.java test failure
+sun/security/pkcs11/sslecc/ClientJSSEServerJSSE.java		linux-all
+
 ############################################################################
 
 # jdk_net
