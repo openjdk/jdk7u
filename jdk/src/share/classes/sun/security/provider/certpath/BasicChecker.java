@@ -235,8 +235,7 @@ class BasicChecker extends PKIXCertPathChecker {
                 currCert.getSubjectX500Principal() + "; serial#: " +
                 currCert.getSerialNumber().toString());
         }
-        if (cKey instanceof DSAPublicKey &&
-            ((DSAPublicKey)cKey).getParams() == null) {
+        if (PKIX.isDSAPublicKeyWithoutParams(cKey)) {
             //cKey needs to inherit DSA parameters from prev key
             cKey = makeInheritedParamsKey(cKey, prevPubKey);
             if (debug != null) debug.println("BasicChecker.updateState Made " +
