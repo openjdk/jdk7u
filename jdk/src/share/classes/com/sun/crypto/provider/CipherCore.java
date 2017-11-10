@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -270,7 +270,8 @@ final class CipherCore {
     }
 
     private int getOutputSizeByOperation(int inputLen, boolean isDoFinal) {
-        int totalLen = buffered + inputLen + cipher.getBufferedLength();
+        int totalLen = addExact(buffered, cipher.getBufferedLength());
+        totalLen = addExact(totalLen, inputLen);
         switch (cipherMode) {
         default:
             if (padding != null && !decrypting) {
@@ -279,10 +280,10 @@ final class CipherCore {
                         totalLen = diffBlocksize;
                     } else {
                         int residue = (totalLen - diffBlocksize) % blockSize;
-                        totalLen += (blockSize - residue);
+                        totalLen = addExact(totalLen, (blockSize - residue));
                     }
                 } else {
-                    totalLen += padding.padLength(totalLen);
+                    totalLen = addExact(totalLen, padding.padLength(totalLen));
                 }
             }
             break;
@@ -578,7 +579,8 @@ final class CipherCore {
     int update(byte[] input, int inputOffset, int inputLen, byte[] output,
                int outputOffset) throws ShortBufferException {
         // figure out how much can be sent to crypto function
-        int len = buffered + inputLen - minBytes;
+        int len = addExact(buffered, inputLen);
+        len -= minBytes;
         if (padding != null && decrypting) {
             // do not include the padding bytes when decrypting
             len -= blockSize;
@@ -597,12 +599,12 @@ final class CipherCore {
         int outLen = 0;
         if (len != 0) { // there is some work to do
             if ((input == output)
-                 && (outputOffset < (inputOffset + inputLen))
-                 && (inputOffset < (outputOffset + buffer.length))) {
+                 && (outputOffset - inputOffset < inputLen)
+                 && (inputOffset - outputOffset < buffer.length)) {
                 // copy 'input' out to avoid its content being
                 // overwritten prematurely.
                 input = Arrays.copyOfRange(input, inputOffset,
-                    inputOffset + inputLen);
+                    addExact(inputOffset, inputLen));
                 inputOffset = 0;
             }
             if (len <= buffered) {
@@ -624,13 +626,13 @@ final class CipherCore {
                     if (bufferCapacity != 0) {
                         temp = Math.min(bufferCapacity, inputConsumed);
                         if (unitBytes != blockSize) {
-                            temp -= ((buffered + temp) % unitBytes);
+                            temp -= (addExact(buffered, temp) % unitBytes);
                         }
                         System.arraycopy(input, inputOffset, buffer, buffered, temp);
-                        inputOffset += temp;
+                        inputOffset = addExact(inputOffset, temp);
                         inputConsumed -= temp;
                         inputLen -= temp;
-                        buffered += temp;
+                        buffered = addExact(buffered, temp);
                     }
                     // process 'buffer'
                     if (decrypting) {
@@ -638,7 +640,7 @@ final class CipherCore {
                     } else {
                          outLen = cipher.encrypt(buffer, 0, buffered, output, outputOffset);
                     }
-                    outputOffset += outLen;
+                    outputOffset = addExact(outputOffset, outLen);
                     buffered = 0;
                 }
                 if (inputConsumed > 0) { // still has input to process
@@ -670,7 +672,7 @@ final class CipherCore {
         if (inputLen > 0) {
             System.arraycopy(input, inputOffset, buffer, buffered,
                              inputLen);
-            buffered += inputLen;
+            buffered = addExact(buffered, inputLen);
         }
         return outLen;
     }
@@ -776,10 +778,10 @@ final class CipherCore {
         }
 
         // calculate total input length
-        int len = buffered + inputLen;
+        int len = addExact(buffered, inputLen);
 
         // calculate padding length
-        int totalLen = len + cipher.getBufferedLength();
+        int totalLen = addExact(len, cipher.getBufferedLength());
         int paddingLen = 0;
         // will the total input length be a multiple of blockSize?
         if (unitBytes != blockSize) {
@@ -812,12 +814,12 @@ final class CipherCore {
         int finalBufLen = inputLen;
         if ((buffered != 0) || (!decrypting && padding != null) ||
             ((input == output)
-              && (outputOffset < (inputOffset + inputLen))
-              && (inputOffset < (outputOffset + buffer.length)))) {
+              && (outputOffset - inputOffset < inputLen)
+              && (inputOffset - outputOffset < buffer.length))) {
             if (decrypting || padding == null) {
                 paddingLen = 0;
             }
-            finalBuf = new byte[len + paddingLen];
+            finalBuf = new byte[addExact(len, paddingLen)];
             finalOffset = 0;
             if (buffered != 0) {
                 System.arraycopy(buffer, 0, finalBuf, 0, buffered);
@@ -827,7 +829,7 @@ final class CipherCore {
                                  buffered, inputLen);
             }
             if (paddingLen != 0) {
-                padding.padWithLen(finalBuf, (buffered+inputLen), paddingLen);
+                padding.padWithLen(finalBuf, addExact(buffered, inputLen), paddingLen);
             }
             finalBufLen = finalBuf.length;
         }
@@ -980,5 +982,89 @@ final class CipherCore {
         }
         return ConstructKeys.constructKey(encodedKey, wrappedKeyAlgorithm,
                                           wrappedKeyType);
+    }
+
+    /* Taken from java.lang.Math in OpenJDK 8 */
+
+    /**
+     * Returns the sum of its arguments,
+     * throwing an exception if the result overflows an {@code int}.
+     *
+     * @param x the first value
+     * @param y the second value
+     * @return the result
+     * @throws ArithmeticException if the result overflows an int
+     * @since 1.8
+     */
+    static int addExact(int x, int y) {
+        int r = x + y;
+        // HD 2-12 Overflow iff both arguments have the opposite sign of the result
+        if (((x ^ r) & (y ^ r)) < 0) {
+            throw new ArithmeticException("integer overflow");
+        }
+        return r;
+    }
+
+    /**
+     * Returns the sum of its arguments,
+     * throwing an exception if the result overflows a {@code long}.
+     *
+     * @param x the first value
+     * @param y the second value
+     * @return the result
+     * @throws ArithmeticException if the result overflows a long
+     * @since 1.8
+     */
+    static long addExact(long x, long y) {
+        long r = x + y;
+        // HD 2-12 Overflow iff both arguments have the opposite sign of the result
+        if (((x ^ r) & (y ^ r)) < 0) {
+            throw new ArithmeticException("long overflow");
+        }
+        return r;
+    }
+
+    /**
+     * Returns the product of the arguments,
+     * throwing an exception if the result overflows an {@code int}.
+     *
+     * @param x the first value
+     * @param y the second value
+     * @return the result
+     * @throws ArithmeticException if the result overflows an int
+     * @since 1.8
+     */
+    static int multiplyExact(int x, int y) {
+        long r = (long)x * (long)y;
+        if ((int)r != r) {
+            throw new ArithmeticException("integer overflow");
+        }
+        return (int)r;
+    }
+
+    /**
+     * Returns the product of the arguments,
+     * throwing an exception if the result overflows a {@code long}.
+     *
+     * @param x the first value
+     * @param y the second value
+     * @return the result
+     * @throws ArithmeticException if the result overflows a long
+     * @since 1.8
+     */
+    static long multiplyExact(long x, long y) {
+        long r = x * y;
+        long ax = Math.abs(x);
+        long ay = Math.abs(y);
+        if (((ax | ay) >>> 31 != 0)) {
+            // Some bits greater than 2^31 that might cause overflow
+            // Check the result using the divide operator
+            // and check for the special case of Long.MIN_VALUE * -1
+           if (((y != 0) && (r / y != x)) ||
+               (x == Long.MIN_VALUE && y == -1)) {
+                throw new ArithmeticException("long overflow");
+            }
+        }
+        return r;
     }
 }
