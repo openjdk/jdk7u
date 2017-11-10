@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package com.sun.crypto.provider;
 
 import java.security.InvalidKeyException;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.ShortBufferException;
 
 /**
  * This class represents a block cipher in one of its modes. It wraps
@@ -111,6 +112,17 @@ abstract class FeedbackCipher {
     }
 
     /**
+     * @return the number of bytes that are buffered internally inside
+     * this FeedbackCipher instance.
+     * @since 1.8
+     */
+    int getBufferedLength() {
+        // Currently only AEAD cipher impl, e.g. GCM, buffers data
+        // internally during decryption mode
+        return 0;
+    }
+
+    /**
      * Resets the iv to its original value.
      * This is used when doFinal is called in the Cipher class, so that the
      * cipher can be reused (with its original iv).
@@ -133,9 +145,10 @@ abstract class FeedbackCipher {
      * @param plainLen the length of the input data
      * @param cipher the buffer for the encryption result
      * @param cipherOffset the offset in <code>cipher</code>
+     * @return the number of bytes placed into <code>cipher</code>
      */
-    abstract void encrypt(byte[] plain, int plainOffset, int plainLen,
-                          byte[] cipher, int cipherOffset);
+    abstract int encrypt(byte[] plain, int plainOffset, int plainLen,
+                         byte[] cipher, int cipherOffset);
     /**
      * Performs encryption operation for the last time.
      *
@@ -150,12 +163,13 @@ abstract class FeedbackCipher {
      * @param plainLen the length of the input data
      * @param cipher the buffer for the encryption result
      * @param cipherOffset the offset in <code>cipher</code>
+     * @return the number of bytes placed into <code>cipher</code>
      */
-     void encryptFinal(byte[] plain, int plainOffset, int plainLen,
-                       byte[] cipher, int cipherOffset)
-         throws IllegalBlockSizeException {
-         encrypt(plain, plainOffset, plainLen, cipher, cipherOffset);
-     }
+     int encryptFinal(byte[] plain, int plainOffset, int plainLen,
+                      byte[] cipher, int cipherOffset)
+         throws IllegalBlockSizeException, ShortBufferException {
+         return encrypt(plain, plainOffset, plainLen, cipher, cipherOffset);
+    }
     /**
      * Performs decryption operation.
      *
@@ -172,9 +186,10 @@ abstract class FeedbackCipher {
      * @param cipherLen the length of the input data
      * @param plain the buffer for the decryption result
      * @param plainOffset the offset in <code>plain</code>
+     * @return the number of bytes placed into <code>plain</code>
      */
-    abstract void decrypt(byte[] cipher, int cipherOffset, int cipherLen,
-                          byte[] plain, int plainOffset);
+    abstract int decrypt(byte[] cipher, int cipherOffset, int cipherLen,
+                         byte[] plain, int plainOffset);
 
     /**
      * Performs decryption operation for the last time.
@@ -190,10 +205,11 @@ abstract class FeedbackCipher {
      * @param cipherLen the length of the input data
      * @param plain the buffer for the decryption result
      * @param plainOffset the offset in <code>plain</code>
+     * @return the number of bytes placed into <code>plain</code>
      */
-     void decryptFinal(byte[] cipher, int cipherOffset, int cipherLen,
-                       byte[] plain, int plainOffset)
-         throws IllegalBlockSizeException {
-         decrypt(cipher, cipherOffset, cipherLen, plain, plainOffset);
+     int decryptFinal(byte[] cipher, int cipherOffset, int cipherLen,
+                      byte[] plain, int plainOffset)
+         throws IllegalBlockSizeException, ShortBufferException {
+         return decrypt(cipher, cipherOffset, cipherLen, plain, plainOffset);
      }
 }

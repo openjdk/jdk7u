@@ -25,6 +25,7 @@
 
 package com.sun.crypto.provider;
 
+import java.util.Arrays;
 import java.util.Locale;
 
 import java.security.*;
@@ -59,7 +60,7 @@ final class CipherCore {
     private byte[] buffer = null;
 
     /*
-     * internal buffer
+     * block size of cipher in bytes
      */
     private int blockSize = 0;
 
@@ -76,7 +77,7 @@ final class CipherCore {
     /*
      * minimum number of bytes in the buffer required for
      * FeedbackCipher.encryptFinal()/decryptFinal() call.
-     * update() must buffer this many bytes before before starting
+     * update() must buffer this many bytes before starting
      * to encrypt/decrypt data.
      * currently, only CTS mode has a non-zero value due to its special
      * handling on the last two blocks (the last one may be incomplete).
@@ -149,7 +150,7 @@ final class CipherCore {
      * @param mode the cipher mode
      *
      * @exception NoSuchAlgorithmException if the requested cipher mode does
-     * not exist
+     * not exist for this cipher
      */
     void setMode(String mode) throws NoSuchAlgorithmException {
         if (mode == null)
@@ -165,30 +166,25 @@ final class CipherCore {
         if (modeUpperCase.equals("CBC")) {
             cipherMode = CBC_MODE;
             cipher = new CipherBlockChaining(rawImpl);
-        }
-        else if (modeUpperCase.equals("CTS")) {
+        } else if (modeUpperCase.equals("CTS")) {
             cipherMode = CTS_MODE;
             cipher = new CipherTextStealing(rawImpl);
             minBytes = blockSize+1;
             padding = null;
-        }
-        else if (modeUpperCase.equals("CTR")) {
+        } else if (modeUpperCase.equals("CTR")) {
             cipherMode = CTR_MODE;
             cipher = new CounterMode(rawImpl);
             unitBytes = 1;
             padding = null;
-        }
-        else if (modeUpperCase.startsWith("CFB")) {
+        } else if (modeUpperCase.startsWith("CFB")) {
             cipherMode = CFB_MODE;
             unitBytes = getNumOfUnit(mode, "CFB".length(), blockSize);
             cipher = new CipherFeedback(rawImpl, unitBytes);
-        }
-        else if (modeUpperCase.startsWith("OFB")) {
+        } else if (modeUpperCase.startsWith("OFB")) {
             cipherMode = OFB_MODE;
             unitBytes = getNumOfUnit(mode, "OFB".length(), blockSize);
             cipher = new OutputFeedback(rawImpl, unitBytes);
-        }
-        else if (modeUpperCase.equals("PCBC")) {
+        } else if (modeUpperCase.equals("PCBC")) {
             cipherMode = PCBC_MODE;
             cipher = new PCBC(rawImpl);
         }
@@ -218,6 +214,7 @@ final class CipherCore {
         }
         return result;
     }
+
 
     /**
      * Sets the padding mechanism of this cipher.
@@ -268,23 +265,29 @@ final class CipherCore {
      * @return the required output buffer size (in bytes)
      */
     int getOutputSize(int inputLen) {
-        int totalLen = buffered + inputLen;
+        // estimate based on the maximum
+        return getOutputSizeByOperation(inputLen, true);
+    }
 
-        if (padding == null)
-            return totalLen;
-
-        if (decrypting)
-            return totalLen;
-
-        if (unitBytes != blockSize) {
-            if (totalLen < diffBlocksize)
-                return diffBlocksize;
-            else
-                return (totalLen + blockSize -
-                        ((totalLen - diffBlocksize) % blockSize));
-        } else {
-            return totalLen + padding.padLength(totalLen);
+    private int getOutputSizeByOperation(int inputLen, boolean isDoFinal) {
+        int totalLen = buffered + inputLen + cipher.getBufferedLength();
+        switch (cipherMode) {
+        default:
+            if (padding != null && !decrypting) {
+                if (unitBytes != blockSize) {
+                    if (totalLen < diffBlocksize) {
+                        totalLen = diffBlocksize;
+                    } else {
+                        int residue = (totalLen - diffBlocksize) % blockSize;
+                        totalLen += (blockSize - residue);
+                    }
+                } else {
+                    totalLen += padding.padLength(totalLen);
+                }
+            }
+            break;
         }
+        return totalLen;
     }
 
     /**
@@ -318,34 +321,39 @@ final class CipherCore {
      * does not use any parameters.
      */
     AlgorithmParameters getParameters(String algName) {
+        if (cipherMode == ECB_MODE) {
+            return null;
+        }
         AlgorithmParameters params = null;
-        if (cipherMode == ECB_MODE) return null;
+        AlgorithmParameterSpec spec;
         byte[] iv = getIV();
-        if (iv != null) {
-            AlgorithmParameterSpec ivSpec;
-            if (algName.equals("RC2")) {
-                RC2Crypt rawImpl = (RC2Crypt) cipher.getEmbeddedCipher();
-                ivSpec = new RC2ParameterSpec(rawImpl.getEffectiveKeyBits(),
-                                              iv);
-            } else {
-                ivSpec = new IvParameterSpec(iv);
-            }
-            try {
-                params = AlgorithmParameters.getInstance(algName, "SunJCE");
-            } catch (NoSuchAlgorithmException nsae) {
-                // should never happen
-                throw new RuntimeException("Cannot find " + algName +
-                    " AlgorithmParameters implementation in SunJCE provider");
-            } catch (NoSuchProviderException nspe) {
-                // should never happen
-                throw new RuntimeException("Cannot find SunJCE provider");
-            }
-            try {
-                params.init(ivSpec);
-            } catch (InvalidParameterSpecException ipse) {
-                // should never happen
-                throw new RuntimeException("IvParameterSpec not supported");
-            }
+        if (iv == null) {
+            // generate spec using default value
+            iv = new byte[blockSize];
+            SunJCE.RANDOM.nextBytes(iv);
+        }
+        if (algName.equals("RC2")) {
+            RC2Crypt rawImpl = (RC2Crypt) cipher.getEmbeddedCipher();
+            spec = new RC2ParameterSpec
+                (rawImpl.getEffectiveKeyBits(), iv);
+        } else {
+            spec = new IvParameterSpec(iv);
+        }
+        try {
+            params = AlgorithmParameters.getInstance(algName, "SunJCE");
+        } catch (NoSuchAlgorithmException nsae) {
+            // should never happen
+            throw new RuntimeException("Cannot find " + algName +
+                " AlgorithmParameters implementation in SunJCE provider");
+        } catch (NoSuchProviderException nspe) {
+            // should never happen
+            throw new RuntimeException("Cannot find SunJCE provider");
+        }
+        try {
+            params.init(spec);
+        } catch (InvalidParameterSpecException ipse) {
+            // should never happen
+            throw new RuntimeException(spec.getClass() + " not supported");
         }
         return params;
     }
@@ -420,40 +428,39 @@ final class CipherCore {
                   || (opmode == Cipher.UNWRAP_MODE);
 
         byte[] keyBytes = getKeyBytes(key);
-
-        byte[] ivBytes;
-        if (params == null) {
-            ivBytes = null;
-        } else if (params instanceof IvParameterSpec) {
-            ivBytes = ((IvParameterSpec)params).getIV();
-            if ((ivBytes == null) || (ivBytes.length != blockSize)) {
+        int tagLen = -1;
+        byte[] ivBytes = null;
+        if (params != null) {
+            if (params instanceof IvParameterSpec) {
+                ivBytes = ((IvParameterSpec)params).getIV();
+                if ((ivBytes == null) || (ivBytes.length != blockSize)) {
+                    throw new InvalidAlgorithmParameterException
+                        ("Wrong IV length: must be " + blockSize +
+                         " bytes long");
+                }
+            } else if (params instanceof RC2ParameterSpec) {
+                ivBytes = ((RC2ParameterSpec)params).getIV();
+                if ((ivBytes != null) && (ivBytes.length != blockSize)) {
+                    throw new InvalidAlgorithmParameterException
+                        ("Wrong IV length: must be " + blockSize +
+                         " bytes long");
+                }
+            } else {
                 throw new InvalidAlgorithmParameterException
-                    ("Wrong IV length: must be " + blockSize +
-                    " bytes long");
+                    ("Unsupported parameter: " + params);
             }
-        } else if (params instanceof RC2ParameterSpec) {
-            ivBytes = ((RC2ParameterSpec)params).getIV();
-            if ((ivBytes != null) && (ivBytes.length != blockSize)) {
-                throw new InvalidAlgorithmParameterException
-                    ("Wrong IV length: must be " + blockSize +
-                    " bytes long");
-            }
-        } else {
-            throw new InvalidAlgorithmParameterException("Wrong parameter "
-                                                         + "type: IV "
-                                                         + "expected");
         }
-
         if (cipherMode == ECB_MODE) {
             if (ivBytes != null) {
                 throw new InvalidAlgorithmParameterException
                                                 ("ECB mode cannot use IV");
             }
-        } else if (ivBytes == null) {
+        } else if (ivBytes == null)  {
             if (decrypting) {
                 throw new InvalidAlgorithmParameterException("Parameters "
                                                              + "missing");
             }
+
             if (random == null) {
                 random = SunJCE.RANDOM;
             }
@@ -472,17 +479,21 @@ final class CipherCore {
     void init(int opmode, Key key, AlgorithmParameters params,
               SecureRandom random)
         throws InvalidKeyException, InvalidAlgorithmParameterException {
-        IvParameterSpec ivSpec = null;
+        AlgorithmParameterSpec spec = null;
+        String paramType = null;
         if (params != null) {
             try {
-                ivSpec = params.getParameterSpec(IvParameterSpec.class);
+                // NOTE: RC2 parameters are always handled through
+                // init(..., AlgorithmParameterSpec,...) method, so
+                // we can assume IvParameterSpec type here.
+                paramType = "IV";
+                spec = params.getParameterSpec(IvParameterSpec.class);
             } catch (InvalidParameterSpecException ipse) {
-                throw new InvalidAlgorithmParameterException("Wrong parameter "
-                                                             + "type: IV "
-                                                             + "expected");
+                throw new InvalidAlgorithmParameterException
+                    ("Wrong parameter type: " + paramType + " expected");
             }
         }
-        init(opmode, key, ivSpec, random);
+        init(opmode, key, spec, random);
     }
 
     /**
@@ -503,6 +514,7 @@ final class CipherCore {
         }
         return keyBytes;
     }
+
 
     /**
      * Continues a multiple-part encryption or decryption operation
@@ -525,21 +537,19 @@ final class CipherCore {
      */
     byte[] update(byte[] input, int inputOffset, int inputLen) {
         byte[] output = null;
-        byte[] out = null;
         try {
-            output = new byte[getOutputSize(inputLen)];
+            output = new byte[getOutputSizeByOperation(inputLen, false)];
             int len = update(input, inputOffset, inputLen, output,
                              0);
             if (len == output.length) {
-                out = output;
+                return output;
             } else {
-                out = new byte[len];
-                System.arraycopy(output, 0, out, 0, len);
+                return Arrays.copyOf(output, len);
             }
         } catch (ShortBufferException e) {
-            // never thrown
+            // should never happen
+            throw new ProviderException("Unexpected exception", e);
         }
-        return out;
     }
 
     /**
@@ -577,63 +587,72 @@ final class CipherCore {
         len = (len > 0 ? (len - (len%unitBytes)) : 0);
 
         // check output buffer capacity
-        if ((output == null) || ((output.length - outputOffset) < len)) {
+        if ((output == null) ||
+            ((output.length - outputOffset) < len)) {
             throw new ShortBufferException("Output buffer must be "
                                            + "(at least) " + len
                                            + " bytes long");
         }
-        if (len != 0) {
-            // there is some work to do
-            byte[] in = new byte[len];
 
-            int inputConsumed = len - buffered;
-            int bufferedConsumed = buffered;
-            if (inputConsumed < 0) {
-                inputConsumed = 0;
-                bufferedConsumed = len;
-            }
-
-            if (buffered != 0) {
-                System.arraycopy(buffer, 0, in, 0, bufferedConsumed);
-            }
-            if (inputConsumed > 0) {
-                System.arraycopy(input, inputOffset, in,
-                                 bufferedConsumed, inputConsumed);
-            }
-
-            if (decrypting) {
-                cipher.decrypt(in, 0, len, output, outputOffset);
-            } else {
-                cipher.encrypt(in, 0, len, output, outputOffset);
+        int outLen = 0;
+        if (len != 0) { // there is some work to do
+            if (len <= buffered) {
+                // all to-be-processed data are from 'buffer'
+                if (decrypting) {
+                    outLen = cipher.decrypt(buffer, 0, len, output, outputOffset);
+                } else {
+                    outLen = cipher.encrypt(buffer, 0, len, output, outputOffset);
+                }
+                buffered -= len;
+                if (buffered != 0) {
+                    System.arraycopy(buffer, len, buffer, 0, buffered);
+                }
+            } else { // len > buffered
+                if (buffered == 0) {
+                    // all to-be-processed data are from 'input'
+                    if (decrypting) {
+                        outLen = cipher.decrypt(input, inputOffset, len, output, outputOffset);
+                    } else {
+                        outLen = cipher.encrypt(input, inputOffset, len, output, outputOffset);
+                    }
+                    inputOffset += len;
+                    inputLen -= len;
+                } else {
+                    // assemble the data using both 'buffer' and 'input'
+                    byte[] in = new byte[len];
+                    System.arraycopy(buffer, 0, in, 0, buffered);
+                    int inConsumed = len - buffered;
+                    System.arraycopy(input, inputOffset, in, buffered, inConsumed);
+                    buffered = 0;
+                    inputOffset += inConsumed;
+                    inputLen -= inConsumed;
+                    if (decrypting) {
+                        outLen = cipher.decrypt(in, 0, len, output, outputOffset);
+                    } else {
+                        outLen = cipher.encrypt(in, 0, len, output, outputOffset);
+                    }
+                }
             }
 
             // Let's keep track of how many bytes are needed to make
             // the total input length a multiple of blocksize when
             // padding is applied
             if (unitBytes != blockSize) {
-                if (len < diffBlocksize)
+                if (len < diffBlocksize) {
                     diffBlocksize -= len;
-                else
+                } else {
                     diffBlocksize = blockSize -
                         ((len - diffBlocksize) % blockSize);
-            }
-
-            inputLen -= inputConsumed;
-            inputOffset += inputConsumed;
-            outputOffset += len;
-            buffered -= bufferedConsumed;
-            if (buffered > 0) {
-                System.arraycopy(buffer, bufferedConsumed, buffer, 0,
-                                 buffered);
+                }
             }
         }
-        // left over again
+        // Store remaining input into 'buffer' again
         if (inputLen > 0) {
             System.arraycopy(input, inputOffset, buffer, buffered,
                              inputLen);
+            buffered += inputLen;
         }
-        buffered += inputLen;
-        return len;
+        return outLen;
     }
 
     /**
@@ -669,21 +688,18 @@ final class CipherCore {
     byte[] doFinal(byte[] input, int inputOffset, int inputLen)
         throws IllegalBlockSizeException, BadPaddingException {
         byte[] output = null;
-        byte[] out = null;
         try {
-            output = new byte[getOutputSize(inputLen)];
+            output = new byte[getOutputSizeByOperation(inputLen, true)];
             int len = doFinal(input, inputOffset, inputLen, output, 0);
             if (len < output.length) {
-                out = new byte[len];
-                if (len != 0)
-                    System.arraycopy(output, 0, out, 0, len);
+                return Arrays.copyOf(output, len);
             } else {
-                out = output;
+                return output;
             }
         } catch (ShortBufferException e) {
             // never thrown
+            throw new ProviderException("Unexpected exception", e);
         }
-        return out;
     }
 
     /**
@@ -727,11 +743,24 @@ final class CipherCore {
         throws IllegalBlockSizeException, ShortBufferException,
                BadPaddingException {
 
-        // calculate the total input length
-        int totalLen = buffered + inputLen;
-        int paddedLen = totalLen;
-        int paddingLen = 0;
+        int estOutSize = getOutputSizeByOperation(inputLen, true);
+        // check output buffer capacity.
+        // if we are decrypting with padding applied, we can perform this
+        // check only after we have determined how many padding bytes there
+        // are.
+        int outputCapacity = output.length - outputOffset;
+        int minOutSize = (decrypting? (estOutSize - blockSize):estOutSize);
+        if ((output == null) || (outputCapacity < minOutSize)) {
+            throw new ShortBufferException("Output buffer must be "
+                + "(at least) " + minOutSize + " bytes long");
+        }
 
+        // calculate total input length
+        int len = buffered + inputLen;
+
+        // calculate padding length
+        int totalLen = len + cipher.getBufferedLength();
+        int paddingLen = 0;
         // will the total input length be a multiple of blockSize?
         if (unitBytes != blockSize) {
             if (totalLen < diffBlocksize) {
@@ -744,39 +773,23 @@ final class CipherCore {
             paddingLen = padding.padLength(totalLen);
         }
 
-        if ((paddingLen > 0) && (paddingLen != blockSize) &&
-            (padding != null) && decrypting) {
+        if (decrypting && (padding != null) &&
+            (paddingLen > 0) && (paddingLen != blockSize)) {
             throw new IllegalBlockSizeException
                 ("Input length must be multiple of " + blockSize +
                  " when decrypting with padded cipher");
         }
 
-        // if encrypting and padding not null, add padding
-        if (!decrypting && padding != null)
-            paddedLen += paddingLen;
-
-        // check output buffer capacity.
-        // if we are decrypting with padding applied, we can perform this
-        // check only after we have determined how many padding bytes there
-        // are.
-        if (output == null) {
-            throw new ShortBufferException("Output buffer is null");
-        }
-        int outputCapacity = output.length - outputOffset;
-        if (((!decrypting) || (padding == null)) &&
-            (outputCapacity < paddedLen) ||
-            (decrypting && (outputCapacity < (paddedLen - blockSize)))) {
-            throw new ShortBufferException("Output buffer too short: "
-                                           + outputCapacity + " bytes given, "
-                                           + paddedLen + " bytes needed");
-        }
-
         // prepare the final input avoiding copying if possible
         byte[] finalBuf = input;
         int finalOffset = inputOffset;
+        int finalBufLen = inputLen;
         if ((buffered != 0) || (!decrypting && padding != null)) {
+            if (decrypting || padding == null) {
+                paddingLen = 0;
+            }
+            finalBuf = new byte[len + paddingLen];
             finalOffset = 0;
-            finalBuf = new byte[paddedLen];
             if (buffered != 0) {
                 System.arraycopy(buffer, 0, finalBuf, 0, buffered);
             }
@@ -784,48 +797,49 @@ final class CipherCore {
                 System.arraycopy(input, inputOffset, finalBuf,
                                  buffered, inputLen);
             }
-            if (!decrypting && padding != null) {
-                padding.padWithLen(finalBuf, totalLen, paddingLen);
+            if (paddingLen != 0) {
+                padding.padWithLen(finalBuf, (buffered+inputLen), paddingLen);
             }
+            finalBufLen = finalBuf.length;
         }
 
+        int outLen = 0;
         if (decrypting) {
             // if the size of specified output buffer is less than
             // the length of the cipher text, then the current
             // content of cipher has to be preserved in order for
             // users to retry the call with a larger buffer in the
             // case of ShortBufferException.
-            if (outputCapacity < paddedLen) {
+            if (outputCapacity < estOutSize) {
                 cipher.save();
             }
             // create temporary output buffer so that only "real"
             // data bytes are passed to user's output buffer.
-            byte[] outWithPadding = new byte[totalLen];
-            totalLen = finalNoPadding(finalBuf, finalOffset, outWithPadding,
-                                      0, totalLen);
+            byte[] outWithPadding = new byte[estOutSize];
+            outLen = finalNoPadding(finalBuf, finalOffset, outWithPadding,
+                                    0, finalBufLen);
 
             if (padding != null) {
-                int padStart = padding.unpad(outWithPadding, 0, totalLen);
+                int padStart = padding.unpad(outWithPadding, 0, outLen);
                 if (padStart < 0) {
                     throw new BadPaddingException("Given final block not "
                                                   + "properly padded");
                 }
-                totalLen = padStart;
+                outLen = padStart;
             }
-            if ((output.length - outputOffset) < totalLen) {
+            if (outputCapacity < outLen) {
                 // restore so users can retry with a larger buffer
                 cipher.restore();
                 throw new ShortBufferException("Output buffer too short: "
-                                               + (output.length-outputOffset)
-                                               + " bytes given, " + totalLen
+                                               + (outputCapacity)
+                                               + " bytes given, " + outLen
                                                + " bytes needed");
             }
-            for (int i = 0; i < totalLen; i++) {
-                output[outputOffset + i] = outWithPadding[i];
-            }
+            // copy the result into user-supplied output buffer
+            System.arraycopy(outWithPadding, 0, output, outputOffset, outLen);
         } else { // encrypting
-            totalLen = finalNoPadding(finalBuf, finalOffset, output,
-                                      outputOffset, paddedLen);
+                outLen = finalNoPadding(finalBuf, finalOffset, output,
+                                        outputOffset, finalBufLen);
         }
 
         buffered = 0;
@@ -833,12 +847,12 @@ final class CipherCore {
         if (cipherMode != ECB_MODE) {
             cipher.reset();
         }
-        return totalLen;
+        return outLen;
     }
 
-    private int finalNoPadding(byte[] in, int inOff, byte[] out, int outOff,
+    private int finalNoPadding(byte[] in, int inOfs, byte[] out, int outOfs,
                                int len)
-        throws IllegalBlockSizeException
+        throws IllegalBlockSizeException, ShortBufferException
     {
         if (in == null || len == 0)
             return 0;
@@ -855,14 +869,13 @@ final class CipherCore {
                      + " bytes");
             }
         }
-
+        int outLen = 0;
         if (decrypting) {
-            cipher.decryptFinal(in, inOff, len, out, outOff);
+            outLen = cipher.decryptFinal(in, inOfs, len, out, outOfs);
         } else {
-            cipher.encryptFinal(in, inOff, len, out, outOff);
+            outLen = cipher.encryptFinal(in, inOfs, len, out, outOfs);
         }
-
-        return len;
+        return outLen;
     }
 
     // Note: Wrap() and Unwrap() are the same in
