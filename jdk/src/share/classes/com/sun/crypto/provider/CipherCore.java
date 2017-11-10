@@ -584,7 +584,7 @@ final class CipherCore {
             len -= blockSize;
         }
         // do not count the trailing bytes which do not make up a unit
-        len = (len > 0 ? (len - (len%unitBytes)) : 0);
+        len = (len > 0 ? (len - (len % unitBytes)) : 0);
 
         // check output buffer capacity
         if ((output == null) ||
@@ -623,6 +623,9 @@ final class CipherCore {
                     int bufferCapacity = buffer.length - buffered;
                     if (bufferCapacity != 0) {
                         temp = Math.min(bufferCapacity, inputConsumed);
+                        if (unitBytes != blockSize) {
+                            temp -= ((buffered + temp) % unitBytes);
+                        }
                         System.arraycopy(input, inputOffset, buffer, buffered, temp);
                         inputOffset += temp;
                         inputConsumed -= temp;
