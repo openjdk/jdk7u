@@ -2433,6 +2433,9 @@ class StubGenerator: public StubCodeGenerator {
   //   c_rarg3   - r vector byte array address
   //   c_rarg4   - input length
   //
+  // Output:
+  //   rax       - input length
+  //
   address generate_cipherBlockChaining_encryptAESCrypt() {
     assert(UseAES, "need AES instructions and misaligned SSE support");
     __ align(CodeEntryAlignment);
@@ -2513,7 +2516,7 @@ class StubGenerator: public StubCodeGenerator {
     __ movdqu(Address(rvec, 0), xmm_result);     // final value of r stored in rvec of CipherBlockChaining object
 
     handleSOERegisters(false /*restoring*/);
-    __ movl(rax, 0);                             // return 0 (why?)
+    __ movptr(rax, len_param); // return length
     __ leave();                                  // required for proper stackwalking of RuntimeStub frame
     __ ret(0);
 
@@ -2586,6 +2589,9 @@ class StubGenerator: public StubCodeGenerator {
   //   c_rarg2   - K (key) in little endian int array
   //   c_rarg3   - r vector byte array address
   //   c_rarg4   - input length
+  //
+  // Output:
+  //   rax       - input length
   //
 
   address generate_cipherBlockChaining_decryptAESCrypt() {
@@ -2680,7 +2686,7 @@ class StubGenerator: public StubCodeGenerator {
     __ movptr(rvec , rvec_param);                                     // restore this since used in loop
     __ movdqu(Address(rvec, 0), xmm_temp);                            // final value of r stored in rvec of CipherBlockChaining object
     handleSOERegisters(false /*restoring*/);
-    __ movl(rax, 0);                                                  // return 0 (why?)
+    __ movptr(rax, len_param); // return length
     __ leave();                                                       // required for proper stackwalking of RuntimeStub frame
     __ ret(0);
 
