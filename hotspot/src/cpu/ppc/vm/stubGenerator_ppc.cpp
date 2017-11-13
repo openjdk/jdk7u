@@ -2093,6 +2093,10 @@ class StubGenerator: public StubCodeGenerator {
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
 
+    if (UseAESIntrinsics) {
+      guarantee(!UseAESIntrinsics, "not yet implemented.");
+    }
+
     // Safefetch stubs.
     generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
                                                        &StubRoutines::_safefetch32_fault_pc,
