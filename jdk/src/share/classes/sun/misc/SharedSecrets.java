@@ -29,6 +29,7 @@ import java.io.Console;
 import java.io.FileDescriptor;
 import java.io.ObjectInputStream;
 import java.security.AccessController;
+import java.security.KeyStore;
 import java.security.ProtectionDomain;
 import java.util.GregorianCalendar;
 import java.util.jar.JarFile;
@@ -63,6 +64,7 @@ public class SharedSecrets {
     private static JavaOISAccess javaOISAccess;
     private static JavaObjectInputStreamAccess javaObjectInputStreamAccess;
     private static JavaUtilCalendarAccess javaUtilCalendarAccess;
+    private static JavaSecurityKeyStoreAccess javaSecurityKeyStoreAccess;
 
     public static JavaUtilJarAccess javaUtilJarAccess() {
         if (javaUtilJarAccess == null) {
@@ -237,5 +239,15 @@ public class SharedSecrets {
 
     public static void setJavaUtilCalendarAccess(JavaUtilCalendarAccess access) {
         javaUtilCalendarAccess = access;
+    }
+
+    public static void setJavaSecurityKeyStoreAccess(JavaSecurityKeyStoreAccess jsksa) {
+            javaSecurityKeyStoreAccess = jsksa;
+    }
+
+    public static JavaSecurityKeyStoreAccess getJavaSecurityKeyStoreAccess() {
+            if (javaSecurityKeyStoreAccess == null)
+                unsafe.ensureClassInitialized(KeyStore.class);
+            return javaSecurityKeyStoreAccess;
     }
 }
