@@ -132,6 +132,9 @@ public final class DHParameterGenerator extends AlgorithmParameterGeneratorSpi {
      */
     protected AlgorithmParameters engineGenerateParameters() {
 
+        if (this.exponentSize == 0) {
+            this.exponentSize = this.primeSize - 1;
+        }
         if (random == null) {
             random = SunJCE.RANDOM;
         }
