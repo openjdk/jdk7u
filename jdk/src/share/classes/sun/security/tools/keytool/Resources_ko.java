@@ -407,6 +407,10 @@ public class Resources_ko extends java.util.ListResourceBundle {
         {"Please.provide.keysize.for.secret.key.generation",
                 "\uBCF4\uC548 \uD0A4\uB97C \uC0DD\uC131\uD558\uB824\uBA74 -keysize\uB97C \uC81C\uACF5\uD558\uC2ED\uC2DC\uC624."},
 
+        {"verified.by.s.in.s", "%s(%s)\uC5D0 \uC758\uD574 \uD655\uC778\uB428"},
+        {"warning.not.verified.make.sure.keystore.is.correct",
+            "\uACBD\uACE0: \uD655\uC778\uB418\uC9C0 \uC54A\uC74C. -keystore\uAC00 \uC62C\uBC14\uB978\uC9C0 \uD655\uC778\uD558\uC2ED\uC2DC\uC624."},
+
         {"Extensions.", "\uD655\uC7A5: "},
         {".Empty.value.", "(\uBE44\uC5B4 \uC788\uB294 \uAC12)"},
         {"Extension.Request.", "\uD655\uC7A5 \uC694\uCCAD:"},

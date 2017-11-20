@@ -393,7 +393,7 @@ public class Resources_de extends java.util.ListResourceBundle {
                 "Zertifikat der obersten Ebene in Antwort:\n"},
         {".is.not.trusted.", "... ist nicht vertrauensw\u00FCrdig. "},
         {"Install.reply.anyway.no.", "Antwort trotzdem installieren? [Nein]:  "},
-        {"NO", "Nein"},
+        {"NO", "NEIN"},
         {"Public.keys.in.reply.and.keystore.don.t.match",
                 "Public Keys in Antwort und Keystore stimmen nicht \u00FCberein"},
         {"Certificate.reply.and.certificate.in.keystore.are.identical",
@@ -406,6 +406,10 @@ public class Resources_de extends java.util.ListResourceBundle {
                 "Secret Key wurde nicht generiert. Alias <{0}> ist bereits vorhanden"},
         {"Please.provide.keysize.for.secret.key.generation",
                 "Geben Sie -keysize zum Erstellen eines Secret Keys an"},
+
+        {"verified.by.s.in.s", "Gepr\u00FCft von %s in %s"},
+        {"warning.not.verified.make.sure.keystore.is.correct",
+            "WARNUNG: Nicht gepr\u00FCft. Stellen Sie sicher, dass -keystore korrekt ist."},
 
         {"Extensions.", "Erweiterungen: "},
         {".Empty.value.", "(Leerer Wert)"},

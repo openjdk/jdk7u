@@ -407,6 +407,10 @@ public class Resources_zh_TW extends java.util.ListResourceBundle {
         {"Please.provide.keysize.for.secret.key.generation",
                 "\u8ACB\u63D0\u4F9B -keysize \u4EE5\u7522\u751F\u79D8\u5BC6\u91D1\u9470"},
 
+        {"verified.by.s.in.s", "\u7531 %s \u9A57\u8B49 (\u5728 %s \u4E2D)"},
+        {"warning.not.verified.make.sure.keystore.is.correct",
+            "\u8B66\u544A: \u672A\u9A57\u8B49\u3002\u8ACB\u78BA\u5B9A -keystore \u6B63\u78BA\u3002"},
+
         {"Extensions.", "\u64F4\u5145\u5957\u4EF6: "},
         {".Empty.value.", "(\u7A7A\u767D\u503C)"},
         {"Extension.Request.", "\u64F4\u5145\u5957\u4EF6\u8981\u6C42:"},

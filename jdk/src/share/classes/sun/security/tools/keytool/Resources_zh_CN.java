@@ -407,6 +407,10 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
         {"Please.provide.keysize.for.secret.key.generation",
                 "\u8BF7\u63D0\u4F9B -keysize \u4EE5\u751F\u6210\u5BC6\u94A5"},
 
+        {"verified.by.s.in.s", "\u7531 %s \u9A8C\u8BC1(\u5728 %s \u4E2D)"},
+        {"warning.not.verified.make.sure.keystore.is.correct",
+            "\u8B66\u544A: \u672A\u9A8C\u8BC1\u3002\u8BF7\u786E\u4FDD\u5BC6\u94A5\u5E93\u662F\u6B63\u786E\u7684\u3002"},
+
         {"Extensions.", "\u6269\u5C55: "},
         {".Empty.value.", "(\u7A7A\u503C)"},
         {"Extension.Request.", "\u6269\u5C55\u8BF7\u6C42:"},

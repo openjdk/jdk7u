@@ -407,6 +407,10 @@ public class Resources_sv extends java.util.ListResourceBundle {
         {"Please.provide.keysize.for.secret.key.generation",
                 "Ange -keysize f\u00F6r att skapa hemlig nyckel"},
 
+        {"verified.by.s.in.s", "Verifierad av %s i %s"},
+        {"warning.not.verified.make.sure.keystore.is.correct",
+            "VARNING: ej verifierad. Se till att -nyckellager \u00E4r korrekt."},
+
         {"Extensions.", "Till\u00E4gg: "},
         {".Empty.value.", "(Tomt v\u00E4rde)"},
         {"Extension.Request.", "Till\u00E4ggsbeg\u00E4ran:"},

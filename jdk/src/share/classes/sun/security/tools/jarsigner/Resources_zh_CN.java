@@ -250,15 +250,15 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
                 "\u7B7E\u540D\u8005\u7684\u8BC1\u4E66\u94FE\u672A\u9A8C\u8BC1\u3002"},
         {"This.jar.contains.entries.whose.certificate.chain.is.not.validated.",
                  "\u6B64 jar \u5305\u542B\u8BC1\u4E66\u94FE\u672A\u9A8C\u8BC1\u7684\u6761\u76EE\u3002"},
-        {"Unknown.password.type.", "\u672A\u77E5\u53E3\u4EE4\u7C7B\u578B: "},
-        {"Cannot.find.environment.variable.",
-                "\u627E\u4E0D\u5230\u73AF\u5883\u53D8\u91CF: "},
-        {"Cannot.find.file.", "\u627E\u4E0D\u5230\u6587\u4EF6: "},
         {"Command.option.flag.needs.an.argument.", "\u547D\u4EE4\u9009\u9879{0}\u9700\u8981\u4E00\u4E2A\u53C2\u6570\u3002"},
         {"no.timestamp.signing",
                 "\u672A\u63D0\u4F9B -tsa \u6216 -tsacert, \u6B64 jar \u6CA1\u6709\u65F6\u95F4\u6233\u3002\u5982\u679C\u6CA1\u6709\u65F6\u95F4\u6233, \u5219\u5728\u7B7E\u540D\u8005\u8BC1\u4E66\u7684\u5230\u671F\u65E5\u671F (%1$tY-%1$tm-%1$td) \u6216\u4EE5\u540E\u7684\u4EFB\u4F55\u64A4\u9500\u65E5\u671F\u4E4B\u540E, \u7528\u6237\u53EF\u80FD\u65E0\u6CD5\u9A8C\u8BC1\u6B64 jar\u3002"},
         {"no.timestamp.verifying",
                 "\u6B64 jar \u5305\u542B\u7684\u7B7E\u540D\u6CA1\u6709\u65F6\u95F4\u6233\u3002\u5982\u679C\u6CA1\u6709\u65F6\u95F4\u6233, \u5219\u5728\u7B7E\u540D\u8005\u8BC1\u4E66\u7684\u5230\u671F\u65E5\u671F (%1$tY-%1$tm-%1$td) \u6216\u4EE5\u540E\u7684\u4EFB\u4F55\u64A4\u9500\u65E5\u671F\u4E4B\u540E, \u7528\u6237\u53EF\u80FD\u65E0\u6CD5\u9A8C\u8BC1\u6B64 jar\u3002"},
+        {"Unknown.password.type.", "\u672A\u77E5\u53E3\u4EE4\u7C7B\u578B: "},
+        {"Cannot.find.environment.variable.",
+                "\u627E\u4E0D\u5230\u73AF\u5883\u53D8\u91CF: "},
+        {"Cannot.find.file.", "\u627E\u4E0D\u5230\u6587\u4EF6: "},
     };
 
     /**

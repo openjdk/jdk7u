@@ -407,6 +407,10 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {"Please.provide.keysize.for.secret.key.generation",
                 "\u79D8\u5BC6\u9375\u306E\u751F\u6210\u6642\u306B\u306F -keysize\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044"},
 
+        {"verified.by.s.in.s", "%s(%s\u5185)\u306B\u3088\u308A\u691C\u8A3C\u3055\u308C\u307E\u3057\u305F"},
+        {"warning.not.verified.make.sure.keystore.is.correct",
+            "\u8B66\u544A: \u691C\u8A3C\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002-keystore\u304C\u6B63\u3057\u3044\u3053\u3068\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
+
         {"Extensions.", "\u62E1\u5F35: "},
         {".Empty.value.", "(\u7A7A\u306E\u5024)"},
         {"Extension.Request.", "\u62E1\u5F35\u30EA\u30AF\u30A8\u30B9\u30C8:"},

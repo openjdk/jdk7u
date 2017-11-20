@@ -407,6 +407,10 @@ public class Resources_es extends java.util.ListResourceBundle {
         {"Please.provide.keysize.for.secret.key.generation",
                 "Proporcione el valor de -keysize para la generaci\u00F3n de claves secretas"},
 
+        {"verified.by.s.in.s", "Verificado por %s en %s"},
+        {"warning.not.verified.make.sure.keystore.is.correct",
+            "ADVERTENCIA: no se ha verificado. Aseg\u00FArese de que el valor de -keystore es correcto."},
+
         {"Extensions.", "Extensiones: "},
         {".Empty.value.", "(Valor vac\u00EDo)"},
         {"Extension.Request.", "Solicitud de Extensi\u00F3n:"},
