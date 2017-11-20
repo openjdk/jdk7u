@@ -51,7 +51,7 @@ import sun.security.util.Debug;
 
 /**
  * BasicChecker is a PKIXCertPathChecker that checks the basic information
- * on a PKIX certificate, namely the signature, timestamp, and subject/issuer
+ * on a PKIX certificate, namely the signature, validity, and subject/issuer
  * name chaining.
  *
  * @since       1.4
@@ -115,7 +115,7 @@ class BasicChecker extends PKIXCertPathChecker {
     }
 
     /**
-     * Performs the signature, timestamp, and subject/issuer name chaining
+     * Performs the signature, validity, and subject/issuer name chaining
      * checks on the certificate using its internal state. This method does
      * not remove any critical extensions from the Collection.
      *
@@ -130,7 +130,7 @@ class BasicChecker extends PKIXCertPathChecker {
         X509Certificate currCert = (X509Certificate)cert;
 
         if (!sigOnly) {
-            verifyTimestamp(currCert);
+            verifyValidity(currCert);
             verifyNameChaining(currCert);
         }
         verifySignature(currCert);
@@ -166,12 +166,12 @@ class BasicChecker extends PKIXCertPathChecker {
     }
 
     /**
-     * Internal method to verify the timestamp on a certificate
+     * Internal method to verify the validity on a certificate
      */
-    private void verifyTimestamp(X509Certificate cert)
+    private void verifyValidity(X509Certificate cert)
         throws CertPathValidatorException
     {
-        String msg = "timestamp";
+        String msg = "validity";
         if (debug != null)
             debug.println("---checking " + msg + ":" + date.toString() + "...");
 
