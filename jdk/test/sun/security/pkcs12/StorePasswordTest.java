@@ -25,6 +25,7 @@
  * @test
  * @bug 8005408
  * @summary KeyStore API enhancements
+ * @compile -XDignore.symbol.file StorePasswordTest.java
  */
 
 import java.io.*;
@@ -33,6 +34,10 @@ import java.util.*;
 import javax.crypto.*;
 import javax.crypto.spec.*;
 import java.security.spec.InvalidKeySpecException;
+
+import sun.misc.JavaSecurityKeyStoreAccess;
+import sun.misc.SharedSecrets;
+import sun.security.pkcs12.PKCS12Attribute;
 
 // Store a password in a keystore and retrieve it again.
 
@@ -51,8 +56,14 @@ public class StorePasswordTest {
         keystore.load(null, null);
 
         // Set entry
+        Set<PKCS12Attribute> attrs = new HashSet<>();
+        attrs.add(new PKCS12Attribute("1.3.5.7.9", "printable1"));
+        attrs.add(new PKCS12Attribute("2.4.6.8.10", "1F:2F:3F:4F:5F"));
+        int originalAttrCount = attrs.size() + 2;
+        JavaSecurityKeyStoreAccess jsksa =
+            SharedSecrets.getJavaSecurityKeyStoreAccess();
         keystore.setEntry(ALIAS,
-            new KeyStore.SecretKeyEntry(convertPassword(USER_PASSWORD)),
+            jsksa.constructSecretKeyEntry(convertPassword(USER_PASSWORD), attrs),
                 new KeyStore.PasswordProtection(PASSWORD));
 
         try (FileOutputStream outStream = new FileOutputStream(KEYSTORE)) {
@@ -69,7 +80,13 @@ public class StorePasswordTest {
 
         KeyStore.Entry entry = keystore.getEntry(ALIAS,
             new KeyStore.PasswordProtection(PASSWORD));
-        System.out.println("Retrieved entry: " + entry);
+        int attrCount =
+            jsksa.getSecretKeyEntryAttributes((KeyStore.SecretKeyEntry) entry).size();
+        System.out.println("Retrieved entry with " + attrCount + " attrs: " +
+            entry);
+        if (attrCount != originalAttrCount) {
+            throw new Exception("Failed to recover all the entry attributes");
+        }
 
         SecretKey key = (SecretKey) keystore.getKey(ALIAS, PASSWORD);
         SecretKeyFactory factory =

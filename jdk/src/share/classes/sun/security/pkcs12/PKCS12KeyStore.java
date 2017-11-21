@@ -1048,7 +1048,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
         if (privateKeyCount > 0 || secretKeyCount > 0) {
 
             if (debug != null) {
-                debug.println("Storing " + privateKeyCount +
+                debug.println("Storing " + (privateKeyCount + secretKeyCount) +
                     " protected key(s) in a PKCS#7 data content-type");
             }
 
@@ -2076,6 +2076,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 SecretKeyEntry kEntry = new SecretKeyEntry();
                 kEntry.protectedSecretKey = secretValue.getOctetString();
                 bagItem = kEntry;
+                secretKeyCount++;
             } else {
 
                 if (debug != null) {
@@ -2175,6 +2176,10 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 if (bagItem instanceof PrivateKeyEntry) {
                     keyList.add((PrivateKeyEntry) entry);
                 }
+                if (entry.attributes == null) {
+                    entry.attributes = new HashSet<>();
+                }
+                entry.attributes.addAll(attributes);
                 if (alias == null) {
                    alias = getUnfriendlyName();
                 }
