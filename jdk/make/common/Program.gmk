@@ -371,10 +371,10 @@ OTHER_INCLUDES += -I$(LAUNCHER_SHARE_SRC)/bin -I$(LAUNCHER_PLATFORM_SRC)/bin
 ifeq ($(PLATFORM), macosx)
   OTHER_INCLUDES += -I$(LAUNCHER_SOLARIS_PLATFORM_SRC)/bin
   ifneq ($(SYSTEM_ZLIB), true)
-    OTHER_INCLUDES += -I$(SHARE_SRC)/native/java/util/zip/zlib-1.2.8
+    OTHER_INCLUDES += -I$(SHARE_SRC)/native/java/util/zip/zlib
   endif # SYSTEM_ZLIB
 else # PLATFORM !MACOSX
-  OTHER_INCLUDES += -I$(SHARE_SRC)/native/java/util/zip/zlib-1.2.8
+  OTHER_INCLUDES += -I$(SHARE_SRC)/native/java/util/zip/zlib
 endif
 
 OTHER_CPPFLAGS  += -DPROGNAME='"$(PROGRAM)"'
