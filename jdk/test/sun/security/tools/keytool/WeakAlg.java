@@ -678,7 +678,7 @@ public class WeakAlg {
             System.out.println();
             String feed = "";
             if (input.length > 0) {
-                feed = SecurityTools.joiner("", "\n", "\n", (Object[]) input);
+                feed = SecurityTools.joiner("\n", (Object[]) input);
             }
             System.setIn(new ByteArrayInputStream(feed.getBytes()));
             System.setOut(new PrintStream(bout));
