@@ -275,6 +275,9 @@ sun/net/www/protocol/http/UserCookie.java			macosx-all
 # 7162118
 java/net/CookieHandler/CookieManagerTest.java			macosx-all
 
+# 7164518
+sun/security/krb5/auto/Unreachable.java                         macosx-all
+
 # JPRT needs to set 127.0.0.1 in proxy bypass list
 java/net/URLClassLoader/closetest/CloseTest.java		macosx-all
 
