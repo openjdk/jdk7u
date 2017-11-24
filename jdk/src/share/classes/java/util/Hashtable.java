@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.util;
 import java.io.*;
+import sun.misc.SharedSecrets;
 
 /**
  * This class implements a hash table, which maps keys to values. Any
@@ -995,6 +996,10 @@ public class Hashtable<K,V>
         if (length > elements && (length & 1) == 0)
             length--;
         length = Math.min(length, origlength);
+
+        // Check Map.Entry[].class since it's the nearest public type to
+        // what we're actually creating.
+        SharedSecrets.getJavaOISAccess().checkArray(s, Map.Entry[].class, length);
 
         Entry<K,V>[] newTable = new Entry[length];
         threshold = (int) Math.min(length * loadFactor, MAX_ARRAY_SIZE + 1);

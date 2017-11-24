@@ -34,9 +34,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.lang.model.SourceVersion;
@@ -142,6 +144,10 @@ public class SerialFilterTest implements Serializable {
         Object[] objArray = new Object[7];
         objArray[objArray.length - 1] = objArray;
 
+        List<Class<?>> classList = new ArrayList<>();
+        classList.add(HashSet.class);
+        classList.addAll(Collections.nCopies(21, Map.Entry[].class));
+
         Object[][] objects = {
                 { null, 0, -1, 0, 0, 0,
                     new HashSet<>()},        // no callback, no values
@@ -153,8 +159,7 @@ public class SerialFilterTest implements Serializable {
                                 new HashSet<>(Arrays.asList(SerialFilterTest.class))},
                 { new byte[14], 2, 14, 1, 1, 27,
                                     new HashSet<>(Arrays.asList(byteArray.getClass()))},
-                { deepHashSet(10), 48, -1, 49, 11, 619,
-                                        new HashSet<>(Arrays.asList(HashSet.class))},
+                { deepHashSet(10), 69, 4, 50, 11, 619, classList },
         };
         return objects;
     }
