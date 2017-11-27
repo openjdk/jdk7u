@@ -37,6 +37,7 @@ SUBDIRS =                   \
   commentchecker            \
   compile_font_config       \
   compile_properties        \
+  customizesecurityfile     \
   dir_diff                  \
   dtdbuilder                \
   generate_break_iterator   \
