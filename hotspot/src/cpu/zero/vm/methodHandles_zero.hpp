@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2013, Red Hat, Inc.
+ * Copyright (c) 2011, 2016, Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,8 @@
  *
  */
 
+#ifndef CPU_ZERO_VM_METHODHANDLES_ZERO_HPP
+#define CPU_ZERO_VM_METHODHANDLES_ZERO_HPP
 
 // Adapters
 static unsigned int adapter_code_size() {
@@ -37,3 +39,5 @@ private:
   static int method_handle_entry_linkToVirtual(methodOop method, intptr_t UNUSED, TRAPS);
   static int method_handle_entry_linkToInterface(methodOop method, intptr_t UNUSED, TRAPS);
   static int method_handle_entry_invalid(methodOop method, intptr_t UNUSED, TRAPS);
+
+#endif // CPU_ZERO_VM_METHODHANDLES_ZERO_HPP

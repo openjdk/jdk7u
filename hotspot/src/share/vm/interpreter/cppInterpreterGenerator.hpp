@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2016 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +28,10 @@
 
 // This file contains the platform-independent parts
 // of the template interpreter generator.
+
+#ifdef TARGET_ARCH_zero
+#include "entry_zero.hpp"
+#endif
 
 #ifdef CC_INTERP
 
