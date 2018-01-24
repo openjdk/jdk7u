@@ -75,7 +75,6 @@ void throwIOException(JNIEnv *env, const char *msg)
     throwByName(env, "java/io/IOException", msg);
 }
 
-
 void *findFunction(JNIEnv *env, void *hModule, char *functionName) {
     void *fAddress = dlsym(hModule, functionName);
     if (fAddress == NULL) {
