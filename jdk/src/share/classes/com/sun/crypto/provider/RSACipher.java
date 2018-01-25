@@ -183,16 +183,14 @@ public final class RSACipher extends CipherSpi {
         if (spec != null && spec instanceof OAEPParameterSpec) {
             try {
                 AlgorithmParameters params =
-                    AlgorithmParameters.getInstance("OAEP", "SunJCE");
+                    AlgorithmParameters.getInstance("OAEP",
+                        SunJCE.getInstance());
                 params.init(spec);
                 return params;
             } catch (NoSuchAlgorithmException nsae) {
                 // should never happen
                 throw new RuntimeException("Cannot find OAEP " +
                     " AlgorithmParameters implementation in SunJCE provider");
-            } catch (NoSuchProviderException nspe) {
-                // should never happen
-                throw new RuntimeException("Cannot find SunJCE provider");
             } catch (InvalidParameterSpecException ipse) {
                 // should never happen
                 throw new RuntimeException("OAEPParameterSpec not supported");

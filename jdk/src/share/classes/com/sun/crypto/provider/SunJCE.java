@@ -86,6 +86,10 @@ public final class SunJCE extends Provider {
     /* Are we debugging? -- for developers */
     static final boolean debug = false;
 
+    // Instance of this provider, so we don't have to call the provider list
+    // to find ourselves or run the risk of not being in the list.
+    private static volatile SunJCE instance = null;
+
     static final SecureRandom RANDOM = new SecureRandom();
 
     public SunJCE() {
@@ -528,5 +532,17 @@ public final class SunJCE extends Provider {
                     return null;
                 }
             });
+
+        if (instance == null) {
+            instance = this;
+        }
+    }
+
+    // Return the instance of this class or create one if needed.
+    static SunJCE getInstance() {
+        if (instance == null) {
+            return new SunJCE();
+        }
+        return instance;
     }
 }

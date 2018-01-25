@@ -35,7 +35,6 @@ import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.AlgorithmParameters;
 import java.security.spec.InvalidParameterSpecException;
@@ -84,8 +83,6 @@ final class KeyProtector {
     // key protector
     private char[] password;
 
-    private static final Provider PROV = Security.getProvider("SunJCE");
-
     KeyProtector(char[] password) {
         if (password == null) {
            throw new IllegalArgumentException("password can't be null");
@@ -122,7 +119,7 @@ final class KeyProtector {
         // wrap encrypted private key in EncryptedPrivateKeyInfo
         // (as defined in PKCS#8)
         AlgorithmParameters pbeParams =
-            AlgorithmParameters.getInstance("PBE", PROV);
+            AlgorithmParameters.getInstance("PBE", SunJCE.getInstance());
         pbeParams.init(pbeSpec);
 
         AlgorithmId encrAlg = new AlgorithmId
@@ -305,7 +302,7 @@ final class KeyProtector {
 
         PBEWithMD5AndTripleDESCipher cipherSpi;
         cipherSpi = new PBEWithMD5AndTripleDESCipher();
-        cipher = new CipherForKeyProtector(cipherSpi, PROV,
+        cipher = new CipherForKeyProtector(cipherSpi, SunJCE.getInstance(),
                                            "PBEWithMD5AndTripleDES");
         cipher.init(Cipher.ENCRYPT_MODE, sKey, pbeSpec);
         return new SealedObjectForKeyProtector(key, cipher);
@@ -345,8 +342,9 @@ final class KeyProtector {
             }
             PBEWithMD5AndTripleDESCipher cipherSpi;
             cipherSpi = new PBEWithMD5AndTripleDESCipher();
-            Cipher cipher = new CipherForKeyProtector(cipherSpi, PROV,
-                                                   "PBEWithMD5AndTripleDES");
+            Cipher cipher = new CipherForKeyProtector(cipherSpi,
+                                                      SunJCE.getInstance(),
+                                                      "PBEWithMD5AndTripleDES");
             cipher.init(Cipher.DECRYPT_MODE, skey, params);
             return (Key)soForKeyProtector.getObject(cipher);
         } catch (NoSuchAlgorithmException ex) {
@@ -396,10 +394,9 @@ final class SealedObjectForKeyProtector extends javax.crypto.SealedObject {
         AlgorithmParameters params = null;
         if (super.encodedParams != null) {
             try {
-                params = AlgorithmParameters.getInstance("PBE", "SunJCE");
+                params = AlgorithmParameters.getInstance("PBE",
+                                                         SunJCE.getInstance());
                 params.init(super.encodedParams);
-            } catch (NoSuchProviderException nspe) {
-                // eat.
             } catch (NoSuchAlgorithmException nsae) {
                 //eat.
             } catch (IOException ioe) {
