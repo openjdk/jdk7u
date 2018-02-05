@@ -2247,12 +2247,12 @@ public class XSDHandler {
                     }
                     catch (SAXException se) {}
 
-                     try {
-                             parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, fAccessExternalDTD);
-                     } catch (SAXNotRecognizedException exc) {
-                         System.err.println("Warning: " + parser.getClass().getName() + ": " +
-                                 exc.getMessage());
-                     }
+                    try {
+                        parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, fAccessExternalDTD);
+                    } catch (SAXNotRecognizedException exc) {
+                        XMLSecurityManager.printWarning(parser.getClass().getName(),
+                                                        XMLConstants.ACCESS_EXTERNAL_DTD, exc);
+                    }
                 }
                 // If XML names and Namespace URIs are already internalized we
                 // can avoid running them through the SymbolTable.
