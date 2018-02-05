@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -105,6 +105,7 @@ import javax.xml.XMLConstants;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
+import jdk.xml.internal.JdkXmlUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -113,7 +114,6 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.XMLReader;
-import org.xml.sax.helpers.XMLReaderFactory;
 
 /**
  * The purpose of this class is to co-ordinate the construction of a
@@ -195,6 +195,7 @@ public class XSDHandler {
     /** Property identifier: entity resolver. */
     public static final String ENTITY_RESOLVER =
         Constants.XERCES_PROPERTY_PREFIX + Constants.ENTITY_RESOLVER_PROPERTY;
+
     /** Property identifier: entity manager. */
     protected static final String ENTITY_MANAGER =
         Constants.XERCES_PROPERTY_PREFIX + Constants.ENTITY_MANAGER_PROPERTY;
@@ -213,9 +214,6 @@ public class XSDHandler {
 
     /** Property identifier: security manager. */
     protected static final String SECURITY_MANAGER =
-        Constants.XERCES_PROPERTY_PREFIX + Constants.SECURITY_MANAGER_PROPERTY;
-
-    private static final String SECURE_PROCESSING =
         Constants.XERCES_PROPERTY_PREFIX + Constants.SECURITY_MANAGER_PROPERTY;
 
     /** Property identifier: locale. */
@@ -249,12 +247,8 @@ public class XSDHandler {
 
     protected XSDeclarationPool fDeclPool = null;
 
-    /**
-     * <p>Security manager in effect.</p>
-     *
-     * <p>Protected to allow access by any traverser.</p>
-     */
-    protected XMLSecurityManager fSecureProcessing = null;
+    // the Security manager in effect.
+    protected XMLSecurityManager fSecurityManager = null;
 
     private String fAccessExternalSchema;
     private String fAccessExternalDTD;
@@ -404,6 +398,8 @@ public class XSDHandler {
 
     // the Grammar Pool
     private XMLGrammarPool fGrammarPool;
+
+    private boolean fOverrideDefaultParser;
 
     //************ Traversers **********
     XSDAttributeGroupTraverser fAttributeGroupTraverser;
@@ -2210,7 +2206,8 @@ public class XSDHandler {
                 XSDKey key = null;
                 String schemaId = null;
                 if (referType != XSDDescription.CONTEXT_PREPARSE) {
-                    schemaId = XMLEntityManager.expandSystemId(inputSource.getSystemId(), schemaSource.getBaseSystemId(), false);
+                    schemaId = XMLEntityManager.expandSystemId(inputSource.getSystemId(),
+                            schemaSource.getBaseSystemId(), false);
                     key = new XSDKey(schemaId, referType, schemaNamespace);
                     if ((schemaElement = (Element) fTraversed.get(key)) != null) {
                         fLastSchemaWasDuplicate = true;
@@ -2226,14 +2223,9 @@ public class XSDHandler {
                     catch (SAXException se) {}
                 }
                 else {
-                    try {
-                        parser = XMLReaderFactory.createXMLReader();
-                    }
-                    // If something went wrong with the factory
-                    // just use our own SAX parser.
-                    catch (SAXException se) {
-                        parser = new SAXParser();
-                    }
+                    parser = JdkXmlUtils.getXMLReader(fOverrideDefaultParser,
+                            fSecurityManager.isSecureProcessing());
+
                     try {
                         parser.setFeature(NAMESPACE_PREFIXES, true);
                         namespacePrefixes = true;
@@ -3503,13 +3495,12 @@ public class XSDHandler {
         // set symbol table
         fSymbolTable = (SymbolTable) componentManager.getProperty(SYMBOL_TABLE);
 
-        fSecureProcessing = null;
-        if( componentManager!=null ) {
-            fSecureProcessing = (XMLSecurityManager) componentManager.getProperty(SECURE_PROCESSING, null);
-        }
+        // set security manager
+        fSecurityManager = (XMLSecurityManager) componentManager.getProperty(SECURITY_MANAGER, null);
 
-        //set entity resolver
+        //set entity manager
         fEntityResolver = (XMLEntityResolver) componentManager.getProperty(ENTITY_MANAGER);
+        //set entity resolver
         XMLEntityResolver er = (XMLEntityResolver)componentManager.getProperty(ENTITY_RESOLVER);
         if (er != null)
             fSchemaParser.setEntityResolver(er);
@@ -3594,7 +3585,8 @@ public class XSDHandler {
 
         fAccessExternalSchema = securityPropertyMgr.getValue(
                 XMLSecurityPropertyManager.Property.ACCESS_EXTERNAL_SCHEMA);
-
+        fOverrideDefaultParser = componentManager.getFeature(JdkXmlUtils.OVERRIDE_PARSER);
+        fSchemaParser.setFeature(JdkXmlUtils.OVERRIDE_PARSER, fOverrideDefaultParser);
     } // reset(XMLComponentManager)
 
 

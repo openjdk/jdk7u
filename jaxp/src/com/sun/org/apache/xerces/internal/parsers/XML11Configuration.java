@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 2001-2005 The Apache Software Foundation.
@@ -25,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 import javax.xml.XMLConstants;
+import jdk.xml.internal.JdkXmlUtils;
 
 import com.sun.org.apache.xerces.internal.impl.Constants;
 import com.sun.org.apache.xerces.internal.impl.XML11DTDScannerImpl;
@@ -53,7 +53,6 @@ import com.sun.org.apache.xerces.internal.util.ParserConfigurationSettings;
 import com.sun.org.apache.xerces.internal.util.PropertyState;
 import com.sun.org.apache.xerces.internal.util.SymbolTable;
 import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager;
-import com.sun.org.apache.xerces.internal.utils.XMLSecurityPropertyManager;
 import com.sun.org.apache.xerces.internal.xni.XMLDTDContentModelHandler;
 import com.sun.org.apache.xerces.internal.xni.XMLDTDHandler;
 import com.sun.org.apache.xerces.internal.xni.XMLDocumentHandler;
@@ -485,7 +484,8 @@ public class XML11Configuration extends ParserConfigurationSettings
                                 EXTERNAL_GENERAL_ENTITIES,
                                 EXTERNAL_PARAMETER_ENTITIES,
                                 PARSER_SETTINGS,
-                                XMLConstants.FEATURE_SECURE_PROCESSING
+                                XMLConstants.FEATURE_SECURE_PROCESSING,
+                                JdkXmlUtils.OVERRIDE_PARSER
                         };
         addRecognizedFeatures(recognizedFeatures);
                 // set state for default features
@@ -498,14 +498,15 @@ public class XML11Configuration extends ParserConfigurationSettings
                 fFeatures.put(SCHEMA_ELEMENT_DEFAULT, Boolean.TRUE);
                 fFeatures.put(NORMALIZE_DATA, Boolean.TRUE);
                 fFeatures.put(SCHEMA_AUGMENT_PSVI, Boolean.TRUE);
-        fFeatures.put(GENERATE_SYNTHETIC_ANNOTATIONS, Boolean.FALSE);
-        fFeatures.put(VALIDATE_ANNOTATIONS, Boolean.FALSE);
-        fFeatures.put(HONOUR_ALL_SCHEMALOCATIONS, Boolean.FALSE);
-        fFeatures.put(NAMESPACE_GROWTH, Boolean.FALSE);
-        fFeatures.put(TOLERATE_DUPLICATES, Boolean.FALSE);
-        fFeatures.put(USE_GRAMMAR_POOL_ONLY, Boolean.FALSE);
+                fFeatures.put(GENERATE_SYNTHETIC_ANNOTATIONS, Boolean.FALSE);
+                fFeatures.put(VALIDATE_ANNOTATIONS, Boolean.FALSE);
+                fFeatures.put(HONOUR_ALL_SCHEMALOCATIONS, Boolean.FALSE);
+                fFeatures.put(NAMESPACE_GROWTH, Boolean.FALSE);
+                fFeatures.put(TOLERATE_DUPLICATES, Boolean.FALSE);
+                fFeatures.put(USE_GRAMMAR_POOL_ONLY, Boolean.FALSE);
                 fFeatures.put(PARSER_SETTINGS, Boolean.TRUE);
                 fFeatures.put(XMLConstants.FEATURE_SECURE_PROCESSING, Boolean.TRUE);
+                fFeatures.put(JdkXmlUtils.OVERRIDE_PARSER, JdkXmlUtils.OVERRIDE_PARSER_DEFAULT);
 
         // add default recognized properties
         final String[] recognizedProperties =
