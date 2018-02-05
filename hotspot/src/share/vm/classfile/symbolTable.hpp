@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -129,8 +129,11 @@ private:
 
   static volatile int _parallel_claimed_idx;
 
-  // Release any dead symbols
-  static void buckets_unlink(int start_idx, int end_idx, int* processed, int* removed, size_t* memory_total);
+  typedef SymbolTable::BucketUnlinkContext BucketUnlinkContext;
+  // Release any dead symbols. Unlinked bucket entries are collected in the given
+  // context to be freed later.
+  // This allows multiple threads to work on the table at once.
+  static void buckets_unlink(int start_idx, int end_idx, BucketUnlinkContext* context, size_t* memory_total);
 public:
   enum {
     symbol_alloc_batch_size = 8,
@@ -277,8 +280,13 @@ private:
   // Apply the give oop closure to the entries to the buckets
   // in the range [start_idx, end_idx).
   static void buckets_oops_do(OopClosure* f, int start_idx, int end_idx);
+
+  typedef StringTable::BucketUnlinkContext BucketUnlinkContext;
   // Unlink the entries to the buckets in the range [start_idx, end_idx).
-  static void buckets_unlink(BoolObjectClosure* is_alive, int start_idx, int end_idx, int* processed, int* removed);
+  // Unlinked bucket entries are collected in the given context to be
+  // freed later.
+  // This allows multiple threads to work on the table at once.
+  static void buckets_unlink(BoolObjectClosure* is_alive, int start_idx, int end_idx, BucketUnlinkContext* context);
 
   StringTable() : Hashtable<oop, mtSymbol>((int)StringTableSize,
                               sizeof (HashtableEntry<oop, mtSymbol>)) {}
