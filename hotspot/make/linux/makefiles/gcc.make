@@ -149,10 +149,6 @@ ACCEPTABLE_WARNINGS = -Wpointer-arith -Wsign-compare
 else
 ACCEPTABLE_WARNINGS = -Wpointer-arith -Wconversion -Wsign-compare
 endif
-# Only GCC 4.6 and later have the GCC diagnostic push/pop pragmas
-ifneq "$(shell expr \( $(CC_VER_MAJOR) \<= 4 \) \| \( \( $(CC_VER_MAJOR) = 4 \) \& \( $(CC_VER_MINOR) \< 6 \) \))" "0"
-ACCEPTABLE_WARNINGS += -Wno-pragmas
-endif
 
 CFLAGS_WARN/DEFAULT = $(WARNINGS_ARE_ERRORS) $(ACCEPTABLE_WARNINGS)
 # Special cases

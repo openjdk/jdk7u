@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -343,7 +343,7 @@ static void print_meta_index(LazyClassPathEntry* entry,
   tty->print("[Meta index for %s=", entry->name());
   for (int i = 0; i < meta_packages.length(); i++) {
     if (i > 0) tty->print(" ");
-    tty->print(meta_packages.at(i));
+    tty->print("%s", meta_packages.at(i));
   }
   tty->print_cr("]");
 }

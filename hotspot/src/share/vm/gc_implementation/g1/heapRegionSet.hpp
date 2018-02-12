@@ -190,7 +190,7 @@ public:
 
 class hrs_ext_msg : public hrs_err_msg {
 public:
-  hrs_ext_msg(HeapRegionSetBase* set, const char* message) : hrs_err_msg("") {
+  hrs_ext_msg(HeapRegionSetBase* set, const char* message) : hrs_err_msg("%s","") {
     set->fill_in_ext_msg(this, message);
   }
 };

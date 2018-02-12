@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -933,7 +933,7 @@ void GenCollectedHeap::do_full_collection(bool clear_all_soft_refs,
 bool GenCollectedHeap::is_in_young(oop p) {
   bool result = ((HeapWord*)p) < _gens[_n_gens - 1]->reserved().start();
   assert(result == _gens[0]->is_in_reserved(p),
-         err_msg("incorrect test - result=%d, p=" PTR_FORMAT, result, (void*)p));
+         err_msg("incorrect test - result=%d, p=" INTPTR_FORMAT, result, p2i((void*)p)));
   return result;
 }
 
@@ -1240,7 +1240,7 @@ void GenCollectedHeap::verify(bool silent, VerifyOption option /* ignored */) {
   for (int i = _n_gens-1; i >= 0; i--) {
     Generation* g = _gens[i];
     if (!silent) {
-      gclog_or_tty->print(g->name());
+      gclog_or_tty->print("%s", g->name());
       gclog_or_tty->print(" ");
     }
     g->verify();

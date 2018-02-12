@@ -135,7 +135,7 @@ inline int os::ftruncate(int fd, jlong length) {
 
 // readdir_r has been deprecated since glibc 2.24.
 // See https://sourceware.org/bugzilla/show_bug.cgi?id=19056 for more details.
-#pragma GCC diagnostic push
+PRAGMA_DIAG_PUSH
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 inline struct dirent* os::readdir(DIR* dirp, dirent *dbuf)
 {
@@ -155,7 +155,7 @@ inline struct dirent* os::readdir(DIR* dirp, dirent *dbuf)
     return p;
 
 }
-#pragma GCC diagnostic pop
+PRAGMA_DIAG_POP
 
 inline int os::closedir(DIR *dirp) {
   assert(dirp != NULL, "argument is NULL");

@@ -106,7 +106,7 @@ void EntryPoint::print() {
   tty->print("[");
   for (int i = 0; i < number_of_states; i++) {
     if (i > 0) tty->print(", ");
-    tty->print(INTPTR_FORMAT, _entry[i]);
+    tty->print(INTPTR_FORMAT, p2i(_entry[i]));
   }
   tty->print("]");
 }

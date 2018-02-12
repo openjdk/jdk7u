@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -79,7 +79,7 @@ class CodeBlob_sizes {
     tty->print_cr(" #%d %s = %dK (hdr %d%%,  loc %d%%, code %d%%, stub %d%%, [oops %d%%, data %d%%, pcs %d%%])",
                   count,
                   title,
-                  total() / K,
+                  (int)(total() / K),
                   header_size             * 100 / total_size,
                   relocation_size         * 100 / total_size,
                   code_size               * 100 / total_size,
@@ -183,7 +183,7 @@ CodeBlob* CodeCache::allocate(int size) {
     }
     if (PrintCodeCacheExtension) {
       ResourceMark rm;
-      tty->print_cr("code cache extended to [" INTPTR_FORMAT ", " INTPTR_FORMAT "] (%d bytes)",
+      tty->print_cr("code cache extended to [" INTPTR_FORMAT ", " INTPTR_FORMAT "] (" SSIZE_FORMAT " bytes)",
                     (intptr_t)_heap->begin(), (intptr_t)_heap->end(),
                     (address)_heap->end() - (address)_heap->begin());
     }
@@ -807,7 +807,7 @@ void CodeCache::print_trace(const char* event, CodeBlob* cb, int size) {
   if (PrintCodeCache2) {  // Need to add a new flag
     ResourceMark rm;
     if (size == 0)  size = cb->size();
-    tty->print_cr("CodeCache %s:  addr: " INTPTR_FORMAT ", size: 0x%x", event, cb, size);
+    tty->print_cr("CodeCache %s:  addr: " INTPTR_FORMAT ", size: 0x%x", event, p2i(cb), size);
   }
 }
 

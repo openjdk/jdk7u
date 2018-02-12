@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -279,7 +279,7 @@ inline void CMTask::push(oop obj) {
   assert(_nextMarkBitMap->isMarked(objAddr), "invariant");
 
   if (_cm->verbose_high()) {
-    gclog_or_tty->print_cr("[%d] pushing "PTR_FORMAT, _task_id, (void*) obj);
+    gclog_or_tty->print_cr("[%d] pushing "PTR_FORMAT, _task_id, p2i((void*) obj));
   }
 
   if (!_task_queue->push(obj)) {
@@ -319,7 +319,7 @@ inline void CMTask::push(oop obj) {
 inline void CMTask::deal_with_reference(oop obj) {
   if (_cm->verbose_high()) {
     gclog_or_tty->print_cr("[%d] we're dealing with reference = "PTR_FORMAT,
-                           _task_id, (void*) obj);
+                           _task_id, p2i((void*) obj));
   }
 
   ++_refs_reached;
@@ -336,7 +336,7 @@ inline void CMTask::deal_with_reference(oop obj) {
       if (!hr->obj_allocated_since_next_marking(obj)) {
         if (_cm->verbose_high()) {
           gclog_or_tty->print_cr("[%d] "PTR_FORMAT" is not considered marked",
-                                 _task_id, (void*) obj);
+                                 _task_id, p2i((void*) obj));
         }
 
         // we need to mark it first
@@ -351,7 +351,7 @@ inline void CMTask::deal_with_reference(oop obj) {
           if (_finger != NULL && objAddr < _finger) {
             if (_cm->verbose_high()) {
               gclog_or_tty->print_cr("[%d] below the local finger ("PTR_FORMAT"), "
-                                     "pushing it", _task_id, _finger);
+                                     "pushing it", _task_id, p2i(_finger));
             }
             push(obj);
           } else if (_curr_region != NULL && objAddr < _region_limit) {
@@ -369,7 +369,7 @@ inline void CMTask::deal_with_reference(oop obj) {
             if (_cm->verbose_high()) {
               gclog_or_tty->print_cr("[%d] below the global finger "
                                      "("PTR_FORMAT"), pushing it",
-                                     _task_id, global_finger);
+                                     _task_id, p2i(global_finger));
             }
             push(obj);
           } else {
@@ -384,7 +384,7 @@ inline void CMTask::deal_with_reference(oop obj) {
             if (_cm->verbose_high()) {
               gclog_or_tty->print_cr("[%d] below the global finger "
                                      "("PTR_FORMAT"), pushing it",
-                                     _task_id, global_finger);
+                                     _task_id, p2i(global_finger));
             }
             push(obj);
           }

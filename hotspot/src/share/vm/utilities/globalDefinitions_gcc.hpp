@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -280,6 +280,18 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 #define PRAGMA_INTERFACE             #pragma interface
 #define PRAGMA_IMPLEMENTATION        #pragma implementation
 #define VALUE_OBJ_CLASS_SPEC
+
+#if ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 6)) || (__GNUC__ > 4)
+// Tested to work with clang version 3.1 and better.
+#define PRAGMA_DIAG_PUSH             _Pragma("GCC diagnostic push")
+#define PRAGMA_DIAG_POP              _Pragma("GCC diagnostic pop")
+#else
+// Old versions of gcc don't do push/pop, also do not cope with this pragma within a function
+// One method does so much varied printing that it is decorated with both internal and external
+// versions of the macro-pragma to obtain better checking with newer compilers.
+#define PRAGMA_DIAG_PUSH
+#define PRAGMA_DIAG_POP
+#endif
 
 #if (__GNUC__ == 2) && (__GNUC_MINOR__ < 95)
 #define TEMPLATE_TABLE_BUG

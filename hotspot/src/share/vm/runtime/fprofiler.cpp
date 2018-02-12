@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -308,7 +308,7 @@ class ProfilerNode {
     st->fill_to(col2);
     t->print_native(st);
     st->fill_to(col3);
-    st->print(msg);
+    st->print("%s", msg);
     st->cr();
   }
 

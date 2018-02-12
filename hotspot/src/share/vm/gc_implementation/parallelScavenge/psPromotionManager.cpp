@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -137,7 +137,7 @@ PSPromotionManager::print_stats() {
   }
 
   const uint hlines = sizeof(pm_stats_hdr) / sizeof(pm_stats_hdr[0]);
-  for (uint i = 0; i < hlines; ++i) tty->print_cr(pm_stats_hdr[i]);
+  for (uint i = 0; i < hlines; ++i) tty->print_cr("%s", pm_stats_hdr[i]);
   for (uint i = 0; i < ParallelGCThreads + 1; ++i) {
     manager_array(i)->print_local_stats(i);
   }

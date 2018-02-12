@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -228,10 +228,10 @@ bool ciObject::should_be_constant() {
 void ciObject::print(outputStream* st) {
   st->print("<%s", type_string());
   GUARDED_VM_ENTRY(print_impl(st);)
-  st->print(" ident=%d %s%s address=0x%x>", ident(),
+  st->print(" ident=%d %s%s address=" INTPTR_FORMAT ">", ident(),
         is_perm() ? "PERM" : "",
         is_scavengable() ? "SCAVENGABLE" : "",
-        (address)this);
+        p2i((address)this));
 }
 
 // ------------------------------------------------------------------

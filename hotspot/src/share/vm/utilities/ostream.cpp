@@ -268,7 +268,7 @@ void outputStream::print_data(void* data, size_t len, bool with_ascii) {
   size_t limit = (len + 16) / 16 * 16;
   for (size_t i = 0; i < limit; ++i) {
     if (i % 16 == 0) {
-      indent().print("%07x:", i);
+      indent().print(INTPTR_FORMAT_W(07)":", i);
     }
     if (i % 2 == 0) {
       print(" ");
@@ -289,7 +289,7 @@ void outputStream::print_data(void* data, size_t len, bool with_ascii) {
           }
         }
       }
-      print_cr("");
+      cr();
     }
   }
 }
@@ -559,7 +559,7 @@ void fdStream::write(const char* s, size_t len) {
 // memory usage and command line flags into header
 void gcLogFileStream::dump_loggc_header() {
   if (is_open()) {
-    print_cr(Abstract_VM_Version::internal_vm_info_string());
+    print_cr("%s", Abstract_VM_Version::internal_vm_info_string());
     os::print_memory_info(this);
     print("CommandLine flags: ");
     CommandLineFlags::printSetFlags(this);
@@ -647,7 +647,7 @@ void gcLogFileStream::rotate_log(bool force, outputStream* out) {
     write(time_msg, strlen(time_msg));
 
     if (out != NULL) {
-      out->print(time_msg);
+      out->print("%s", time_msg);
     }
 
     dump_loggc_header();
@@ -683,7 +683,7 @@ void gcLogFileStream::rotate_log(bool force, outputStream* out) {
     write(time_msg, strlen(time_msg));
 
     if (out != NULL) {
-      out->print(time_msg);
+      out->print("%s", time_msg);
     }
 
     fclose(_file);
@@ -732,7 +732,7 @@ void gcLogFileStream::rotate_log(bool force, outputStream* out) {
     write(time_msg, strlen(time_msg));
 
     if (out != NULL) {
-      out->print(time_msg);
+      out->print("%s", time_msg);
     }
 
     dump_loggc_header();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,7 +140,7 @@ void CompilationPolicy::print_time() {
 void NonTieredCompPolicy::trace_osr_completion(nmethod* osr_nm) {
   if (TraceOnStackReplacement) {
     if (osr_nm == NULL) tty->print_cr("compilation failed");
-    else tty->print_cr("nmethod " INTPTR_FORMAT, osr_nm);
+    else tty->print_cr("nmethod " INTPTR_FORMAT, p2i(osr_nm));
   }
 }
 #endif // !PRODUCT
@@ -439,7 +439,7 @@ void StackWalkCompPolicy::method_invocation_event(methodHandle m, JavaThread* th
     if (TraceCompilationPolicy) {
       tty->print("method invocation trigger: ");
       m->print_short_name(tty);
-      tty->print(" ( interpreted " INTPTR_FORMAT ", size=%d ) ", (address)m(), m->code_size());
+      tty->print(" ( interpreted " INTPTR_FORMAT ", size=%d ) ", p2i((address)m()), m->code_size());
     }
     RegisterMap reg_map(thread, false);
     javaVFrame* triggerVF = thread->last_java_vframe(&reg_map);
@@ -448,7 +448,7 @@ void StackWalkCompPolicy::method_invocation_event(methodHandle m, JavaThread* th
 
     if (first->top_method()->code() != NULL) {
       // called obsolete method/nmethod -- no need to recompile
-      if (TraceCompilationPolicy) tty->print_cr(" --> " INTPTR_FORMAT, first->top_method()->code());
+      if (TraceCompilationPolicy) tty->print_cr(" --> " INTPTR_FORMAT, p2i(first->top_method()->code()));
     } else {
       if (TimeCompilationPolicy) accumulated_time()->start();
       GrowableArray<RFrame*>* stack = new GrowableArray<RFrame*>(50);
@@ -576,7 +576,7 @@ RFrame* StackWalkCompPolicy::findTopInlinableFrame(GrowableArray<RFrame*>* stack
     if (TraceCompilationPolicy && Verbose) {
       tty->print("\n\t     check caller: ");
       next_m->print_short_name(tty);
-      tty->print(" ( interpreted " INTPTR_FORMAT ", size=%d ) ", (address)next_m(), next_m->code_size());
+      tty->print(" ( interpreted " INTPTR_FORMAT ", size=%d ) ", p2i((address)next_m()), next_m->code_size());
     }
 
     current = next;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,7 @@ inline size_t G1BlockOffsetSharedArray::index_for(const void* p) const {
   assert(pc >= (char*)_reserved.start() &&
          pc <  (char*)_reserved.end(),
          err_msg("p (" PTR_FORMAT ") not in reserved [" PTR_FORMAT ", " PTR_FORMAT ")",
-                 p, (char*)_reserved.start(), (char*)_reserved.end()));
+                 p2i(p), p2i(_reserved.start()), p2i(_reserved.end())));
   size_t delta = pointer_delta(pc, _reserved.start(), sizeof(char));
   size_t result = delta >> LogN;
   check_index(result, "bad index from address");

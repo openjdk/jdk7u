@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
 inline uintx HeapRegionSeq::addr_to_index_biased(HeapWord* addr) const {
   assert(_heap_bottom <= addr && addr < _heap_end,
          err_msg("addr: "PTR_FORMAT" bottom: "PTR_FORMAT" end: "PTR_FORMAT,
-                 addr, _heap_bottom, _heap_end));
+                 p2i(addr), p2i(_heap_bottom), p2i(_heap_end)));
   uintx index = (uintx) addr >> _region_shift;
   return index;
 }
@@ -39,7 +39,7 @@ inline uintx HeapRegionSeq::addr_to_index_biased(HeapWord* addr) const {
 inline HeapRegion* HeapRegionSeq::addr_to_region_unsafe(HeapWord* addr) const {
   assert(_heap_bottom <= addr && addr < _heap_end,
          err_msg("addr: "PTR_FORMAT" bottom: "PTR_FORMAT" end: "PTR_FORMAT,
-                 addr, _heap_bottom, _heap_end));
+                 p2i(addr), p2i(_heap_bottom), p2i(_heap_end)));
   uintx index_biased = addr_to_index_biased(addr);
   HeapRegion* hr = _regions_biased[index_biased];
   assert(hr != NULL, "invariant");
@@ -49,7 +49,7 @@ inline HeapRegion* HeapRegionSeq::addr_to_region_unsafe(HeapWord* addr) const {
 inline HeapRegion* HeapRegionSeq::addr_to_region(HeapWord* addr) const {
   if (addr != NULL && addr < _heap_end) {
     assert(addr >= _heap_bottom,
-          err_msg("addr: "PTR_FORMAT" bottom: "PTR_FORMAT, addr, _heap_bottom));
+           err_msg("addr: "PTR_FORMAT" bottom: "PTR_FORMAT, p2i(addr), p2i(_heap_bottom)));
     return addr_to_region_unsafe(addr);
   }
   return NULL;

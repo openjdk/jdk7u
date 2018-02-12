@@ -738,7 +738,7 @@ bool Type::has_memory() const {
 #ifndef PRODUCT
 //------------------------------dump2------------------------------------------
 void Type::dump2( Dict &d, uint depth, outputStream *st ) const {
-  st->print(msg[_base]);
+  st->print("%s", msg[_base]);
 }
 
 //------------------------------dump-------------------------------------------

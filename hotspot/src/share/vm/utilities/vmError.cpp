@@ -357,17 +357,17 @@ void VMError::report(outputStream* st) {
          if (_size) {
            st->print("# Native memory allocation (malloc) failed to allocate ");
            jio_snprintf(buf, sizeof(buf), SIZE_FORMAT, _size);
-           st->print(buf);
+           st->print("%s", buf);
            st->print(" bytes");
            if (_message != NULL) {
              st->print(" for ");
-             st->print(_message);
+             st->print("%s", _message);
            }
            st->cr();
          } else {
            if (_message != NULL)
              st->print("# ");
-             st->print_cr(_message);
+             st->print_cr("%s", _message);
          }
          // In error file give some solutions
          if (_verbose) {
@@ -484,7 +484,7 @@ void VMError::report(outputStream* st) {
     } else {
       st->print("Failed to write core dump. %s", coredump_message);
     }
-    st->print_cr("");
+    st->cr();
     st->print_cr("#");
 
   STEP(65, "(printing bug submit message)")

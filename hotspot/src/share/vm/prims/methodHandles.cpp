@@ -559,7 +559,7 @@ void MethodHandles::print_as_basic_type_signature_on(outputStream* st,
           // unknown letter, or we don't want to know its name
           st->put(ch);
         } else {
-          st->print(n);
+          st->print("%s", n);
           prev_type = true;
         }
         break;

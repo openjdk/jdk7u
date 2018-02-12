@@ -1495,11 +1495,11 @@ void os::print_os_info(outputStream* st) {
   st->print("uname:");
   struct utsname name;
   uname(&name);
-  st->print(name.sysname); st->print(" ");
-  st->print(name.nodename); st->print(" ");
-  st->print(name.release); st->print(" ");
-  st->print(name.version); st->print(" ");
-  st->print(name.machine);
+  st->print("%s ", name.sysname);
+  st->print("%s ", name.nodename);
+  st->print("%s ", name.release);
+  st->print("%s ", name.version);
+  st->print("%s", name.machine);
   st->cr();
 
   // rlimit

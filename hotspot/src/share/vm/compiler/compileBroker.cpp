@@ -209,7 +209,7 @@ class CompilationLog : public StringEventLog {
   void log_nmethod(JavaThread* thread, nmethod* nm) {
     log(thread, "nmethod %d%s " INTPTR_FORMAT " code ["INTPTR_FORMAT ", " INTPTR_FORMAT "]",
         nm->compile_id(), nm->is_osr_method() ? "%" : "",
-        nm, nm->code_begin(), nm->code_end());
+        p2i(nm), p2i(nm->code_begin()), p2i(nm->code_end()));
   }
 
   void log_failure(JavaThread* thread, CompileTask* task, const char* reason, const char* retry_message) {
@@ -1644,7 +1644,7 @@ void CompileBroker::init_compiler_thread_log() {
         ttyLocker ttyl;
 
         // Record any per thread log files
-        xtty->elem("thread_logfile thread='%d' filename='%s'", thread_id, file);
+        xtty->elem("thread_logfile thread='" INTX_FORMAT "' filename='%s'", thread_id, file);
       }
     }
 }
@@ -1672,7 +1672,7 @@ void CompileBroker::maybe_block() {
   if (_should_block) {
 #ifndef PRODUCT
     if (PrintCompilation && (Verbose || WizardMode))
-      tty->print_cr("compiler thread " INTPTR_FORMAT " poll detects block request", Thread::current());
+      tty->print_cr("compiler thread " INTPTR_FORMAT " poll detects block request", p2i(Thread::current()));
 #endif
     ThreadInVMfromNative tivfn(JavaThread::current());
   }
@@ -1870,7 +1870,7 @@ void CompileBroker::handle_full_code_cache() {
       // Lock to prevent tearing
       ttyLocker ttyl;
       xtty->begin_elem("code_cache_full");
-      xtty->print(s.as_string());
+      xtty->print("%s", s.as_string());
       xtty->stamp();
       xtty->end_elem();
     }

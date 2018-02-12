@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,26 +132,26 @@ void InstructionPrinter::print_object(Value obj) {
     if (value->is_null_object()) {
       output()->print("null");
     } else if (!value->is_loaded()) {
-      output()->print("<unloaded object " PTR_FORMAT ">", value);
+      output()->print("<unloaded object " INTPTR_FORMAT ">", p2i(value));
     } else if (value->is_method()) {
       ciMethod* m = (ciMethod*)value;
       output()->print("<method %s.%s>", m->holder()->name()->as_utf8(), m->name()->as_utf8());
     } else {
-      output()->print("<object " PTR_FORMAT " klass=", value->constant_encoding());
+      output()->print("<object " INTPTR_FORMAT " klass=", p2i(value->constant_encoding()));
       print_klass(value->klass());
       output()->print(">");
     }
   } else if (type->as_InstanceConstant() != NULL) {
     ciInstance* value = type->as_InstanceConstant()->value();
     if (value->is_loaded()) {
-      output()->print("<instance " PTR_FORMAT " klass=", value->constant_encoding());
+      output()->print("<instance " INTPTR_FORMAT " klass=", p2i(value->constant_encoding()));
       print_klass(value->klass());
       output()->print(">");
     } else {
-      output()->print("<unloaded instance " PTR_FORMAT ">", value);
+      output()->print("<unloaded instance " INTPTR_FORMAT ">", p2i(value));
     }
   } else if (type->as_ArrayConstant() != NULL) {
-    output()->print("<array " PTR_FORMAT ">", type->as_ArrayConstant()->value()->constant_encoding());
+    output()->print("<array " INTPTR_FORMAT ">", p2i(type->as_ArrayConstant()->value()->constant_encoding()));
   } else if (type->as_ClassConstant() != NULL) {
     ciInstanceKlass* klass = type->as_ClassConstant()->value();
     if (!klass->is_loaded()) {
@@ -261,7 +261,7 @@ void InstructionPrinter::print_inline_level(BlockBegin* block) {
 
 
 void InstructionPrinter::print_unsafe_op(UnsafeOp* op, const char* name) {
-  output()->print(name);
+  output()->print("%s", name);
   output()->print(".(");
 }
 

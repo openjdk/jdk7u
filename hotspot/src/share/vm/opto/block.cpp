@@ -354,7 +354,7 @@ void Block::dump_head( const Block_Array *bbs, outputStream* st ) const {
     st->print(" FRegPressure: %d",_freg_pressure);
     st->print(" FHRP Index: %d",_fhrp_index);
   }
-  st->print_cr("");
+  st->cr();
 }
 
 void Block::dump() const { dump(NULL); }

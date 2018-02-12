@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -847,7 +847,7 @@ size_t PSAdaptiveSizePolicy::adjust_promo_for_footprint(
       "AdaptiveSizePolicy::compute_generation_free_space "
       "adjusting tenured gen for footprint. "
       "starting promo size " SIZE_FORMAT
-      " reduced promo size " SIZE_FORMAT,
+      " reduced promo size " SIZE_FORMAT
       " promo delta " SIZE_FORMAT,
       desired_promo_size, reduced_size, change );
   }
