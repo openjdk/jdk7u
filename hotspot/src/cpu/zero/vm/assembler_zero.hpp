@@ -60,6 +60,7 @@ class MacroAssembler : public Assembler {
 #ifdef ASSERT
 inline bool AbstractAssembler::pd_check_instruction_mark() {
   ShouldNotCallThis();
+  return false; // Mute compiler warning
 }
 #endif
 

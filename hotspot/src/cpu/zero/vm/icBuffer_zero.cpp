@@ -49,9 +49,11 @@ void InlineCacheBuffer::assemble_ic_buffer_code(address code_begin,
 address InlineCacheBuffer::ic_buffer_entry_point(address code_begin) {
   // NB ic_stub_code_size() must return the size of the code we generate
   ShouldNotCallThis();
+  return NULL;
 }
 
 oop InlineCacheBuffer::ic_buffer_cached_oop(address code_begin) {
   // NB ic_stub_code_size() must return the size of the code we generate
   ShouldNotCallThis();
+  return NULL;
 }

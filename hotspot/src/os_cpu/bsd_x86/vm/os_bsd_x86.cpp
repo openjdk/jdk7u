@@ -746,6 +746,7 @@ JVM_handle_bsd_signal(int sig,
   err.report_and_die();
 
   ShouldNotReachHere();
+  return false;
 }
 
 #ifdef _ALLBSD_SOURCE

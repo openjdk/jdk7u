@@ -98,7 +98,7 @@ intptr_t narrow(BasicType type, intptr_t result) {
     case T_DOUBLE:
     case T_VOID:
       return result;
-    default  : ShouldNotReachHere();
+    default  : ShouldNotReachHere(); return 0;
   }
 }
 
@@ -1028,6 +1028,7 @@ void BytecodeInterpreter::layout_interpreterState(interpreterState istate,
 
 address CppInterpreter::return_entry(TosState state, int length) {
   ShouldNotCallThis();
+  return NULL;
 }
 
 address CppInterpreter::deopt_entry(TosState state, int length) {
@@ -1045,9 +1046,8 @@ int AbstractInterpreter::size_top_interpreter_activation(methodOop method) {
 bool CppInterpreter::contains(address pc) {
 #ifdef PRODUCT
   ShouldNotCallThis();
-#else
-  return false; // make frame::print_value_on work
 #endif // !PRODUCT
+  return false; // make frame::print_value_on work
 }
 
 // Result handlers and convertors
