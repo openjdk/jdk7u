@@ -519,7 +519,7 @@ BytecodeInterpreter::run(interpreterState istate) {
       assert(labs(istate->_stack_base - istate->_stack_limit) == (istate->_method->max_stack() + 1), "bad stack limit");
     }
     else {
-      const int extra_stack_entries = 2; // MUST match the value in methodOopDesc::extra_stack_entries()
+      const int extra_stack_entries = methodOopDesc::extra_stack_entries();
       assert(labs(istate->_stack_base - istate->_stack_limit) == (istate->_method->max_stack() + extra_stack_entries
                                                                                                + 1), "bad stack limit");
     }
