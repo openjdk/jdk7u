@@ -145,9 +145,9 @@ WARNINGS_ARE_ERRORS = -Werror
 # conversions which might affect the values. To avoid that, we need to turn
 # it off explicitly. 
 ifneq "$(shell expr \( $(CC_VER_MAJOR) \> 4 \) \| \( \( $(CC_VER_MAJOR) = 4 \) \& \( $(CC_VER_MINOR) \>= 3 \) \))" "0"
-ACCEPTABLE_WARNINGS = -Wpointer-arith -Wsign-compare
+ACCEPTABLE_WARNINGS = -Wpointer-arith -Wsign-compare -Wreturn-type
 else
-ACCEPTABLE_WARNINGS = -Wpointer-arith -Wconversion -Wsign-compare
+ACCEPTABLE_WARNINGS = -Wpointer-arith -Wconversion -Wsign-compare -Wreturn-type
 endif
 
 CFLAGS_WARN/DEFAULT = $(WARNINGS_ARE_ERRORS) $(ACCEPTABLE_WARNINGS)
