@@ -4024,9 +4024,9 @@ void CMTask::do_marking_step(double time_target_ms,
       if (_cm->verbose_low()) {
         gclog_or_tty->print_cr("[%d] we're scanning part "
                                "["PTR_FORMAT", "PTR_FORMAT") "
-                               "of region "PTR_FORMAT,
+                               "of region "HR_FORMAT,
                                _task_id, p2i(_finger), p2i(_region_limit),
-                               _curr_region);
+                               HR_FORMAT_PARAMS(_curr_region));
       }
 
       // Let's iterate over the bitmap of the part of the
