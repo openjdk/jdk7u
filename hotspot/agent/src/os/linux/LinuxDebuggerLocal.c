@@ -23,6 +23,7 @@
  */
 
 #include <jni.h>
+#include <stdlib.h>
 #include "libproc.h"
 
 #if defined(x86_64) && !defined(amd64)
@@ -73,7 +74,7 @@ JNIEXPORT void JNICALL Java_sun_jvm_hotspot_debugger_linux_LinuxDebuggerLocal_in
   (JNIEnv *env, jclass cls) {
   jclass listClass;
 
-  if (init_libproc(getenv("LIBSAPROC_DEBUG")) != true) {
+  if (init_libproc(getenv("LIBSAPROC_DEBUG") != NULL) != true) {
      THROW_NEW_DEBUGGER_EXCEPTION("can't initialize libproc");
   }
 
