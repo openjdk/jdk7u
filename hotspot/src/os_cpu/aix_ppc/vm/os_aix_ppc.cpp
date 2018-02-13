@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2012, 2014 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -335,7 +335,7 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
 
       else if (sig == SIGSEGV && os::is_poll_address(addr)) {
         if (TraceTraps)
-          tty->print_cr("trap: safepoint_poll at " INTPTR_FORMAT " (SIGSEGV)", pc);
+          tty->print_cr("trap: safepoint_poll at " INTPTR_FORMAT " (SIGSEGV)", p2i(pc));
         stub = SharedRuntime::get_poll_stub(pc);
         goto run_stub;
       }
@@ -344,7 +344,7 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
       else if (sig == SIGTRAP && TrapBasedICMissChecks &&
                nativeInstruction_at(pc)->is_sigtrap_ic_miss_check()) {
         if (TraceTraps)
-          tty->print_cr("trap: ic_miss_check at " INTPTR_FORMAT " (SIGTRAP)", pc);
+          tty->print_cr("trap: ic_miss_check at " INTPTR_FORMAT " (SIGTRAP)", p2i(pc));
         stub = SharedRuntime::get_ic_miss_stub();
         goto run_stub;
       }
@@ -354,7 +354,7 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
       else if (sig == SIGTRAP && TrapBasedNullChecks &&
                nativeInstruction_at(pc)->is_sigtrap_null_check()) {
         if (TraceTraps)
-          tty->print_cr("trap: null_check at " INTPTR_FORMAT " (SIGTRAP)", pc);
+          tty->print_cr("trap: null_check at " INTPTR_FORMAT " (SIGTRAP)", p2i(pc));
         stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
         goto run_stub;
       }
@@ -365,7 +365,7 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
                CodeCache::contains((void*) pc) &&
                !MacroAssembler::needs_explicit_null_check((intptr_t) info->si_addr)) {
         if (TraceTraps)
-          tty->print_cr("trap: null_check at " INTPTR_FORMAT " (SIGSEGV)", pc);
+          tty->print_cr("trap: null_check at " INTPTR_FORMAT " (SIGSEGV)", p2i(pc));
         stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
       }
 
@@ -374,7 +374,7 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
       else if (sig == SIGTRAP && TrapBasedRangeChecks &&
                nativeInstruction_at(pc)->is_sigtrap_range_check()) {
         if (TraceTraps)
-          tty->print_cr("trap: range_check at " INTPTR_FORMAT " (SIGTRAP)", pc);
+          tty->print_cr("trap: range_check at " INTPTR_FORMAT " (SIGTRAP)", p2i(pc));
         stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
         goto run_stub;
       }
