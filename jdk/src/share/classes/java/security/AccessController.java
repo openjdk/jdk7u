@@ -49,7 +49,7 @@ import sun.reflect.Reflection;
  * <p> The {@link #checkPermission(Permission) checkPermission} method
  * determines whether the access request indicated by a specified
  * permission should be granted or denied. A sample call appears
- * below. In this example, <code>checkPermission</code> will determine
+ * below. In this example, {@code checkPermission} will determine
  * whether or not to grant "read" access to the file named "testFile" in
  * the "/temp" directory.
  *
@@ -61,7 +61,7 @@ import sun.reflect.Reflection;
  * </pre>
  *
  * <p> If a requested access is allowed,
- * <code>checkPermission</code> returns quietly. If denied, an
+ * {@code checkPermission} returns quietly. If denied, an
  * AccessControlException is
  * thrown. AccessControlException can also be thrown if the requested
  * permission is of an incorrect type or contains an invalid value.
@@ -69,8 +69,8 @@ import sun.reflect.Reflection;
  *
  * Suppose the current thread traversed m callers, in the order of caller 1
  * to caller 2 to caller m. Then caller m invoked the
- * <code>checkPermission</code> method.
- * The <code>checkPermission </code>method determines whether access
+ * {@code checkPermission} method.
+ * The {@code checkPermission} method determines whether access
  * is granted or denied based on the following algorithm:
  *
  *  <pre> {@code
@@ -96,13 +96,13 @@ import sun.reflect.Reflection;
  *
  * <p> A caller can be marked as being "privileged"
  * (see {@link #doPrivileged(PrivilegedAction) doPrivileged} and below).
- * When making access control decisions, the <code>checkPermission</code>
+ * When making access control decisions, the {@code checkPermission}
  * method stops checking if it reaches a caller that
- * was marked as "privileged" via a <code>doPrivileged</code>
+ * was marked as "privileged" via a {@code doPrivileged}
  * call without a context argument (see below for information about a
  * context argument). If that caller's domain has the
  * specified permission, no further checking is done and
- * <code>checkPermission</code>
+ * {@code checkPermission}
  * returns quietly, indicating that the requested access is allowed.
  * If that domain does not have the specified permission, an exception
  * is thrown, as usual.
@@ -126,17 +126,17 @@ import sun.reflect.Reflection;
  *
  * <p>
  * PrivilegedAction is an interface with a single method, named
- * <code>run</code>.
+ * {@code run}.
  * The above example shows creation of an implementation
  * of that interface; a concrete implementation of the
- * <code>run</code> method is supplied.
- * When the call to <code>doPrivileged</code> is made, an
+ * {@code run} method is supplied.
+ * When the call to {@code doPrivileged} is made, an
  * instance of the PrivilegedAction implementation is passed
- * to it. The <code>doPrivileged</code> method calls the
- * <code>run</code> method from the PrivilegedAction
+ * to it. The {@code doPrivileged} method calls the
+ * {@code run} method from the PrivilegedAction
  * implementation after enabling privileges, and returns the
- * <code>run</code> method's return value as the
- * <code>doPrivileged</code> return value (which is
+ * {@code run} method's return value as the
+ * {@code doPrivileged} return value (which is
  * ignored in this example).
  *
  * <p> If you need to return a value, you can do something like the following:
@@ -153,11 +153,11 @@ import sun.reflect.Reflection;
  *     ...normal code here...
  * }}</pre>
  *
- * <p>If the action performed in your <code>run</code> method could
- * throw a "checked" exception (those listed in the <code>throws</code> clause
+ * <p>If the action performed in your {@code run} method could
+ * throw a "checked" exception (those listed in the {@code throws} clause
  * of a method), then you need to use the
- * <code>PrivilegedExceptionAction</code> interface instead of the
- * <code>PrivilegedAction</code> interface:
+ * {@code PrivilegedExceptionAction} interface instead of the
+ * {@code PrivilegedAction} interface:
  *
  *  <pre> {@code
  * somemethod() throws FileNotFoundException {
@@ -181,14 +181,14 @@ import sun.reflect.Reflection;
  * <p> Be *very* careful in your use of the "privileged" construct, and
  * always remember to make the privileged code section as small as possible.
  *
- * <p> Note that <code>checkPermission</code> always performs security checks
+ * <p> Note that {@code checkPermission} always performs security checks
  * within the context of the currently executing thread.
  * Sometimes a security check that should be made within a given context
  * will actually need to be done from within a
  * <i>different</i> context (for example, from within a worker thread).
  * The {@link #getContext() getContext} method and
  * AccessControlContext class are provided
- * for this situation. The <code>getContext</code> method takes a "snapshot"
+ * for this situation. The {@code getContext} method takes a "snapshot"
  * of the current calling context, and places
  * it in an AccessControlContext object, which it returns. A sample call is
  * the following:
@@ -200,7 +200,7 @@ import sun.reflect.Reflection;
  * </pre>
  *
  * <p>
- * AccessControlContext itself has a <code>checkPermission</code> method
+ * AccessControlContext itself has a {@code checkPermission} method
  * that makes access decisions based on the context <i>it</i> encapsulates,
  * rather than that of the current execution thread.
  * Code within a different context can thus call that method on the
@@ -244,11 +244,11 @@ public final class AccessController {
     private AccessController() { }
 
     /**
-     * Performs the specified <code>PrivilegedAction</code> with privileges
+     * Performs the specified {@code PrivilegedAction} with privileges
      * enabled. The action is performed with <i>all</i> of the permissions
      * possessed by the caller's protection domain.
      *
-     * <p> If the action's <code>run</code> method throws an (unchecked)
+     * <p> If the action's {@code run} method throws an (unchecked)
      * exception, it will propagate through this method.
      *
      * <p> Note that any DomainCombiner associated with the current
@@ -256,9 +256,9 @@ public final class AccessController {
      *
      * @param action the action to be performed.
      *
-     * @return the value returned by the action's <code>run</code> method.
+     * @return the value returned by the action's {@code run} method.
      *
-     * @exception NullPointerException if the action is <code>null</code>
+     * @exception NullPointerException if the action is {@code null}
      *
      * @see #doPrivileged(PrivilegedAction,AccessControlContext)
      * @see #doPrivileged(PrivilegedExceptionAction)
@@ -270,11 +270,11 @@ public final class AccessController {
     public static native <T> T doPrivileged(PrivilegedAction<T> action);
 
     /**
-     * Performs the specified <code>PrivilegedAction</code> with privileges
+     * Performs the specified {@code PrivilegedAction} with privileges
      * enabled. The action is performed with <i>all</i> of the permissions
      * possessed by the caller's protection domain.
      *
-     * <p> If the action's <code>run</code> method throws an (unchecked)
+     * <p> If the action's {@code run} method throws an (unchecked)
      * exception, it will propagate through this method.
      *
      * <p> This method preserves the current AccessControlContext's
@@ -282,9 +282,9 @@ public final class AccessController {
      *
      * @param action the action to be performed.
      *
-     * @return the value returned by the action's <code>run</code> method.
+     * @return the value returned by the action's {@code run} method.
      *
-     * @exception NullPointerException if the action is <code>null</code>
+     * @exception NullPointerException if the action is {@code null}
      *
      * @see #doPrivileged(PrivilegedAction)
      * @see java.security.DomainCombiner
@@ -303,15 +303,15 @@ public final class AccessController {
 
 
     /**
-     * Performs the specified <code>PrivilegedAction</code> with privileges
+     * Performs the specified {@code PrivilegedAction} with privileges
      * enabled and restricted by the specified
-     * <code>AccessControlContext</code>.
+     * {@code AccessControlContext}.
      * The action is performed with the intersection of the permissions
      * possessed by the caller's protection domain, and those possessed
      * by the domains represented by the specified
-     * <code>AccessControlContext</code>.
+     * {@code AccessControlContext}.
      * <p>
-     * If the action's <code>run</code> method throws an (unchecked) exception,
+     * If the action's {@code run} method throws an (unchecked) exception,
      * it will propagate through this method.
      *
      * @param action the action to be performed.
@@ -319,12 +319,12 @@ public final class AccessController {
      *                representing the restriction to be applied to the
      *                caller's domain's privileges before performing
      *                the specified action.  If the context is
-     *                <code>null</code>,
+     *                {@code null},
      *                then no additional restriction is applied.
      *
-     * @return the value returned by the action's <code>run</code> method.
+     * @return the value returned by the action's {@code run} method.
      *
-     * @exception NullPointerException if the action is <code>null</code>
+     * @exception NullPointerException if the action is {@code null}
      *
      * @see #doPrivileged(PrivilegedAction)
      * @see #doPrivileged(PrivilegedExceptionAction,AccessControlContext)
@@ -335,17 +335,17 @@ public final class AccessController {
 
 
     /**
-     * Performs the specified <code>PrivilegedAction</code> with privileges
+     * Performs the specified {@code PrivilegedAction} with privileges
      * enabled and restricted by the specified
-     * <code>AccessControlContext</code> and with a privilege scope limited
-     * by specified <code>Permission</code> arguments.
+     * {@code AccessControlContext} and with a privilege scope limited
+     * by specified {@code Permission} arguments.
      *
      * The action is performed with the intersection of the permissions
      * possessed by the caller's protection domain, and those possessed
      * by the domains represented by the specified
-     * <code>AccessControlContext</code>.
+     * {@code AccessControlContext}.
      * <p>
-     * If the action's <code>run</code> method throws an (unchecked) exception,
+     * If the action's {@code run} method throws an (unchecked) exception,
      * it will propagate through this method.
      *
      * @param action the action to be performed.
@@ -353,16 +353,16 @@ public final class AccessController {
      *                representing the restriction to be applied to the
      *                caller's domain's privileges before performing
      *                the specified action.  If the context is
-     *                <code>null</code>,
+     *                {@code null},
      *                then no additional restriction is applied.
-     * @param perms the <code>Permission</code> arguments which limit the
+     * @param perms the {@code Permission} arguments which limit the
      *              scope of the caller's privileges. The number of arguments
      *              is variable.
      *
-     * @return the value returned by the action's <code>run</code> method.
+     * @return the value returned by the action's {@code run} method.
      *
      * @throws NullPointerException if action or perms or any element of
-     *         perms is <code>null</code>
+     *         perms is {@code null}
      *
      * @see #doPrivileged(PrivilegedAction)
      * @see #doPrivileged(PrivilegedExceptionAction,AccessControlContext)
@@ -383,11 +383,11 @@ public final class AccessController {
     }
 
     /**
-     * Performs the specified <code>PrivilegedExceptionAction</code> with
+     * Performs the specified {@code PrivilegedExceptionAction} with
      * privileges enabled.  The action is performed with <i>all</i> of the
      * permissions possessed by the caller's protection domain.
      *
-     * <p> If the action's <code>run</code> method throws an <i>unchecked</i>
+     * <p> If the action's {@code run} method throws an <i>unchecked</i>
      * exception, it will propagate through this method.
      *
      * <p> Note that any DomainCombiner associated with the current
@@ -395,11 +395,11 @@ public final class AccessController {
      *
      * @param action the action to be performed
      *
-     * @return the value returned by the action's <code>run</code> method
+     * @return the value returned by the action's {@code run} method
      *
      * @exception PrivilegedActionException if the specified action's
-     *         <code>run</code> method threw a <i>checked</i> exception
-     * @exception NullPointerException if the action is <code>null</code>
+     *         {@code run} method threw a <i>checked</i> exception
+     * @exception NullPointerException if the action is {@code null}
      *
      * @see #doPrivileged(PrivilegedAction)
      * @see #doPrivileged(PrivilegedExceptionAction,AccessControlContext)
@@ -413,11 +413,11 @@ public final class AccessController {
 
 
     /**
-     * Performs the specified <code>PrivilegedExceptionAction</code> with
+     * Performs the specified {@code PrivilegedExceptionAction} with
      * privileges enabled.  The action is performed with <i>all</i> of the
      * permissions possessed by the caller's protection domain.
      *
-     * <p> If the action's <code>run</code> method throws an <i>unchecked</i>
+     * <p> If the action's {@code run} method throws an <i>unchecked</i>
      * exception, it will propagate through this method.
      *
      * <p> This method preserves the current AccessControlContext's
@@ -425,11 +425,11 @@ public final class AccessController {
      *
      * @param action the action to be performed.
      *
-     * @return the value returned by the action's <code>run</code> method
+     * @return the value returned by the action's {@code run} method
      *
      * @exception PrivilegedActionException if the specified action's
-     *         <code>run</code> method threw a <i>checked</i> exception
-     * @exception NullPointerException if the action is <code>null</code>
+     *         {@code run} method threw a <i>checked</i> exception
+     * @exception NullPointerException if the action is {@code null}
      *
      * @see #doPrivileged(PrivilegedAction)
      * @see #doPrivileged(PrivilegedExceptionAction,AccessControlContext)
@@ -491,14 +491,14 @@ public final class AccessController {
     }
 
     /**
-     * Performs the specified <code>PrivilegedExceptionAction</code> with
+     * Performs the specified {@code PrivilegedExceptionAction} with
      * privileges enabled and restricted by the specified
-     * <code>AccessControlContext</code>.  The action is performed with the
+     * {@code AccessControlContext}.  The action is performed with the
      * intersection of the permissions possessed by the caller's
      * protection domain, and those possessed by the domains represented by the
-     * specified <code>AccessControlContext</code>.
+     * specified {@code AccessControlContext}.
      * <p>
-     * If the action's <code>run</code> method throws an <i>unchecked</i>
+     * If the action's {@code run} method throws an <i>unchecked</i>
      * exception, it will propagate through this method.
      *
      * @param action the action to be performed
@@ -506,15 +506,14 @@ public final class AccessController {
      *                representing the restriction to be applied to the
      *                caller's domain's privileges before performing
      *                the specified action.  If the context is
-     *                <code>null</code>,
+     *                {@code null},
      *                then no additional restriction is applied.
      *
-     * @return the value returned by the action's <code>run</code> method
+     * @return the value returned by the action's {@code run} method.
      *
      * @exception PrivilegedActionException if the specified action's
-     *         <code>run</code> method
-     *         threw a <i>checked</i> exception
-     * @exception NullPointerException if the action is <code>null</code>
+     *         {@code run} method threw a <i>checked</i> exception
+     * @exception NullPointerException if the action is {@code null}
      *
      * @see #doPrivileged(PrivilegedAction)
      * @see #doPrivileged(PrivilegedAction,AccessControlContext)
@@ -635,14 +634,14 @@ public final class AccessController {
      * This method quietly returns if the access request
      * is permitted, or throws an AccessControlException otherwise. The
      * getPermission method of the AccessControlException returns the
-     * <code>perm</code> Permission object instance.
+     * {@code perm} Permission object instance.
      *
      * @param perm the requested permission.
      *
      * @exception AccessControlException if the specified permission
      *            is not permitted, based on the current security policy.
      * @exception NullPointerException if the specified permission
-     *            is <code>null</code> and is checked based on the
+     *            is {@code null} and is checked based on the
      *            security policy currently in effect.
      */
 
