@@ -219,7 +219,6 @@ import sun.misc.LRUCache;
  * Rmax is the highest digit in the radix being used (for example, Rmax is 9
  * in base 10).
  *
- * <p>
  * <table cellspacing=0 cellpadding=0 align=center>
  *
  *   <tr><td valign=top align=right><i>NonASCIIDigit</i>&nbsp;&nbsp;::</td>

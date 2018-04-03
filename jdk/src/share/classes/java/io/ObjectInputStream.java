@@ -115,7 +115,7 @@ import sun.util.logging.PlatformLogger;
  *
  * <p>Serializable classes that require special handling during the
  * serialization and deserialization process should implement the following
- * methods:<p>
+ * methods:
  *
  * <pre>
  * private void writeObject(java.io.ObjectOutputStream stream)

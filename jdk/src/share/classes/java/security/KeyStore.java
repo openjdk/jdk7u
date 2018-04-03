@@ -102,7 +102,6 @@ import sun.security.util.Debug;
  *    KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
  * </pre>
  * The system will return a keystore implementation for the default type.
- * <p>
  *
  * <li>To provide a specific keystore type:
  * <pre>

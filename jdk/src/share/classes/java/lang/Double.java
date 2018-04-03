@@ -353,14 +353,10 @@ public final class Double extends Number implements Comparable<Double> {
      * <dd><i>SignedInteger</i>
      * </dl>
      *
-     * <p>
-     *
      * <dl>
      * <dt><i>HexFloatingPointLiteral</i>:
      * <dd> <i>HexSignificand BinaryExponent FloatTypeSuffix<sub>opt</sub></i>
      * </dl>
-     *
-     * <p>
      *
      * <dl>
      * <dt><i>HexSignificand:</i>
@@ -372,14 +368,10 @@ public final class Double extends Number implements Comparable<Double> {
      *     </i>{@code .} <i>HexDigits</i>
      * </dl>
      *
-     * <p>
-     *
      * <dl>
      * <dt><i>BinaryExponent:</i>
      * <dd><i>BinaryExponentIndicator SignedInteger</i>
      * </dl>
-     *
-     * <p>
      *
      * <dl>
      * <dt><i>BinaryExponentIndicator:</i>
