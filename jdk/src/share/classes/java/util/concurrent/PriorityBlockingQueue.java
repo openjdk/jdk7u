@@ -39,6 +39,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.*;
 
+import sun.misc.SharedSecrets;
+
 /**
  * An unbounded {@linkplain BlockingQueue blocking queue} that uses
  * the same ordering rules as class {@link PriorityQueue} and supplies
@@ -927,7 +929,9 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
         throws java.io.IOException, ClassNotFoundException {
         try {
             s.defaultReadObject();
-            this.queue = new Object[q.size()];
+            int sz = q.size();
+            SharedSecrets.getJavaOISAccess().checkArray(s, Object[].class, sz);
+            this.queue = new Object[sz];
             comparator = q.comparator();
             addAll(q);
         } finally {
