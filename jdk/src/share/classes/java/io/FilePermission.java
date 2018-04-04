@@ -854,6 +854,8 @@ implements Serializable {
         // Get the one we want
         Vector<Permission> permissions = (Vector<Permission>)gfields.get("permissions", null);
         perms = new ArrayList<>(permissions.size());
-        perms.addAll(permissions);
+        for (Permission perm : permissions) {
+            perms.add(perm);
+        }
     }
 }
