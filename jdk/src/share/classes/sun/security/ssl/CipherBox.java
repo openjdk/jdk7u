@@ -425,7 +425,9 @@ final class CipherBox {
 
                 if (protocolVersion.v >= ProtocolVersion.TLS11.v) {
                     if (newLen < blockSize) {
-                        throw new BadPaddingException("invalid explicit IV");
+                        throw new BadPaddingException("The length after " +
+                        "padding removal (" + newLen + ") should be larger " +
+                        "than <" + blockSize + "> since explicit IV used");
                     }
 
                     // discards the first cipher block, the IV component.
@@ -440,7 +442,6 @@ final class CipherBox {
             throw new ArrayIndexOutOfBoundsException(e.toString());
         }
     }
-
 
     /*
      * Decrypts a block of data, returning the size of the
@@ -496,7 +497,9 @@ final class CipherBox {
 
                 if (protocolVersion.v >= ProtocolVersion.TLS11.v) {
                     if (newLen < blockSize) {
-                        throw new BadPaddingException("invalid explicit IV");
+                        throw new BadPaddingException("The length after " +
+                        "padding removal (" + newLen + ") should be larger " +
+                        "than <" + blockSize + "> since explicit IV used");
                     }
 
                     // discards the first cipher block, the IV component.
@@ -697,7 +700,9 @@ final class CipherBox {
             // so accept that as well
             // v3 does not require any particular value for the other bytes
             if (padLen > blockSize) {
-                throw new BadPaddingException("Invalid SSLv3 padding");
+                throw new BadPaddingException("Padding length (" +
+                padLen + ") of SSLv3 message should not be bigger " +
+                "than the block size (" + blockSize + ")");
             }
         }
         return newLen;
@@ -743,7 +748,9 @@ final class CipherBox {
             // so accept that as well
             // v3 does not require any particular value for the other bytes
             if (padLen > blockSize) {
-                throw new BadPaddingException("Invalid SSLv3 padding");
+                throw new BadPaddingException("Padding length (" +
+                padLen + ") of SSLv3 message should not be bigger " +
+                "than the block size (" + blockSize + ")");
             }
         }
 
