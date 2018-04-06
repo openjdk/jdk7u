@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,6 @@ import java.io.FilePermission;
 import java.net.SocketPermission;
 import java.net.NetPermission;
 import java.util.PropertyPermission;
-import java.util.concurrent.atomic.AtomicReference;
 /*
 import javax.security.auth.AuthPermission;
 import javax.security.auth.kerberos.ServicePermission;
@@ -292,7 +291,8 @@ public class PolicyFile extends java.security.Policy {
     private static final int DEFAULT_CACHE_SIZE = 1;
 
     // contains the policy grant entries, PD cache, and alias mapping
-    private AtomicReference<PolicyInfo> policyInfo = new AtomicReference<>();
+    // can be updated if refresh() is called
+    private volatile PolicyInfo policyInfo;
     private boolean constructed = false;
 
     private boolean expandProperties = true;
@@ -455,7 +455,7 @@ public class PolicyFile extends java.security.Policy {
         // System.out.println("number caches=" + numCaches);
         PolicyInfo newInfo = new PolicyInfo(numCaches);
         initPolicyFile(newInfo, url);
-        policyInfo.set(newInfo);
+        policyInfo = newInfo;
     }
 
     private void initPolicyFile(final PolicyInfo newInfo, final URL url) {
@@ -1116,9 +1116,7 @@ public class PolicyFile extends java.security.Policy {
      */
     @Override
     public boolean implies(ProtectionDomain pd, Permission p) {
-        PolicyInfo pi = policyInfo.get();
-        ProtectionDomainCache pdMap = pi.getPdMapping();
-
+        ProtectionDomainCache pdMap = policyInfo.getPdMapping();
         PermissionCollection pc = pdMap.get(pd);
 
         if (pc != null) {
@@ -1261,7 +1259,7 @@ public class PolicyFile extends java.security.Policy {
     private Permissions getPermissions(Permissions perms,
                                        final CodeSource cs,
                                        Principal[] principals) {
-        PolicyInfo pi = policyInfo.get();
+        PolicyInfo pi = policyInfo;
 
         for (PolicyEntry entry : pi.policyEntries) {
             addPermissions(perms, cs, principals, entry);
