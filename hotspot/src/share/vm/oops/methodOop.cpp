@@ -1106,13 +1106,13 @@ vmSymbols::SID methodOopDesc::klass_id_for_intrinsics(klassOop holder) {
   // because we are not loading from core libraries
   // exception: the AES intrinsics come from lib/ext/sunjce_provider.jar
   // which does not use the class default class loader so we check for its loader here
-  if ((instanceKlass::cast(holder)->class_loader() != NULL) &&
-       instanceKlass::cast(holder)->class_loader()->klass()->klass_part()->name() != vmSymbols::sun_misc_Launcher_ExtClassLoader()) {
+  instanceKlass* ik = instanceKlass::cast(holder);
+  if ((ik->class_loader() != NULL) && !SystemDictionary::is_ext_class_loader(ik->class_loader())) {
     return vmSymbols::NO_SID;   // regardless of name, no intrinsics here
   }
 
   // see if the klass name is well-known:
-  Symbol* klass_name = instanceKlass::cast(holder)->name();
+  Symbol* klass_name = ik->name();
   return vmSymbols::find_sid(klass_name);
 }
 

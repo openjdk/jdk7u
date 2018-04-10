@@ -612,6 +612,10 @@ private:
   static bool is_parallelCapable(Handle class_loader);
   static bool is_parallelDefine(Handle class_loader);
 
+public:
+  static bool is_ext_class_loader(Handle class_loader);
+
+private:
   static klassOop find_shared_class(Symbol* class_name);
 
   // Setup link to hierarchy
@@ -622,7 +626,6 @@ private:
                                     Handle initiating_loader);
   static void post_class_unload_events(BoolObjectClosure* is_alive);
 
-private:
   // We pass in the hashtable index so we can calculate it outside of
   // the SystemDictionary_lock.
 
