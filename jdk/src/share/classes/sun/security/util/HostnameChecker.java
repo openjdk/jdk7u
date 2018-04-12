@@ -25,10 +25,14 @@
 
 package sun.security.util;
 
+import java.io.InputStream;
 import java.io.IOException;
 import java.net.IDN;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.*;
 
 import java.security.Principal;
@@ -36,10 +40,12 @@ import java.security.cert.*;
 
 import javax.security.auth.x500.X500Principal;
 
+import sun.net.idn.Punycode;
+import sun.net.idn.StringPrep;
+import sun.net.util.IPAddressUtil;
 import sun.security.ssl.Krb5Helper;
 import sun.security.x509.X500Name;
-
-import sun.net.util.IPAddressUtil;
+import sun.text.normalizer.UCharacterIterator;
 
 /**
  * Class to check hostnames against the names specified in a certificate as
@@ -390,10 +396,12 @@ public class HostnameChecker {
     }
 
     // check the validity of the string hostname
-    private void checkHostName(String hostname) {
-        hostname = IDN.toASCII(Objects.requireNonNull(hostname,
-                                   "Server name value of host_name cannot be null"),
-                               IDN.USE_STD3_ASCII_RULES);
+    private static void checkHostName(String hostname) {
+        hostname = toASCII(Objects.requireNonNull(hostname,
+                                                  "Server name value of host_name cannot be null"),
+                           IDN.USE_STD3_ASCII_RULES);
+        // Check it can be encoded to ASCII
+        hostname.getBytes(StandardCharsets.US_ASCII);
 
         if (hostname.isEmpty()) {
             throw new IllegalArgumentException(
@@ -404,6 +412,274 @@ public class HostnameChecker {
             throw new IllegalArgumentException(
                 "Server name value of host_name cannot have the trailing dot");
         }
+    }
+
+    /*
+     * Local versions of toASCII(String,int), toASCIIInternal(String, int)
+     * and their helper methods with 8020842 fix added. Can't change the
+     * public version due to compatibility.
+     */
+
+    // ACE Prefix is "xn--"
+    private static final String ACE_PREFIX = "xn--";
+    private static final int ACE_PREFIX_LENGTH = ACE_PREFIX.length();
+
+    private static final int MAX_LABEL_LENGTH   = 63;
+
+    // single instance of nameprep
+    private static StringPrep namePrep = null;
+
+    static {
+        InputStream stream = null;
+
+        try {
+            final String IDN_PROFILE = "uidna.spp";
+            if (System.getSecurityManager() != null) {
+                stream = AccessController.doPrivileged(new PrivilegedAction<InputStream>() {
+                    public InputStream run() {
+                        return StringPrep.class.getResourceAsStream(IDN_PROFILE);
+                    }
+                });
+            } else {
+                stream = StringPrep.class.getResourceAsStream(IDN_PROFILE);
+            }
+
+            namePrep = new StringPrep(stream);
+            stream.close();
+        } catch (IOException e) {
+            // should never reach here
+            assert false;
+        }
+    }
+
+    /**
+     * Translates a string from Unicode to ASCII Compatible Encoding (ACE),
+     * as defined by the ToASCII operation of <a href="http://www.ietf.org/rfc/rfc3490.txt">RFC 3490</a>.
+     *
+     * <p>ToASCII operation can fail. ToASCII fails if any step of it fails.
+     * If ToASCII operation fails, an IllegalArgumentException will be thrown.
+     * In this case, the input string should not be used in an internationalized domain name.
+     *
+     * <p> A label is an individual part of a domain name. The original ToASCII operation,
+     * as defined in RFC 3490, only operates on a single label. This method can handle
+     * both label and entire domain name, by assuming that labels in a domain name are
+     * always separated by dots. The following characters are recognized as dots:
+     * &#0092;u002E (full stop), &#0092;u3002 (ideographic full stop), &#0092;uFF0E (fullwidth full stop),
+     * and &#0092;uFF61 (halfwidth ideographic full stop). if dots are
+     * used as label separators, this method also changes all of them to &#0092;u002E (full stop)
+     * in output translated string.
+     *
+     * @param input     the string to be processed
+     * @param flag      process flag; can be 0 or any logical OR of possible flags
+     *
+     * @return          the translated {@code String}
+     *
+     * @throws IllegalArgumentException   if the input string doesn't conform to RFC 3490 specification
+     */
+    private static String toASCII(String input, int flag)
+    {
+        int p = 0, q = 0;
+        StringBuffer out = new StringBuffer();
+
+        if (isRootLabel(input)) {
+            return ".";
+        }
+
+        while (p < input.length()) {
+            q = searchDots(input, p);
+            out.append(toASCIIInternal(input.substring(p, q),  flag));
+            if (q != (input.length())) {
+               // has more labels, or keep the trailing dot as at present
+               out.append('.');
+            }
+            p = q + 1;
+        }
+
+        return out.toString();
+    }
+
+    //
+    // toASCII operation; should only apply to a single label
+    //
+    private static String toASCIIInternal(String label, int flag)
+    {
+        // step 1
+        // Check if the string contains code points outside the ASCII range 0..0x7c.
+        boolean isASCII  = isAllASCII(label);
+        StringBuffer dest;
+
+        // step 2
+        // perform the nameprep operation; flag ALLOW_UNASSIGNED is used here
+        if (!isASCII) {
+            UCharacterIterator iter = UCharacterIterator.getInstance(label);
+            try {
+                dest = namePrep.prepare(iter, flag);
+            } catch (java.text.ParseException e) {
+                throw new IllegalArgumentException(e);
+            }
+        } else {
+            dest = new StringBuffer(label);
+        }
+
+        // step 8, move forward to check the smallest number of the code points
+        // the length must be inside 1..63
+        if (dest.length() == 0) {
+            throw new IllegalArgumentException(
+                        "Empty label is not a legal name");
+        }
+
+        // step 3
+        // Verify the absence of non-LDH ASCII code points
+        //   0..0x2c, 0x2e..0x2f, 0x3a..0x40, 0x5b..0x60, 0x7b..0x7f
+        // Verify the absence of leading and trailing hyphen
+        boolean useSTD3ASCIIRules = ((flag & IDN.USE_STD3_ASCII_RULES) != 0);
+        if (useSTD3ASCIIRules) {
+            for (int i = 0; i < dest.length(); i++) {
+                int c = dest.charAt(i);
+                if (isNonLDHAsciiCodePoint(c)) {
+                    throw new IllegalArgumentException(
+                        "Contains non-LDH ASCII characters");
+                }
+            }
+
+            if (dest.charAt(0) == '-' ||
+                dest.charAt(dest.length() - 1) == '-') {
+
+                throw new IllegalArgumentException(
+                        "Has leading or trailing hyphen");
+            }
+        }
+
+        if (!isASCII) {
+            // step 4
+            // If all code points are inside 0..0x7f, skip to step 8
+            if (!isAllASCII(dest.toString())) {
+                // step 5
+                // verify the sequence does not begin with ACE prefix
+                if(!startsWithACEPrefix(dest)){
+
+                    // step 6
+                    // encode the sequence with punycode
+                    try {
+                        dest = Punycode.encode(dest, null);
+                    } catch (java.text.ParseException e) {
+                        throw new IllegalArgumentException(e);
+                    }
+
+                    dest = toASCIILower(dest);
+
+                    // step 7
+                    // prepend the ACE prefix
+                    dest.insert(0, ACE_PREFIX);
+                } else {
+                    throw new IllegalArgumentException("The input starts with the ACE Prefix");
+                }
+
+            }
+        }
+
+        // step 8
+        // the length must be inside 1..63
+        if (dest.length() > MAX_LABEL_LENGTH) {
+            throw new IllegalArgumentException("The label in the input is too long");
+        }
+
+        return dest.toString();
+    }
+
+    //
+    // LDH stands for "letter/digit/hyphen", with characters restricted to the
+    // 26-letter Latin alphabet <A-Z a-z>, the digits <0-9>, and the hyphen
+    // <->.
+    // Non LDH refers to characters in the ASCII range, but which are not
+    // letters, digits or the hypen.
+    //
+    // non-LDH = 0..0x2C, 0x2E..0x2F, 0x3A..0x40, 0x5B..0x60, 0x7B..0x7F
+    //
+    private static boolean isNonLDHAsciiCodePoint(int ch){
+        return (0x0000 <= ch && ch <= 0x002C) ||
+               (0x002E <= ch && ch <= 0x002F) ||
+               (0x003A <= ch && ch <= 0x0040) ||
+               (0x005B <= ch && ch <= 0x0060) ||
+               (0x007B <= ch && ch <= 0x007F);
+    }
+
+    //
+    // search dots in a string and return the index of that character;
+    // or if there is no dots, return the length of input string
+    // dots might be: \u002E (full stop), \u3002 (ideographic full stop), \uFF0E (fullwidth full stop),
+    // and \uFF61 (halfwidth ideographic full stop).
+    //
+    private static int searchDots(String s, int start) {
+        int i;
+        for (i = start; i < s.length(); i++) {
+            if (isLabelSeparator(s.charAt(i))) {
+                break;
+            }
+        }
+
+        return i;
+    }
+
+    //
+    // to check if a string is a root label, ".".
+    //
+    private static boolean isRootLabel(String s) {
+        return (s.length() == 1 && isLabelSeparator(s.charAt(0)));
+    }
+
+    //
+    // to check if a character is a label separator, i.e. a dot character.
+    //
+    private static boolean isLabelSeparator(char c) {
+        return (c == '.' || c == '\u3002' || c == '\uFF0E' || c == '\uFF61');
+    }
+
+    //
+    // to check if a string starts with ACE-prefix
+    //
+    private static boolean startsWithACEPrefix(StringBuffer input){
+        boolean startsWithPrefix = true;
+
+        if(input.length() < ACE_PREFIX_LENGTH){
+            return false;
+        }
+        for(int i = 0; i < ACE_PREFIX_LENGTH; i++){
+            if(toASCIILower(input.charAt(i)) != ACE_PREFIX.charAt(i)){
+                startsWithPrefix = false;
+            }
+        }
+        return startsWithPrefix;
+    }
+
+    private static char toASCIILower(char ch){
+        if('A' <= ch && ch <= 'Z'){
+            return (char)(ch + 'a' - 'A');
+        }
+        return ch;
+    }
+
+    private static StringBuffer toASCIILower(StringBuffer input){
+        StringBuffer dest = new StringBuffer();
+        for(int i = 0; i < input.length();i++){
+            dest.append(toASCIILower(input.charAt(i)));
+        }
+        return dest;
+    }
+
+    //
+    // to check if a string only contains US-ASCII code point
+    //
+    private static boolean isAllASCII(String input) {
+        boolean isASCII = true;
+        for (int i = 0; i < input.length(); i++) {
+            int c = input.charAt(i);
+            if (c > 0x7F) {
+                isASCII = false;
+                break;
+            }
+        }
+        return isASCII;
     }
 
 }
