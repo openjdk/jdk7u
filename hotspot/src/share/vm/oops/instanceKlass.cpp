@@ -1046,11 +1046,7 @@ static int linear_search(objArrayOop methods, Symbol* name, Symbol* signature) {
 }
 #endif
 
-methodOop instanceKlass::find_method(Symbol* name, Symbol* signature) const {
-  return instanceKlass::find_method(methods(), name, signature);
-}
-
-methodOop instanceKlass::find_method(objArrayOop methods, Symbol* name, Symbol* signature) {
+static int binary_search(objArrayOop methods, Symbol* name) {
   int len = methods->length();
   // methods are sorted, so do binary search
   int l = 0;
@@ -1061,43 +1057,100 @@ methodOop instanceKlass::find_method(objArrayOop methods, Symbol* name, Symbol* 
     assert(m->is_method(), "must be method");
     int res = m->name()->fast_compare(name);
     if (res == 0) {
-      // found matching name; do linear search to find matching signature
-      // first, quick check for common case
-      if (m->signature() == signature) return m;
-      // search downwards through overloaded methods
-      int i;
-      for (i = mid - 1; i >= l; i--) {
-        methodOop m = (methodOop)methods->obj_at(i);
-        assert(m->is_method(), "must be method");
-        if (m->name() != name) break;
-        if (m->signature() == signature) return m;
-      }
-      // search upwards
-      for (i = mid + 1; i <= h; i++) {
-        methodOop m = (methodOop)methods->obj_at(i);
-        assert(m->is_method(), "must be method");
-        if (m->name() != name) break;
-        if (m->signature() == signature) return m;
-      }
-      // not found
-#ifdef ASSERT
-      int index = linear_search(methods, name, signature);
-      assert(index == -1, err_msg("binary search should have found entry %d", index));
-#endif
-      return NULL;
+      return mid;
     } else if (res < 0) {
       l = mid + 1;
     } else {
       h = mid - 1;
     }
   }
-#ifdef ASSERT
-  int index = linear_search(methods, name, signature);
-  assert(index == -1, err_msg("binary search should have found entry %d", index));
-#endif
-  return NULL;
+  return -1;
 }
 
+// find_method looks up the name/signature in the local methods array
+methodOop instanceKlass::find_method(Symbol* name, Symbol* signature) const {
+  return instanceKlass::find_method(methods(), name, signature);
+}
+
+// find_instance_method looks up the name/signature in the local methods array
+// and skips over static methods
+methodOop instanceKlass::find_instance_method(Symbol* name, Symbol* signature) {
+  return instanceKlass::find_instance_method(methods(), name, signature);
+}
+
+// find_instance_method looks up the name/signature in the local methods array
+// and skips over static methods
+methodOop instanceKlass::find_instance_method(objArrayOop methods, Symbol* name, Symbol* signature) {
+  methodOop meth = instanceKlass::find_method_impl(methods, name, signature, true);
+  return meth;
+}
+
+// find_method looks up the name/signature in the local methods array
+methodOop instanceKlass::find_method(objArrayOop methods, Symbol* name, Symbol* signature) {
+  return instanceKlass::find_method_impl(methods, name, signature, false);
+}
+
+methodOop instanceKlass::find_method_impl(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static) {
+  int hit = find_method_index(methods, name, signature, skipping_static);
+  return hit >= 0 ? (methodOop) methods->obj_at(hit): NULL;
+}
+
+bool instanceKlass::method_matches(methodOop m, Symbol* signature, bool skipping_static) {
+    return (m->signature() == signature) && (!skipping_static || !m->is_static());
+}
+
+// Used indirectly by find_method
+// find_method_index looks in the local methods array to return the index
+// of the matching name/signature
+int instanceKlass::find_method_index(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static) {
+  int hit = binary_search(methods, name);
+  if (hit != -1) {
+    methodOop m = (methodOop) methods->obj_at(hit);
+
+    // Do linear search to find matching signature.  First, quick check
+    // for common case
+    if (method_matches(m, signature, skipping_static)) return hit;
+    // search downwards through overloaded methods
+    int i;
+    for (i = hit - 1; i >= 0; --i) {
+        methodOop m = (methodOop) methods->obj_at(i);
+        assert(m->is_method(), "must be method");
+        if (m->name() != name) break;
+        if (method_matches(m, signature, skipping_static)) return i;
+    }
+    // search upwards
+    for (i = hit + 1; i < methods->length(); ++i) {
+        methodOop m = (methodOop) methods->obj_at(i);
+        assert(m->is_method(), "must be method");
+        if (m->name() != name) break;
+        if (method_matches(m, signature, skipping_static)) return i;
+    }
+    // not found
+#ifdef ASSERT
+    int index = skipping_static ? -1 : linear_search(methods, name, signature);
+    assert(index == -1, err_msg("binary search should have found entry %d", index));
+#endif
+  }
+  return -1;
+}
+int instanceKlass::find_method_by_name(Symbol* name, int* end) {
+  return find_method_by_name(methods(), name, end);
+}
+
+int instanceKlass::find_method_by_name(objArrayOop methods, Symbol* name, int* end_ptr) {
+  assert(end_ptr != NULL, "just checking");
+  int start = binary_search(methods, name);
+  int end = start + 1;
+  if (start != -1) {
+    while (start - 1 >= 0 && ((methodOop)(methods->obj_at(start - 1)))->name() == name) --start;
+    while (end < methods->length() && ((methodOop)(methods->obj_at(end)))->name() == name) ++end;
+    *end_ptr = end;
+    return start;
+  }
+  return -1;
+}
+
+// lookup_method searches both the local methods array and all superclasses methods arrays
 methodOop instanceKlass::uncached_lookup_method(Symbol* name, Symbol* signature) const {
   klassOop klass = as_klassOop();
   while (klass != NULL) {

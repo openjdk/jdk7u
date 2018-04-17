@@ -188,6 +188,7 @@ void LinkResolver::resolve_klass_no_update(KlassHandle& result, constantPoolHand
 //
 // According to JVM spec. $5.4.3c & $5.4.3d
 
+// Look up method in klasses, including static methods
 void LinkResolver::lookup_method_in_klasses(methodHandle& result, KlassHandle klass, Symbol* name, Symbol* signature, TRAPS) {
   methodOop result_oop = klass->uncached_lookup_method(name, signature);
 
@@ -213,8 +214,8 @@ void LinkResolver::lookup_instance_method_in_klasses(methodHandle& result, Klass
   methodOop result_oop = klass->uncached_lookup_method(name, signature);
   result = methodHandle(THREAD, result_oop);
   while (!result.is_null() && result->is_static()) {
-    klass = KlassHandle(THREAD, Klass::cast(result->method_holder())->super());
-    result = methodHandle(THREAD, klass->uncached_lookup_method(name, signature));
+    KlassHandle super_klass = KlassHandle(THREAD, Klass::cast(result->method_holder())->super());
+    result = methodHandle(THREAD, super_klass->uncached_lookup_method(name, signature));
   }
 }
 
