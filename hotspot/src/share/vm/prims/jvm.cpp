@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "gc_interface/collectedHeap.inline.hpp"
 #include "memory/oopFactory.hpp"
+#include "memory/referenceType.hpp"
 #include "memory/universe.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/instanceKlass.hpp"
@@ -81,6 +82,10 @@
 #ifdef TARGET_OS_FAMILY_bsd
 # include "jvm_bsd.h"
 #endif
+
+#ifndef SERIALGC
+#include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
+#endif // !SERIALGC
 
 #include <errno.h>
 
@@ -574,6 +579,28 @@ JVM_ENTRY(void, JVM_MonitorNotifyAll(JNIEnv* env, jobject handle))
 JVM_END
 
 
+static void fixup_cloned_reference(ReferenceType ref_type, oop src, oop clone) {
+  // If G1 is enabled then we need to register a non-null referent
+  // with the SATB barrier.
+#ifndef SERIALGC
+  if (UseG1GC) {
+    oop referent = java_lang_ref_Reference::referent(clone);
+    if (referent != NULL) {
+      G1SATBCardTableModRefBS::enqueue(referent);
+    }
+  }
+#endif // !SERIALGC
+  if ((java_lang_ref_Reference::next(clone) != NULL) ||
+      (java_lang_ref_Reference::queue(clone) == java_lang_ref_ReferenceQueue::ENQUEUED_queue())) {
+    // If the source has been enqueued or is being enqueued, don't
+    // register the clone with a queue.
+    java_lang_ref_Reference::set_queue(clone, java_lang_ref_ReferenceQueue::NULL_queue());
+  }
+  // discovered and next are list links; the clone is not in those lists.
+  java_lang_ref_Reference::set_discovered(clone, NULL);
+  java_lang_ref_Reference::set_next(clone, NULL);
+}
+
 JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   JVMWrapper("JVM_Clone");
   Handle obj(THREAD, JNIHandles::resolve_non_null(handle));
@@ -599,12 +626,17 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   }
 
   // Make shallow object copy
+  ReferenceType ref_type = REF_NONE;
   const int size = obj->size();
   oop new_obj_oop = NULL;
   if (obj->is_javaArray()) {
     const int length = ((arrayOop)obj())->length();
     new_obj_oop = CollectedHeap::array_allocate(klass, size, length, CHECK_NULL);
   } else {
+    ref_type = instanceKlass::cast(klass())->reference_type();
+    assert((ref_type == REF_NONE) ==
+           !klass->is_subclass_of(SystemDictionary::Reference_klass()),
+           "invariant");
     new_obj_oop = CollectedHeap::obj_allocate(klass, size, CHECK_NULL);
   }
   // 4839641 (4840070): We must do an oop-atomic copy, because if another thread
@@ -626,6 +658,12 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   BarrierSet* bs = Universe::heap()->barrier_set();
   assert(bs->has_write_region_opt(), "Barrier set does not have write_region");
   bs->write_region(MemRegion((HeapWord*)new_obj_oop, size));
+
+  // If cloning a Reference, set Reference fields to a safe state.
+  // Fixup must be completed before any safepoint.
+  if (ref_type != REF_NONE) {
+    fixup_cloned_reference(ref_type, obj(), new_obj_oop);
+  }
 
   Handle new_obj(THREAD, new_obj_oop);
   // Special handling for MemberNames.  Since they contain Method* metadata, they
