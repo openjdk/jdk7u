@@ -188,6 +188,11 @@ public abstract class ClassLoader {
     // must be added *after* it.
     private final ClassLoader parent;
 
+    // Used by ClassLoaderDependencies native class. This attribute is
+    // expected to be the 2nd instance attribute of ClassLoader class,
+    // according to java_lang_ClassLoader native class.
+    private final Object[] dependencies = new Object[2];
+
     /**
      * Encapsulates the set of parallel capable loader types.
      */
