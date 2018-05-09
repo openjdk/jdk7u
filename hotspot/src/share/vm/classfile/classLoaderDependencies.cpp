@@ -22,6 +22,7 @@
  * questions.
  */
 
+#include "precompiled.hpp"
 #include "classfile/classLoaderDependencies.hpp"
 #include "classfile/javaClasses.hpp"
 #include "memory/oopFactory.hpp"
