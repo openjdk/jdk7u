@@ -2817,6 +2817,14 @@ oop java_lang_ClassLoader::parent(oop loader) {
   return loader->obj_field(parent_offset);
 }
 
+objArrayOop java_lang_ClassLoader::dependencies(oop loader) {
+  assert(is_instance(loader), "loader must be oop");
+  oop dependencies = loader->obj_field(dependencies_offset);
+  assert(dependencies != NULL, "dependencies must be initialized");
+  assert(dependencies->is_objArray(), "dependencies must be an array");
+  return objArrayOop(dependencies);
+}
+
 bool java_lang_ClassLoader::isAncestor(oop loader, oop cl) {
   assert(is_instance(loader), "loader must be oop");
   assert(cl == NULL || is_instance(cl), "cl argument must be oop");
@@ -2952,6 +2960,7 @@ int java_lang_ref_ReferenceQueue::static_ENQUEUED_queue_offset;
 int java_lang_ref_SoftReference::timestamp_offset;
 int java_lang_ref_SoftReference::static_clock_offset;
 int java_lang_ClassLoader::parent_offset;
+int java_lang_ClassLoader::dependencies_offset;
 int java_lang_System::static_in_offset;
 int java_lang_System::static_out_offset;
 int java_lang_System::static_err_offset;
@@ -3076,6 +3085,7 @@ void JavaClasses::compute_hard_coded_offsets() {
 
   // java_lang_ClassLoader
   java_lang_ClassLoader::parent_offset = java_lang_ClassLoader::hc_parent_offset * x + header;
+  java_lang_ClassLoader::dependencies_offset = java_lang_ClassLoader::hc_dependencies_offset * x + header;
 
   // java_lang_System
   java_lang_System::static_in_offset  = java_lang_System::hc_static_in_offset  * x;

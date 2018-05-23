@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/classFileStream.hpp"
+#include "classfile/classLoaderDependencies.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/stackMapTable.hpp"
 #include "classfile/stackMapFrame.hpp"
@@ -1926,9 +1927,11 @@ klassOop ClassVerifier::load_class(Symbol* name, TRAPS) {
   oop loader = current_class()->class_loader();
   oop protection_domain = current_class()->protection_domain();
 
-  return SystemDictionary::resolve_or_fail(
+  klassOop kls = SystemDictionary::resolve_or_fail(
     name, Handle(THREAD, loader), Handle(THREAD, protection_domain),
     true, CHECK_NULL);
+  ClassLoaderDependencies::record_dependency(current_class(), kls, CHECK_NULL);
+  return kls;
 }
 
 bool ClassVerifier::is_protected_access(instanceKlassHandle this_class,
