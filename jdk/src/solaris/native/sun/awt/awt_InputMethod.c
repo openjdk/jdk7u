@@ -506,7 +506,7 @@ setXICWindowFocus(XIC ic, Window w)
  */
 #define INITIAL_LOOKUP_BUF_SIZE 512
 
-Bool
+Boolean
 awt_x11inputmethod_lookupString(XKeyPressedEvent *event, KeySym *keysymp)
 {
     JNIEnv *env = GetJNIEnv();
@@ -516,8 +516,8 @@ awt_x11inputmethod_lookupString(XKeyPressedEvent *event, KeySym *keysymp)
     int mblen;
     jstring javastr;
     XIC ic;
-    Bool result = True;
-    static Bool composing = False;
+    Boolean result = True;
+    static Boolean composing = False;
 
     /*
       printf("lookupString: entering...\n");
