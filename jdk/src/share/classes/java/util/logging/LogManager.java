@@ -185,10 +185,10 @@ public class LogManager {
                         cname = System.getProperty("java.util.logging.manager");
                         if (cname != null) {
                             try {
-                                Class clz = ClassLoader.getSystemClassLoader().loadClass(cname);
+                                Class<?> clz = ClassLoader.getSystemClassLoader().loadClass(cname);
                                 manager = (LogManager) clz.newInstance();
                             } catch (ClassNotFoundException ex) {
-                                Class clz = Thread.currentThread().getContextClassLoader().loadClass(cname);
+                                Class<?> clz = Thread.currentThread().getContextClassLoader().loadClass(cname);
                                 manager = (LogManager) clz.newInstance();
                             }
                         }
@@ -212,10 +212,10 @@ public class LogManager {
 
                     // Adding the global Logger. Doing so in the Logger.<clinit>
                     // would deadlock with the LogManager.<clinit>.
-                    Logger.global.setLogManager(manager);
+                    Logger.getGlobal().setLogManager(manager);
                     // Make sure the global logger will be registered in the
                     // global manager's default contexts.
-                    manager.addLogger(Logger.global);
+                    manager.addLogger(Logger.getGlobal());
                     manager.systemContext.addLocalLogger(Logger.global, false);
                     manager.userContext.addLocalLogger(Logger.global, false);
 
@@ -805,8 +805,8 @@ public class LogManager {
                 for (int i = 0; i < names.length; i++) {
                     String word = names[i];
                     try {
-                        Class clz = ClassLoader.getSystemClassLoader().loadClass(word);
-                        Handler hdl = (Handler) clz.newInstance();
+                        Class<?> clz = ClassLoader.getSystemClassLoader().loadClass(word);
+                        Handler  hdl = (Handler) clz.newInstance();
                         // Check if there is a property defining the
                         // this handler's level.
                         String levs = getProperty(word + ".level");
@@ -1114,11 +1114,11 @@ public class LogManager {
                 // responsibility to initialize the logging configuration, by
                 // calling readConfiguration(InputStream) with a suitable stream.
                 try {
-                    Class clz = ClassLoader.getSystemClassLoader().loadClass(cname);
+                    Class<?> clz = ClassLoader.getSystemClassLoader().loadClass(cname);
                     clz.newInstance();
                     return;
                 } catch (ClassNotFoundException ex) {
-                    Class clz = Thread.currentThread().getContextClassLoader().loadClass(cname);
+                    Class<?> clz = Thread.currentThread().getContextClassLoader().loadClass(cname);
                     clz.newInstance();
                     return;
                 }
@@ -1259,7 +1259,7 @@ public class LogManager {
         for (int i = 0; i < names.length; i++) {
             String word = names[i];
             try {
-                Class clz = ClassLoader.getSystemClassLoader().loadClass(word);
+                Class<?> clz = ClassLoader.getSystemClassLoader().loadClass(word);
                 clz.newInstance();
             } catch (Exception ex) {
                 System.err.println("Can't load config class \"" + word + "\"");
@@ -1354,7 +1354,7 @@ public class LogManager {
         String val = getProperty(name);
         try {
             if (val != null) {
-                Class clz = ClassLoader.getSystemClassLoader().loadClass(val);
+                Class<?> clz = ClassLoader.getSystemClassLoader().loadClass(val);
                 return (Filter) clz.newInstance();
             }
         } catch (Exception ex) {
@@ -1375,7 +1375,7 @@ public class LogManager {
         String val = getProperty(name);
         try {
             if (val != null) {
-                Class clz = ClassLoader.getSystemClassLoader().loadClass(val);
+                Class<?> clz = ClassLoader.getSystemClassLoader().loadClass(val);
                 return (Formatter) clz.newInstance();
             }
         } catch (Exception ex) {

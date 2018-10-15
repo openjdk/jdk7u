@@ -185,7 +185,7 @@ class JarFile extends ZipFile {
                 } else {
                     man = new Manifest(super.getInputStream(manEntry));
                 }
-                manRef = new SoftReference(man);
+                manRef = new SoftReference<>(man);
             }
         }
         return man;
@@ -235,13 +235,13 @@ class JarFile extends ZipFile {
      * Returns an enumeration of the zip file entries.
      */
     public Enumeration<JarEntry> entries() {
-        final Enumeration enum_ = super.entries();
+        final Enumeration<? extends ZipEntry> enum_ = super.entries();
         return new Enumeration<JarEntry>() {
             public boolean hasMoreElements() {
                 return enum_.hasMoreElements();
             }
             public JarFileEntry nextElement() {
-                ZipEntry ze = (ZipEntry)enum_.nextElement();
+                ZipEntry ze = enum_.nextElement();
                 return new JarFileEntry(ze);
             }
         };
@@ -612,7 +612,7 @@ class JarFile extends ZipFile {
         }
 
         // screen out entries which are never signed
-        final Enumeration enum_ = super.entries();
+        final Enumeration<? extends ZipEntry> enum_ = super.entries();
         return new Enumeration<JarEntry>() {
 
             ZipEntry entry;
@@ -622,7 +622,7 @@ class JarFile extends ZipFile {
                     return true;
                 }
                 while (enum_.hasMoreElements()) {
-                    ZipEntry ze = (ZipEntry) enum_.nextElement();
+                    ZipEntry ze = enum_.nextElement();
                     if (JarVerifier.isSigningRelated(ze.getName())) {
                         continue;
                     }
@@ -653,7 +653,7 @@ class JarFile extends ZipFile {
          * JAR file has no signed content. Is there a non-signing
          * code source?
          */
-        Enumeration unsigned = unsignedEntryNames();
+        Enumeration<String> unsigned = unsignedEntryNames();
         if (unsigned.hasMoreElements()) {
             return new CodeSource[]{JarVerifier.getUnsignedCS(url)};
         } else {
@@ -662,7 +662,7 @@ class JarFile extends ZipFile {
     }
 
     private Enumeration<String> unsignedEntryNames() {
-        final Enumeration entries = entries();
+        final Enumeration<JarEntry> entries = entries();
         return new Enumeration<String>() {
 
             String name;
@@ -677,7 +677,7 @@ class JarFile extends ZipFile {
                 }
                 while (entries.hasMoreElements()) {
                     String value;
-                    ZipEntry e = (ZipEntry) entries.nextElement();
+                    ZipEntry e = entries.nextElement();
                     value = e.getName();
                     if (e.isDirectory() || JarVerifier.isSigningRelated(value)) {
                         continue;
@@ -730,11 +730,11 @@ class JarFile extends ZipFile {
         }
     }
 
-    List getManifestDigests() {
+    List<Object> getManifestDigests() {
         ensureInitialization();
         if (jv != null) {
             return jv.getManifestDigests();
         }
-        return new ArrayList();
+        return new ArrayList<Object>();
     }
 }
