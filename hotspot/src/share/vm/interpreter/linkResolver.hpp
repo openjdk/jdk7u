@@ -188,6 +188,7 @@ class LinkResolver: AllStatic {
   static void resolve_invokehandle   (CallInfo& result,              constantPoolHandle pool, int index, TRAPS);
 
   static void resolve_invoke         (CallInfo& result, Handle recv, constantPoolHandle pool, int index, Bytecodes::Code byte, TRAPS);
+  static void check_field_loader_constraints(KlassHandle ref_klass, KlassHandle sel_klass, Symbol* name, Symbol* sig, TRAPS);
 };
 
 #endif // SHARE_VM_INTERPRETER_LINKRESOLVER_HPP

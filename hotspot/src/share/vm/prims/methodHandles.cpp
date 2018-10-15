@@ -767,6 +767,12 @@ Handle MethodHandles::resolve_MemberName(Handle mname, KlassHandle caller, TRAPS
       KlassHandle sel_klass(THREAD, instanceKlass::cast(defc())->find_field(name, type, &fd));
       // check if field exists; i.e., if a klass containing the field def has been selected
       if (sel_klass.is_null())  return empty;  // should not happen
+      if (sel_klass() != caller() && caller.not_null()) {
+          LinkResolver::check_field_loader_constraints(caller, sel_klass, name, type, THREAD);
+          if (HAS_PENDING_EXCEPTION) {
+            return empty;
+          }
+      }
       oop type = field_signature_type_or_null(fd.signature());
       oop name = field_name_or_null(fd.name());
       bool is_setter = (ref_kind_is_valid(ref_kind) && ref_kind_is_setter(ref_kind));
