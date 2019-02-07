@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -220,7 +220,17 @@ void ConstantPoolCacheEntry::set_method(Bytecodes::Code invoke_code,
   if (byte_no == 1) {
     assert(invoke_code != Bytecodes::_invokevirtual &&
            invoke_code != Bytecodes::_invokeinterface, "");
-    set_bytecode_1(invoke_code);
+    bool do_resolve = true;
+    // Don't mark invokestatic to method as resolved if the holder class has not yet completed
+    // initialization. An invokestatic must only proceed if the class is initialized, but if
+    // we resolve it before then that class initialization check is skipped.
+    if (invoke_code == Bytecodes::_invokestatic &&
+        !instanceKlass::cast(method->method_holder())->is_initialized()) {
+      do_resolve = false;
+    }
+    if (do_resolve) {
+      set_bytecode_1(invoke_code);
+    }
   } else if (byte_no == 2)  {
     if (change_to_virtual) {
       assert(invoke_code == Bytecodes::_invokeinterface, "");
