@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/classLoaderDependencies.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/verificationType.hpp"
 #include "classfile/verifier.hpp"
@@ -63,8 +62,6 @@ bool VerificationType::is_reference_assignable_from(
         Handle(THREAD, klass->protection_domain()), true, CHECK_false);
     KlassHandle this_class(THREAD, obj);
 
-    ClassLoaderDependencies::record_dependency(klass, this_class, CHECK_false);
-
     if (this_class->is_interface()) {
       // We treat interfaces as java.lang.Object, including
       // java.lang.Cloneable and java.io.Serializable
@@ -74,7 +71,6 @@ bool VerificationType::is_reference_assignable_from(
           from.name(), Handle(THREAD, klass->class_loader()),
           Handle(THREAD, klass->protection_domain()), true, CHECK_false);
       KlassHandle from_class_handle(THREAD, from_class);
-      ClassLoaderDependencies::record_dependency(klass, from_class_handle, CHECK_false);
       return instanceKlass::cast(from_class_handle())->is_subclass_of(this_class());
     }
   } else if (is_array() && from.is_array()) {

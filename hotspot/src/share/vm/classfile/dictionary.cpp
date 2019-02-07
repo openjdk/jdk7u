@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -230,9 +230,6 @@ bool Dictionary::do_unloading(BoolObjectClosure* is_alive) {
         oop k_def_class_loader = ik->class_loader();
 
         // Do we need to delete this system dictionary entry?
-        bool purge_entry = false;
-
-        // Do we need to delete this system dictionary entry?
         if (!is_alive->do_object_b(class_loader)) {
           // If the loader is not live this entry should always be
           // removed (will never be looked up again). Note that this is
@@ -255,28 +252,7 @@ bool Dictionary::do_unloading(BoolObjectClosure* is_alive) {
             // Clean up C heap
             ik->release_C_heap_structures();
           }
-          // Also remove this system dictionary entry.
-          purge_entry = true;
-
-        } else {
-          // The loader in this entry is alive. If the klass is dead,
-          // the loader must be an initiating loader (rather than the
-          // defining loader). Remove this entry.
-          if (!is_alive->do_object_b(e)) {
-            guarantee(!is_alive->do_object_b(k_def_class_loader),
-                      "defining loader should not be live if klass is not");
-            // If we get here, the class_loader must not be the defining
-            // loader, it must be an initiating one.
-            assert(k_def_class_loader != class_loader,
-                   "cannot have live defining loader and unreachable klass");
-
-            // Loader is live, but class and its defining loader are dead.
-            // Remove the entry. The class is going away.
-            purge_entry = true;
-          }
-        }
-
-        if (purge_entry) {
+          // Remove this system dictionary entry.
           *p = probe->next();
           if (probe == _current_class_entry) {
             _current_class_entry = NULL;

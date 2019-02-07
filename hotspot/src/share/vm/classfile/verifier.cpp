@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,6 @@
 
 #include "precompiled.hpp"
 #include "classfile/classFileStream.hpp"
-#include "classfile/classLoaderDependencies.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/stackMapTable.hpp"
 #include "classfile/stackMapFrame.hpp"
@@ -1927,11 +1926,9 @@ klassOop ClassVerifier::load_class(Symbol* name, TRAPS) {
   oop loader = current_class()->class_loader();
   oop protection_domain = current_class()->protection_domain();
 
-  klassOop kls = SystemDictionary::resolve_or_fail(
+  return SystemDictionary::resolve_or_fail(
     name, Handle(THREAD, loader), Handle(THREAD, protection_domain),
     true, CHECK_NULL);
-  ClassLoaderDependencies::record_dependency(current_class(), kls, CHECK_NULL);
-  return kls;
 }
 
 bool ClassVerifier::is_protected_access(instanceKlassHandle this_class,
