@@ -1211,7 +1211,7 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
   // fully initialized.
   if (invoke_code == Bytecodes::_invokestatic &&
       !instanceKlass::cast(callee_method->method_holder())->is_initialized()) {
-    assert(callee_method->method_holder()->is_linked(), "must be");
+    assert(instanceKlass::cast(callee_method->method_holder())->is_linked(), "must be");
     return callee_method;
   }
 
