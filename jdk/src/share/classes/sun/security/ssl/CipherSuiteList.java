@@ -74,24 +74,12 @@ final class CipherSuiteList {
             throw new IllegalArgumentException("CipherSuites may not be null");
         }
         cipherSuites = new ArrayList<CipherSuite>(names.length);
-        // refresh available cache once if a CipherSuite is not available
-        // (maybe new JCE providers have been installed)
-        boolean refreshed = false;
         for (int i = 0; i < names.length; i++) {
             String suiteName = names[i];
             CipherSuite suite = CipherSuite.valueOf(suiteName);
             if (suite.isAvailable() == false) {
-                if (refreshed == false) {
-                    // clear the cache so that the isAvailable() call below
-                    // does a full check
-                    clearAvailableCache();
-                    refreshed = true;
-                }
-                // still missing?
-                if (suite.isAvailable() == false) {
-                    throw new IllegalArgumentException("Cannot support "
-                        + suiteName + " with currently installed providers");
-                }
+                throw new IllegalArgumentException("Cannot support "
+                    + suiteName + " with currently installed providers");
             }
             cipherSuites.add(suite);
         }
@@ -188,17 +176,5 @@ final class CipherSuiteList {
             i += 2;
         }
         s.putBytes16(suiteBytes);
-    }
-
-    /**
-     * Clear cache of available ciphersuites. If we support all ciphers
-     * internally, there is no need to clear the cache and calling this
-     * method has no effect.
-     */
-    static synchronized void clearAvailableCache() {
-        if (CipherSuite.DYNAMIC_AVAILABILITY) {
-            CipherSuite.BulkCipher.clearAvailableCache();
-            JsseJce.clearEcAvailable();
-        }
     }
 }
