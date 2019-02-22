@@ -606,6 +606,7 @@ $(NOT_RT_JAR_LIST): FRC
 	$(ECHO) "com/sun/net/ssl/internal/ssl/" >> $@
 	$(ECHO) "javax/crypto/" >> $@
 	$(ECHO) "sun/security/internal/" >> $@
+	$(ECHO) "com/sun/crypto/spec/" >> $@
 	$(ECHO) "com/sun/crypto/provider/" >> $@
 	$(ECHO) "META-INF/services/com.sun.tools.attach.spi.AttachProvider" >> $@
 	$(ECHO) "com/sun/tools/attach/" >> $@

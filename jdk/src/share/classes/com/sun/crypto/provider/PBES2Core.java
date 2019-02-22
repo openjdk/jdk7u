@@ -25,6 +25,8 @@
 
 package com.sun.crypto.provider;
 
+import com.sun.crypto.spec.PBE2ParameterSpec;
+
 import java.io.UnsupportedEncodingException;
 import java.security.*;
 import java.security.spec.*;
@@ -144,7 +146,7 @@ abstract class PBES2Core extends CipherSpi {
             SunJCE.RANDOM.nextBytes(ivBytes);
             ivSpec = new IvParameterSpec(ivBytes);
         }
-        PBEParameterSpec pbeSpec = new PBEParameterSpec(salt, iCount, ivSpec);
+        PBE2ParameterSpec pbeSpec =new PBE2ParameterSpec(salt, iCount, ivSpec);
         try {
             params = AlgorithmParameters.getInstance(pbeAlgo, "SunJCE");
         } catch (NoSuchAlgorithmException nsae) {
@@ -247,9 +249,9 @@ abstract class PBES2Core extends CipherSpi {
                 }
                 iCount = specICount;
 
-                AlgorithmParameterSpec specParams =
-                        ((PBEParameterSpec) params).getParameterSpec();
-                if (specParams != null) {
+                AlgorithmParameterSpec specParams;
+                if (params instanceof PBE2ParameterSpec &&
+                   (specParams = ((PBE2ParameterSpec) params).getParameterSpec()) != null) {
                     if (specParams instanceof IvParameterSpec) {
                         ivSpec = (IvParameterSpec)specParams;
                     } else {

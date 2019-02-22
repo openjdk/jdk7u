@@ -25,6 +25,8 @@
 
 package com.sun.crypto.provider;
 
+import com.sun.crypto.spec.PBE2ParameterSpec;
+
 import java.io.*;
 import java.math.BigInteger;
 import java.security.AlgorithmParametersSpi;
@@ -69,7 +71,9 @@ public final class PBEParameters extends AlgorithmParametersSpi {
        }
        this.salt = ((PBEParameterSpec)paramSpec).getSalt().clone();
        this.iCount = ((PBEParameterSpec)paramSpec).getIterationCount();
-       this.cipherParam = ((PBEParameterSpec)paramSpec).getParameterSpec();
+       if (paramSpec instanceof PBE2ParameterSpec) {
+           this.cipherParam = ((PBE2ParameterSpec)paramSpec).getParameterSpec();
+       }
     }
 
     protected void engineInit(byte[] encoded)
@@ -107,7 +111,7 @@ public final class PBEParameters extends AlgorithmParametersSpi {
     {
         if (PBEParameterSpec.class.isAssignableFrom(paramSpec)) {
             return paramSpec.cast(
-                new PBEParameterSpec(this.salt, this.iCount, this.cipherParam));
+                new PBE2ParameterSpec(this.salt, this.iCount, this.cipherParam));
         } else {
             throw new InvalidParameterSpecException
                 ("Inappropriate parameter specification");

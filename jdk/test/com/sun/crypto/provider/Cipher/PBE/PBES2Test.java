@@ -23,9 +23,12 @@
 
 /*
  * @test
- * @bug 6383200
+ * @bug 6383200 8219570
  * @summary PBE: need new algorithm support in password based encryption
  */
+
+import com.sun.crypto.spec.PBE2ParameterSpec;
+
 import java.security.*;
 import java.util.Arrays;
 import javax.crypto.*;
@@ -76,8 +79,8 @@ public class PBES2Test {
         Cipher pbeCipher = Cipher.getInstance(algo);
         if (suppliedParams) {
             pbeCipher.init(Cipher.ENCRYPT_MODE, pbeKey,
-                new PBEParameterSpec(salt, iterationCount,
-                    new IvParameterSpec(ivBytes)));
+                new PBE2ParameterSpec(salt, iterationCount,
+                                      new IvParameterSpec(ivBytes)));
         } else {
             pbeCipher.init(Cipher.ENCRYPT_MODE, pbeKey);
         }
@@ -99,8 +102,8 @@ public class PBES2Test {
         if (suppliedParams) {
             iv = ivBytes;
         } else {
-            PBEParameterSpec pbeSpec =
-                aps.getParameterSpec(PBEParameterSpec.class);
+            PBE2ParameterSpec pbeSpec =
+                aps.getParameterSpec(PBE2ParameterSpec.class);
             salt = pbeSpec.getSalt();
             iterationCount = pbeSpec.getIterationCount();
             IvParameterSpec ivSpec =

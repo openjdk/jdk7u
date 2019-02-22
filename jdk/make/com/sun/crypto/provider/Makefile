@@ -126,6 +126,7 @@ CLASSDESTDIR = $(TEMPDIR)/classes
 # Subdirectories of these are automatically included.
 #
 AUTO_FILES_JAVA_DIRS = \
+    com/sun/crypto/spec \
     com/sun/crypto/provider
 
 include $(BUILDDIR)/common/Classes.gmk

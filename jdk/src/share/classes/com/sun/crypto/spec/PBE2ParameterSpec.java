@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,25 @@
  * questions.
  */
 
-package javax.crypto.spec;
+package com.sun.crypto.spec;
 
 import java.security.spec.AlgorithmParameterSpec;
 
+import javax.crypto.spec.PBEParameterSpec;
+
 /**
- * This class specifies the set of parameters used with password-based
- * encryption (PBE), as defined in the
+ * This class specifies the set of parameters used with generation
+ * 2 password-based encryption (PBE), as defined in the
  * <a href="http://www.ietf.org/rfc/rfc2898.txt">PKCS #5</a>
  * standard.
  *
  * @author Jan Luehe
  *
- * @since 1.4
+ * @since 1.7
  */
-public class PBEParameterSpec implements AlgorithmParameterSpec {
+public class PBE2ParameterSpec extends PBEParameterSpec {
 
-    private byte[] salt;
-    private int iterationCount;
+    private AlgorithmParameterSpec paramSpec = null;
 
     /**
      * Constructs a parameter set for password-based encryption as defined in
@@ -49,30 +50,26 @@ public class PBEParameterSpec implements AlgorithmParameterSpec {
      * @param salt the salt. The contents of <code>salt</code> are copied
      * to protect against subsequent modification.
      * @param iterationCount the iteration count.
+     * @param paramSpec the cipher algorithm parameter specification.
      * @exception NullPointerException if <code>salt</code> is null.
+     *
+     * @since 1.8
      */
-    public PBEParameterSpec(byte[] salt, int iterationCount) {
-        this.salt = salt.clone();
-        this.iterationCount = iterationCount;
+    public PBE2ParameterSpec(byte[] salt, int iterationCount,
+                            AlgorithmParameterSpec paramSpec) {
+        super(salt, iterationCount);
+        this.paramSpec = paramSpec;
     }
 
     /**
-     * Returns the salt.
+     * Returns the cipher algorithm parameter specification.
      *
-     * @return the salt. Returns a new array
-     * each time this method is called.
-     */
-    public byte[] getSalt() {
-        return this.salt.clone();
-    }
-
-    /**
-     * Returns the iteration count.
+     * @return the parameter specification, or null if none was set.
      *
-     * @return the iteration count
+     * @since 1.8
      */
-    public int getIterationCount() {
-        return this.iterationCount;
+    public AlgorithmParameterSpec getParameterSpec() {
+        return this.paramSpec;
     }
 
 }
