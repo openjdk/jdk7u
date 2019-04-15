@@ -56,8 +56,10 @@ public class JapaneseEraNameTest {
             // type,    locale,  name
             { LONG,     JAPAN,   "\u5143\u53f7" }, // NewEra
             { LONG,     US,      "NewEra" },
+            { LONG,     CHINA,   "NewEra" },
             { SHORT,    JAPAN,   "N" },
             { SHORT,    US,      "N" },
+            { SHORT,    CHINA,   "N" },
         };
     }
 
