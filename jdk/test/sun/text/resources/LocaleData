@@ -7033,3 +7033,6 @@ LocaleNames/sv/ZA=Sydafrika
 
 # bug 8027695
 FormatData/sv_SE/NumberPatterns/2=#,##0 %
+
+# bug #8129361
+CurrencyNames//hrk=Kuna
