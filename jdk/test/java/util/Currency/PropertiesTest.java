@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -105,7 +105,7 @@ public class PropertiesTest {
         // test each replacements
         keys = p.stringPropertyNames();
         Pattern propertiesPattern =
-            Pattern.compile("([A-Z]{3})\\s*,\\s*(\\d{3})\\s*,\\s*([0-3])");
+            Pattern.compile("([A-Z]{3})\\s*,\\s*(\\d{3})\\s*,\\s*(\\d+)");
         for (String key: keys) {
             String val = p.getProperty(key);
             String afterVal = after.getProperty(key);
@@ -123,14 +123,19 @@ public class PropertiesTest {
                 continue;
             }
 
+            String code = m.group(1);
+            int numeric = Integer.parseInt(m.group(2));
+            int fraction = Integer.parseInt(m.group(3));
+            if (fraction > 9) {
+                System.out.println("Skipping since the fraction is greater than 9");
+                continue;
+            }
+
             Matcher mAfter = propertiesPattern.matcher(afterVal);
             mAfter.find();
 
-            String code = m.group(1);
             String codeAfter = mAfter.group(1);
-            int numeric = Integer.parseInt(m.group(2));
             int numericAfter = Integer.parseInt(mAfter.group(2));
-            int fraction = Integer.parseInt(m.group(3));
             int fractionAfter = Integer.parseInt(mAfter.group(3));
             if (code.equals(codeAfter) &&
                 (numeric == numericAfter)&&
