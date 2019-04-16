@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,12 +58,13 @@ import sun.util.resources.OpenListResourceBundle;
  * no public constructor. You obtain a <code>Currency</code> instance using
  * the <code>getInstance</code> methods.
  * <p>
- * Users can supersede the Java runtime currency data by creating a properties
- * file named <code>&lt;JAVA_HOME&gt;/lib/currency.properties</code>.  The contents
- * of the properties file are key/value pairs of the ISO 3166 country codes
- * and the ISO 4217 currency data respectively.  The value part consists of
- * three ISO 4217 values of a currency, i.e., an alphabetic code, a numeric
- * code, and a minor unit.  Those three ISO 4217 values are separated by commas.
+ * Users can supersede the Java runtime currency data by means of the system
+ * property {@code java.util.currency.data}. If this system property is
+ * defined then its value is the location of a properties file, the contents of
+ * which are key/value pairs of the ISO 3166 country codes and the ISO 4217
+ * currency data respectively.  The value part consists of three ISO 4217 values
+ * of a currency, i.e., an alphabetic code, a numeric code, and a minor unit.
+ * Those three ISO 4217 values are separated by commas.
  * The lines which start with '#'s are considered comment lines.  For example,
  * <p>
  * <code>
@@ -121,11 +122,11 @@ public final class Currency implements Serializable {
     //   - maps country code to 32-bit int
     //   - 26*26 entries, corresponding to [A-Z]*[A-Z]
     //   - \u007F -> not valid country
-    //   - bits 18-31: unused
-    //   - bits 8-17: numeric code (0 to 1023)
-    //   - bit 7: 1 - special case, bits 0-4 indicate which one
+    //   - bits 20-31: unused
+    //   - bits 10-19: numeric code (0 to 1023)
+    //   - bit 9: 1 - special case, bits 0-4 indicate which one
     //            0 - simple country, bits 0-4 indicate final char of currency code
-    //   - bits 5-6: fraction digits for simple countries, 0 for special cases
+    //   - bits 5-8: fraction digits for simple countries, 0 for special cases
     //   - bits 0-4: final char for currency code for simple country, or ID of special case
     // - special case IDs:
     //   - 0: country has no currency
@@ -163,32 +164,34 @@ public final class Currency implements Serializable {
     // number of characters from A to Z
     private static final int A_TO_Z = ('Z' - 'A') + 1;
     // entry for invalid country codes
-    private static final int INVALID_COUNTRY_ENTRY = 0x007F;
+    private static final int INVALID_COUNTRY_ENTRY = 0x0000007F;
     // entry for countries without currency
-    private static final int COUNTRY_WITHOUT_CURRENCY_ENTRY = 0x0080;
+    private static final int COUNTRY_WITHOUT_CURRENCY_ENTRY = 0x00000200;
     // mask for simple case country entries
-    private static final int SIMPLE_CASE_COUNTRY_MASK = 0x0000;
+    private static final int SIMPLE_CASE_COUNTRY_MASK = 0x00000000;
     // mask for simple case country entry final character
-    private static final int SIMPLE_CASE_COUNTRY_FINAL_CHAR_MASK = 0x001F;
+    private static final int SIMPLE_CASE_COUNTRY_FINAL_CHAR_MASK = 0x0000001F;
     // mask for simple case country entry default currency digits
-    private static final int SIMPLE_CASE_COUNTRY_DEFAULT_DIGITS_MASK = 0x0060;
+    private static final int SIMPLE_CASE_COUNTRY_DEFAULT_DIGITS_MASK = 0x000001E0;
     // shift count for simple case country entry default currency digits
     private static final int SIMPLE_CASE_COUNTRY_DEFAULT_DIGITS_SHIFT = 5;
+    // maximum number for simple case country entry default currency digits
+    private static final int SIMPLE_CASE_COUNTRY_MAX_DEFAULT_DIGITS = 9;
     // mask for special case country entries
-    private static final int SPECIAL_CASE_COUNTRY_MASK = 0x0080;
+    private static final int SPECIAL_CASE_COUNTRY_MASK = 0x00000200;
     // mask for special case country index
-    private static final int SPECIAL_CASE_COUNTRY_INDEX_MASK = 0x001F;
+    private static final int SPECIAL_CASE_COUNTRY_INDEX_MASK = 0x0000001F;
     // delta from entry index component in main table to index into special case tables
     private static final int SPECIAL_CASE_COUNTRY_INDEX_DELTA = 1;
     // mask for distinguishing simple and special case countries
     private static final int COUNTRY_TYPE_MASK = SIMPLE_CASE_COUNTRY_MASK | SPECIAL_CASE_COUNTRY_MASK;
     // mask for the numeric code of the currency
-    private static final int NUMERIC_CODE_MASK = 0x0003FF00;
+    private static final int NUMERIC_CODE_MASK = 0x000FFC00;
     // shift count for the numeric code of the currency
-    private static final int NUMERIC_CODE_SHIFT = 8;
+    private static final int NUMERIC_CODE_SHIFT = 10;
 
     // Currency data format version
-    private static final int VALID_FORMAT_VERSION = 1;
+    private static final int VALID_FORMAT_VERSION = 2;
 
     static {
         AccessController.doPrivileged(new PrivilegedAction<Object>() {
@@ -229,10 +232,13 @@ public final class Currency implements Serializable {
                 }
 
                 // look for the properties file for overrides
+                String propsFile = System.getProperty("java.util.currency.data");
+                if (propsFile == null) {
+                    propsFile = homeDir + File.separator + "lib" +
+                        File.separator + "currency.properties";
+                }
                 try {
-                    File propFile = new File(homeDir + File.separator +
-                                             "lib" + File.separator +
-                                             "currency.properties");
+                    File propFile = new File(propsFile);
                     if (propFile.exists()) {
                         Properties props = new Properties();
                         try (FileReader fr = new FileReader(propFile)) {
@@ -240,7 +246,7 @@ public final class Currency implements Serializable {
                         }
                         Set<String> keys = props.stringPropertyNames();
                         Pattern propertiesPattern =
-                            Pattern.compile("([A-Z]{3})\\s*,\\s*(\\d{3})\\s*,\\s*([0-3])");
+                            Pattern.compile("([A-Z]{3})\\s*,\\s*(\\d{3})\\s*,\\s*(\\d+)");
                         for (String key : keys) {
                            replaceCurrencyData(propertiesPattern,
                                key.toUpperCase(Locale.ROOT),
@@ -691,7 +697,7 @@ public final class Currency implements Serializable {
      * @param ctry country code
      * @param data currency data.  This is a comma separated string that
      *    consists of "three-letter alphabet code", "three-digit numeric code",
-     *    and "one-digit (0,1,2, or 3) default fraction digit".
+     *    and "one-digit (0-9) default fraction digit".
      *    For example, "JPZ,392,0".
      * @throws
      */
@@ -721,8 +727,14 @@ public final class Currency implements Serializable {
 
         String code = m.group(1);
         int numeric = Integer.parseInt(m.group(2));
-        int fraction = Integer.parseInt(m.group(3));
         int entry = numeric << NUMERIC_CODE_SHIFT;
+        int fraction = Integer.parseInt(m.group(3));
+        if (fraction > SIMPLE_CASE_COUNTRY_MAX_DEFAULT_DIGITS) {
+            info("currency.properties entry for " + ctry +
+                " ignored since the fraction is more than " +
+                SIMPLE_CASE_COUNTRY_MAX_DEFAULT_DIGITS + ":" + curdata, null);
+            return;
+        }
 
         int index;
         for (index = 0; index < scOldCurrencies.length; index++) {
