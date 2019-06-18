@@ -76,6 +76,7 @@ void ClassLoaderDependencies::add(Handle from_class_loader_h,
 
   // Must handle over GC points
   assert (last != NULL, "dependencies should be initialized");
+  objArrayHandle head_handle(THREAD, list_head);
   objArrayHandle last_handle(THREAD, last);
 
   // Create a new dependency node with fields for (class_loader, next)
@@ -86,7 +87,7 @@ void ClassLoaderDependencies::add(Handle from_class_loader_h,
   objArrayHandle new_dependency(THREAD, deps);
 
   // Add the dependency under lock
-  ClassLoaderDependencies::locked_add(objArrayHandle(THREAD, list_head),
+  ClassLoaderDependencies::locked_add(head_handle,
                                       last_handle,
                                       new_dependency,
                                       THREAD);
