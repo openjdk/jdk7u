@@ -67,18 +67,17 @@ public final class ECPrivateKeyImpl extends PKCS8Key implements ECPrivateKey {
     private ECParameterSpec params;
 
     /**
-     * Construct a key from its encoding. Called by the ECKeyFactory and
-     * the SunPKCS11 code.
+     * Construct a key from its encoding. Called by the ECKeyFactory.
      */
-    public ECPrivateKeyImpl(byte[] encoded) throws InvalidKeyException {
+    ECPrivateKeyImpl(byte[] encoded) throws InvalidKeyException {
         decode(encoded);
     }
 
     /**
      * Construct a key from its components. Used by the
-     * KeyFactory and the SunPKCS11 code.
+     * KeyFactory.
      */
-    public ECPrivateKeyImpl(BigInteger s, ECParameterSpec params)
+    ECPrivateKeyImpl(BigInteger s, ECParameterSpec params)
             throws InvalidKeyException {
         this.s = s;
         this.params = params;
@@ -88,7 +87,7 @@ public final class ECPrivateKeyImpl extends PKCS8Key implements ECPrivateKey {
         try {
             DerOutputStream out = new DerOutputStream();
             out.putInteger(1); // version 1
-            byte[] privBytes = ECParameters.trimZeroes(s.toByteArray());
+            byte[] privBytes = ECUtil.trimZeroes(s.toByteArray());
             out.putOctetString(privBytes);
             DerValue val =
                 new DerValue(DerValue.tag_Sequence, out.toByteArray());
