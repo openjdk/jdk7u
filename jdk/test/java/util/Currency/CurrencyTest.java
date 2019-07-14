@@ -132,7 +132,7 @@ public class CurrencyTest {
         // check currency changes
         String[] switchOverCtry = {"DE", "FR", "ES", "IT", "NL", "BE", "TR", "RO", "AZ", "MZ", "GH", "VE"};
         String[] switchOverOld = {"DEM", "FRF", "ESP", "ITL", "NLG", "BEF", "TRL", "ROL", "AZM", "MZM", "GHC", "VEB"};
-        String[] switchOverNew = {"EUR", "EUR", "EUR", "EUR", "EUR", "EUR", "TRY", "RON", "AZN", "MZN", "GHS", "VEF"};
+        String[] switchOverNew = {"EUR", "EUR", "EUR", "EUR", "EUR", "EUR", "TRY", "RON", "AZN", "MZN", "GHS", "VES"};
         String[] switchOverTZ = {"Europe/Paris", "Europe/Paris", "Europe/Paris", "Europe/Paris",
                                  "Europe/Paris", "Europe/Paris", "Asia/Istanbul", "Europe/Bucharest",
                                  "Asia/Baku", "Africa/Maputo", "Africa/Accra", "America/Caracas"};
