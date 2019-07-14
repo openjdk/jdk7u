@@ -46,6 +46,7 @@ public class FormatData_sv extends ListResourceBundle {
     /**
      * Overrides ListResourceBundle
      */
+    @Override
     protected final Object[][] getContents() {
         return new Object[][] {
             { "MonthNames",
@@ -108,6 +109,18 @@ public class FormatData_sv extends ListResourceBundle {
                 new String[] {
                     "fm", // am marker
                     "em" // pm marker
+                }
+            },
+            { "Eras",
+                new String[] {
+                    "f\u00f6re Kristus",
+                    "efter Kristus",
+                }
+            },
+            { "short.Eras",
+                new String[] {
+                    "f.Kr.",
+                    "e.Kr.",
                 }
             },
             { "NumberElements",

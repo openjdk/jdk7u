@@ -45,6 +45,7 @@ package sun.text.resources;
 import java.util.ListResourceBundle;
 
 public class FormatData_sr extends ListResourceBundle {
+    @Override
     protected final Object[][] getContents() {
         return new Object[][] {
             { "MonthNames",

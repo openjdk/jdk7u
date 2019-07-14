@@ -46,6 +46,7 @@ public class FormatData_zh extends ListResourceBundle {
     /**
      * Overrides ListResourceBundle
      */
+    @Override
     protected final Object[][] getContents() {
         return new Object[][] {
             { "MonthNames",
@@ -114,6 +115,22 @@ public class FormatData_zh extends ListResourceBundle {
                 new String[] { // era strings
                     "\u516c\u5143\u524d",
                     "\u516c\u5143"
+                }
+            },
+            { "sun.util.BuddhistCalendar.Eras",
+                new String[] {
+                    "BC",
+                    "\u4f5b\u5386",
+                }
+            },
+            { "java.util.JapaneseImperialCalendar.Eras",
+                new String[] {
+                    "\u516c\u5143",
+                    "\u660e\u6cbb",
+                    "\u5927\u6b63",
+                    "\u662d\u548c",
+                    "\u5e73\u6210",
+                    "\u4ee4\u548c",
                 }
             },
             { "DateTimePatterns",

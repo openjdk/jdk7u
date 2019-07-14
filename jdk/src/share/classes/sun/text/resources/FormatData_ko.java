@@ -46,6 +46,7 @@ public class FormatData_ko extends ListResourceBundle {
     /**
      * Overrides ListResourceBundle
      */
+    @Override
     protected final Object[][] getContents() {
         return new Object[][] {
             { "MonthNames",
@@ -102,6 +103,28 @@ public class FormatData_ko extends ListResourceBundle {
                     "\ubaa9", // abb Thursday
                     "\uae08", // abb Friday
                     "\ud1a0" // abb Saturday
+                }
+            },
+            { "Eras",
+                new String[] {
+                    "\uae30\uc6d0\uc804",
+                    "\uc11c\uae30",
+                }
+            },
+            { "sun.util.BuddhistCalendar.Eras",
+                new String[] {
+                    "BC",
+                    "\ubd88\uae30",
+                }
+            },
+            { "java.util.JapaneseImperialCalendar.Eras",
+                new String[] {
+                    "\uc11c\uae30",
+                    "\uba54\uc774\uc9c0",
+                    "\ub2e4\uc774\uc1fc",
+                    "\uc1fc\uc640",
+                    "\ud5e4\uc774\uc138\uc774",
+                    "\ub808\uc774\uc640",
                 }
             },
             { "AmPmMarkers",

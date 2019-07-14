@@ -119,6 +119,12 @@ public class FormatData_cs extends ListResourceBundle {
                     "po Kr."
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "p\u0159. n. l.",
+                    "n. l.",
+                }
+            },
             { "NumberElements",
                 new String[] {
                     ",", // decimal separator

@@ -110,6 +110,12 @@ public class FormatData_it extends ListResourceBundle {
                     "dopo Cristo"
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "aC",
+                    "dC",
+                }
+            },
             { "NumberElements",
                 new String[] {
                     ",", // decimal separator

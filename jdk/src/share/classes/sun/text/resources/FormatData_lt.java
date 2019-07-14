@@ -110,6 +110,12 @@ public class FormatData_lt extends ListResourceBundle {
                     "po.Kr."
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "pr. Kr.",
+                    "po Kr.",
+                }
+            },
             { "NumberElements",
                 new String[] {
                     ",", // decimal separator

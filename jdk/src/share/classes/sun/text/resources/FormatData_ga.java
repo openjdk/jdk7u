@@ -115,6 +115,12 @@ public class FormatData_ga extends ListResourceBundle {
                     "AD",
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "RC",
+                    "AD",
+                }
+            },
             { "NumberPatterns",
                 new String[] {
                     "#,##0.###",

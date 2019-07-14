@@ -113,6 +113,12 @@ public class FormatData_bg extends ListResourceBundle {
                     "\u043d.\u0435."
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "\u043f\u0440. \u043d. \u0435.",
+                    "\u043e\u0442 \u043d. \u0435.",
+                }
+            },
             { "NumberElements",
                 new String[] {
                     ",", // decimal separator

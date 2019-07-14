@@ -49,7 +49,40 @@ public class FormatData extends ListResourceBundle {
     /**
      * Overrides ListResourceBundle
      */
+    @Override
     protected final Object[][] getContents() {
+        // Julian calendar era strings
+        final String[] julianEras = {
+            "BC",
+            "AD"
+        };
+
+        // Thai Buddhist calendar era strings
+        final String[] buddhistEras = {
+            "BC",     // BC
+            "B.E."    // Buddhist Era
+        };
+
+        // Japanese imperial calendar era abbreviations
+        final String[] japaneseEraAbbrs = {
+            "",
+            "M",
+            "T",
+            "S",
+            "H",
+            "R",
+        };
+
+        // Japanese imperial calendar era strings
+        final String[] japaneseEras = {
+            "",
+            "Meiji",
+            "Taisho",
+            "Showa",
+            "Heisei",
+            "Reiwa",
+        };
+
         return new Object[][] {
             { "MonthNames",
                 new String[] {
@@ -114,42 +147,19 @@ public class FormatData extends ListResourceBundle {
                 }
             },
             { "Eras",
-                new String[] { // era strings for GregorianCalendar
-                    "BC",
-                    "AD"
-                }
-            },
+                julianEras },
+            { "short.Eras",
+                julianEras },
             { "sun.util.BuddhistCalendar.Eras",
-                new String[] { // Thai Buddhist calendar era strings
-                    "BC",     // BC
-                    "B.E."    // Buddhist Era
-                }
+              buddhistEras
             },
             { "sun.util.BuddhistCalendar.short.Eras",
-                new String[] { // Thai Buddhist calendar era strings
-                    "BC",     // BC
-                    "B.E."    // Buddhist Era
-                }
+              buddhistEras
             },
             { "java.util.JapaneseImperialCalendar.Eras",
-                new String[] { // Japanese imperial calendar era strings
-                    "",
-                    "Meiji",
-                    "Taisho",
-                    "Showa",
-                    "Heisei",
-                    "Reiwa",
-                }
-            },
+                japaneseEras },
             { "java.util.JapaneseImperialCalendar.short.Eras",
-                new String[] { // Japanese imperial calendar era abbreviations
-                    "",
-                    "M",
-                    "T",
-                    "S",
-                    "H",
-                    "R",
-                }
+                japaneseEraAbbrs
             },
             { "java.util.JapaneseImperialCalendar.FirstYear",
                 new String[] { // Japanese imperial calendar year name

@@ -107,6 +107,12 @@ public class FormatData_ca extends ListResourceBundle {
                     "ds." // abb Saturday
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "aC",
+                    "dC",
+                }
+            },
             { "NumberElements",
                 new String[] {
                     ",", // decimal separator

@@ -122,6 +122,18 @@ public class FormatData_da extends ListResourceBundle {
                     "\ufffd" // NaN
                 }
             },
+            { "Eras",
+                new String[] {
+                    "f.Kr.",
+                    "e.Kr.",
+                }
+            },
+            { "short.Eras",
+                new String[] {
+                    "f.Kr.",
+                    "e.Kr.",
+                }
+            },
             { "DateTimePatterns",
                 new String[] {
                     "HH:mm:ss z", // full time pattern

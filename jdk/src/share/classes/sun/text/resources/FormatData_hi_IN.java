@@ -111,6 +111,12 @@ public class FormatData_hi_IN extends ListResourceBundle {
                     "\u0938\u0928"
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "\u0908\u0938\u093e\u092a\u0942\u0930\u094d\u0935",
+                    "\u0938\u0928",
+                }
+            },
             { "NumberElements",
                 new String[] {
                     ".", // decimal separator
