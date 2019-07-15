@@ -37,6 +37,7 @@
  * @run main TestIntegerModuloP sun.security.util.math.intpoly.P521OrderField 66 10
  */
 
+import sun.security.util.BiFunction;
 import sun.security.util.math.*;
 import sun.security.util.math.intpoly.*;
 
@@ -51,9 +52,6 @@ public class TestIntegerModuloP {
     // The test has a list of functions, and it selects randomly from that list
 
     // The function types
-    interface BiFunction <T, U, V> {
-        V apply(T t, U u);
-    }
     interface ElemFunction extends BiFunction
         <MutableIntegerModuloP, IntegerModuloP, IntegerModuloP> { }
     interface ElemArrayFunction extends BiFunction
