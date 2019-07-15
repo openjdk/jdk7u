@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,12 @@
 
 package java.util;
 import java.io.Serializable;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Array;
+
+import sun.misc.SharedSecrets;
 
 /**
  * This class consists exclusively of static methods that operate on or return
@@ -3537,6 +3540,11 @@ public class Collections {
                 throw new IllegalArgumentException("fromIndex(" + fromIndex +
                                                    ") > toIndex(" + toIndex + ")");
             return new CopiesList<>(toIndex - fromIndex, element);
+        }
+
+        private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+            ois.defaultReadObject();
+            SharedSecrets.getJavaOISAccess().checkArray(ois, Object[].class, n);
         }
     }
 
