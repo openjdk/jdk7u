@@ -1450,7 +1450,9 @@ public final class URL implements java.io.Serializable {
     }
 
     boolean isBuiltinStreamHandler(URLStreamHandler handler) {
-       return isBuiltinStreamHandler(handler.getClass().getName());
+        Class<?> handlerClass = handler.getClass();
+        return isBuiltinStreamHandler(handlerClass.getName()) ||
+                handlerClass.getClassLoader() == Object.class.getClassLoader();
     }
 
     private boolean isBuiltinStreamHandler(String handlerClassName) {
