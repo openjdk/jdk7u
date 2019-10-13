@@ -441,7 +441,7 @@ implements Serializable
      * Key is property name; value is PropertyPermission.
      * Not serialized; see serialization section at end of class.
      */
-    private transient Map<String, Permission> perms;
+    private transient Map<String, PropertyPermission> perms;
 
     /**
      * Boolean saying if "*" is in the collection.
@@ -487,7 +487,7 @@ implements Serializable
         String propName = pp.getName();
 
         synchronized (this) {
-            PropertyPermission existing = (PropertyPermission) perms.get(propName);
+            PropertyPermission existing = perms.get(propName);
 
             if (existing != null) {
                 int oldMask = existing.getMask();
@@ -498,7 +498,7 @@ implements Serializable
                     perms.put(propName, new PropertyPermission(propName, actions));
                 }
             } else {
-                perms.put(propName, permission);
+                perms.put(propName, pp);
             }
         }
 
@@ -532,7 +532,7 @@ implements Serializable
         // short circuit if the "*" Permission was added
         if (all_allowed) {
             synchronized (this) {
-                x = (PropertyPermission) perms.get("*");
+                x = perms.get("*");
             }
             if (x != null) {
                 effective |= x.getMask();
@@ -549,7 +549,7 @@ implements Serializable
         //System.out.println("check "+name);
 
         synchronized (this) {
-            x = (PropertyPermission) perms.get(name);
+            x = perms.get(name);
         }
 
         if (x != null) {
@@ -569,7 +569,7 @@ implements Serializable
             name = name.substring(0, last+1) + "*";
             //System.out.println("check "+name);
             synchronized (this) {
-                x = (PropertyPermission) perms.get(name);
+                x = perms.get(name);
             }
 
             if (x != null) {
@@ -591,11 +591,15 @@ implements Serializable
      *
      * @return an enumeration of all the PropertyPermission objects.
      */
-
+    @SuppressWarnings("unchecked")
     public Enumeration<Permission> elements() {
         // Convert Iterator of Map values into an Enumeration
         synchronized (this) {
-            return Collections.enumeration(perms.values());
+            /**
+             * Casting to rawtype since Enumeration<PropertyPermission>
+             * cannot be directly cast to Enumeration<Permission>
+             */
+            return (Enumeration)Collections.enumeration(perms.values());
         }
     }
 
@@ -632,7 +636,8 @@ implements Serializable
         // Don't call out.defaultWriteObject()
 
         // Copy perms into a Hashtable
-        Hashtable<String, Permission> permissions = new Hashtable<>(perms.size()*2);
+        Hashtable<String, Permission> permissions =
+            new Hashtable<>(perms.size()*2);
         synchronized (this) {
             permissions.putAll(perms);
         }
@@ -660,8 +665,8 @@ implements Serializable
 
         // Get permissions
         @SuppressWarnings("unchecked")
-        Hashtable<String, Permission> permissions =
-            (Hashtable<String, Permission>)gfields.get("permissions", null);
+        Hashtable<String, PropertyPermission> permissions =
+            (Hashtable<String, PropertyPermission>)gfields.get("permissions", null);
         perms = new HashMap<>(permissions.size()*2);
         perms.putAll(permissions);
     }

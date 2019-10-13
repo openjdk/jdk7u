@@ -296,7 +296,8 @@ public abstract class ResourceBundle {
     /**
      * Queue for reference objects referring to class loaders or bundles.
      */
-    private static final ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
+    private static final ReferenceQueue<Object> referenceQueue =
+        new ReferenceQueue<>();
 
     /**
      * The parent bundle of this bundle.
