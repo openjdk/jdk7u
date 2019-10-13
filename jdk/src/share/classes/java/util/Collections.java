@@ -216,7 +216,7 @@ public class Collections {
      * @throws IllegalArgumentException (optional) if the comparator is
      *         found to violate the {@link Comparator} contract
      */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static <T> void sort(List<T> list, Comparator<? super T> c) {
         Object[] a = list.toArray();
         Arrays.sort(a, (Comparator)c);
@@ -421,7 +421,7 @@ public class Collections {
      * @throws UnsupportedOperationException if the specified list or
      *         its list-iterator does not support the <tt>set</tt> operation.
      */
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public static void reverse(List<?> list) {
         int size = list.size();
         if (size < REVERSE_THRESHOLD || list instanceof RandomAccess) {
@@ -500,7 +500,7 @@ public class Collections {
      * @throws UnsupportedOperationException if the specified list or its
      *         list-iterator does not support the <tt>set</tt> operation.
      */
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public static void shuffle(List<?> list, Random rnd) {
         int size = list.size();
         if (size < SHUFFLE_THRESHOLD || list instanceof RandomAccess) {
@@ -538,7 +538,7 @@ public class Collections {
      *         || j &lt; 0 || j &gt;= list.size()).
      * @since 1.4
      */
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public static void swap(List<?> list, int i, int j) {
         // instead of using a raw type here, it's possible to capture
         // the wildcard but it will require a call to a supplementary
@@ -672,7 +672,7 @@ public class Collections {
      * @throws NoSuchElementException if the collection is empty.
      * @see Comparable
      */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static <T> T min(Collection<? extends T> coll, Comparator<? super T> comp) {
         if (comp==null)
             return (T)min((Collection) coll);
@@ -743,7 +743,7 @@ public class Collections {
      * @throws NoSuchElementException if the collection is empty.
      * @see Comparable
      */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static <T> T max(Collection<? extends T> coll, Comparator<? super T> comp) {
         if (comp==null)
             return (T)max((Collection) coll);
@@ -1406,7 +1406,7 @@ public class Collections {
             extends UnmodifiableSet<Map.Entry<K,V>> {
             private static final long serialVersionUID = 7854390611657943733L;
 
-            @SuppressWarnings({ "unchecked", "rawtypes" })
+            @SuppressWarnings({"unchecked", "rawtypes"})
             UnmodifiableEntrySet(Set<? extends Map.Entry<? extends K, ? extends V>> s) {
                 // Need to cast to raw in order to work around a limitation in the type system
                 super((Set)s);
@@ -3117,7 +3117,7 @@ public class Collections {
      *
      * @see #emptySet()
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("rawtypes")
     public static final Set EMPTY_SET = new EmptySet<>();
 
     /**
@@ -3177,7 +3177,7 @@ public class Collections {
      *
      * @see #emptyList()
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("rawtypes")
     public static final List EMPTY_LIST = new EmptyList<>();
 
     /**
@@ -3251,7 +3251,7 @@ public class Collections {
      * @see #emptyMap()
      * @since 1.3
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("rawtypes")
     public static final Map EMPTY_MAP = new EmptyMap<>();
 
     /**
@@ -3534,6 +3534,7 @@ public class Collections {
             return a;
         }
 
+        @SuppressWarnings("unchecked")
         public <T> T[] toArray(T[] a) {
             final int n = this.n;
             if (a.length < n) {
@@ -3585,6 +3586,7 @@ public class Collections {
      *         the <tt>Comparable</tt> interface.
      * @see Comparable
      */
+    @SuppressWarnings("unchecked")
     public static <T> Comparator<T> reverseOrder() {
         return (Comparator<T>) ReverseComparator.REVERSE_ORDER;
     }

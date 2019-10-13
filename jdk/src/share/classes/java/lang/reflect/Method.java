@@ -199,7 +199,7 @@ public final
      *     <cite>The Java&trade; Virtual Machine Specification</cite>
      * @since 1.5
      */
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public TypeVariable<Method>[] getTypeParameters() {
         if (getGenericSignature() != null)
             return (TypeVariable<Method>[])getGenericInfo().getTypeParameters();

@@ -332,6 +332,7 @@ public class PriorityQueue<E> extends AbstractQueue<E>
         return true;
     }
 
+    @SuppressWarnings("unchecked")
     public E peek() {
         if (size == 0)
             return null;

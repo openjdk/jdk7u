@@ -314,7 +314,7 @@ public class HashMap<K,V>
         int capacity = roundUpToPowerOf2(toSize);
 
         threshold = (int) Math.min(capacity * loadFactor, MAXIMUM_CAPACITY + 1);
-        table = new Entry[capacity];
+        table = new Entry<?,?>[capacity];
         initHashSeedAsNeeded(capacity);
     }
 
@@ -1164,7 +1164,7 @@ public class HashMap<K,V>
         }
 
         // set other fields that need values
-        table = (Entry<K,V>[]) EMPTY_TABLE;
+        table = EMPTY_TABLE;
 
         // Read in number of buckets
         s.readInt(); // ignored.

@@ -260,8 +260,7 @@ public abstract class PreHashedMap<V>
                                     return true;
                                 if (!(ob instanceof Map.Entry))
                                     return false;
-                                Map.Entry<String,V> that
-                                    = (Map.Entry<String,V>)ob;
+                                Map.Entry<?,?> that = (Map.Entry<?,?>)ob;
                                 return ((this.getKey() == null
                                          ? that.getKey() == null
                                          : this.getKey()
