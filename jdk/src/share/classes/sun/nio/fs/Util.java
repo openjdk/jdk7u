@@ -92,6 +92,7 @@ class Util {
     /**
      * Returns a Set containing the given elements.
      */
+    @SafeVarargs
     static <E> Set<E> newSet(E... elements) {
         HashSet<E> set = new HashSet<>();
         for (E e: elements) {
@@ -104,6 +105,7 @@ class Util {
      * Returns a Set containing all the elements of the given Set plus
      * the given elements.
      */
+    @SafeVarargs
     static <E> Set<E> newSet(Set<E> other, E... elements) {
         HashSet<E> set = new HashSet<>(other);
         for (E e: elements) {

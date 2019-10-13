@@ -28,6 +28,7 @@
 #
 
 BUILDDIR = ../../..
+SUBDIRS_MAKEFLAGS += JAVAC_MAX_WARNINGS=true
 include $(BUILDDIR)/common/Defs.gmk
 
 # MMM: disable for now
