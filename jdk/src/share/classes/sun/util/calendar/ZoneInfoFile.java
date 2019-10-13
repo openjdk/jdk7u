@@ -581,7 +581,7 @@ public class ZoneInfoFile {
 
     synchronized static ZoneInfo addToCache(String id, ZoneInfo zi) {
         if (zoneInfoObjects == null) {
-            zoneInfoObjects = new HashMap<String, ZoneInfo>();
+            zoneInfoObjects = new HashMap<>();
         } else {
             ZoneInfo zone = zoneInfoObjects.get(id);
             if (zone != null) {
@@ -766,7 +766,7 @@ public class ZoneInfoFile {
                 case TAG_ZoneIDs:
                     {
                         int n = (buf[index++] << 8) + (buf[index++] & 0xFF);
-                        ids = new ArrayList<String>(n);
+                        ids = new ArrayList<>(n);
 
                         for (int i = 0; i < n; i++) {
                             byte m = buf[index++];
@@ -785,7 +785,7 @@ public class ZoneInfoFile {
             System.err.println("ZoneInfo: corrupted " + JAVAZM_FILE_NAME);
         }
 
-        zoneIDs = new SoftReference<List<String>>(ids);
+        zoneIDs = new SoftReference<>(ids);
         return ids;
     }
 
@@ -810,7 +810,7 @@ public class ZoneInfoFile {
                 case TAG_ZoneAliases:
                     {
                         int n = (buf[index++] << 8) + (buf[index++] & 0xFF);
-                        aliases = new HashMap<String, String>(n);
+                        aliases = new HashMap<>(n);
                         for (int i = 0; i < n; i++) {
                             byte m = buf[index++];
                             String name = new String(buf, index, m, "UTF-8");
@@ -873,7 +873,7 @@ public class ZoneInfoFile {
                 case TAG_ExcludedZones:
                     {
                         int n = (buf[index++] << 8) + (buf[index++] & 0xFF);
-                        excludeList = new ArrayList<String>();
+                        excludeList = new ArrayList<>();
                         for (int i = 0; i < n; i++) {
                             byte m = buf[index++];
                             String name = new String(buf, index, m, "UTF-8");
@@ -894,7 +894,7 @@ public class ZoneInfoFile {
         }
 
         if (excludeList != null) {
-            excludedIDs = new SoftReference<List<String>>(excludeList);
+            excludedIDs = new SoftReference<>(excludeList);
         } else {
             hasNoExcludeList = true;
         }
@@ -943,7 +943,7 @@ public class ZoneInfoFile {
             System.err.println("ZoneInfo: corrupted " + JAVAZM_FILE_NAME);
         }
 
-        rawOffsetIndices = new SoftReference<byte[]>(indices);
+        rawOffsetIndices = new SoftReference<>(indices);
         return indices;
     }
 
@@ -994,7 +994,7 @@ public class ZoneInfoFile {
             System.err.println("ZoneInfo: corrupted " + JAVAZM_FILE_NAME);
         }
 
-        rawOffsets = new SoftReference<int[]>(offsets);
+        rawOffsets = new SoftReference<>(offsets);
         return offsets;
     }
 
@@ -1030,7 +1030,7 @@ public class ZoneInfoFile {
             return null;
         }
 
-        zoneInfoMappings = new SoftReference<byte[]>(data);
+        zoneInfoMappings = new SoftReference<>(data);
         return data;
     }
 
@@ -1045,8 +1045,8 @@ public class ZoneInfoFile {
         byte[] buffer = null;
 
         try {
-            buffer = (byte[]) AccessController.doPrivileged(new PrivilegedExceptionAction() {
-                public Object run() throws IOException {
+            buffer = AccessController.doPrivileged(new PrivilegedExceptionAction<byte[]>() {
+                public byte[] run() throws IOException {
                     File file = new File(ziDir, fileName);
                     byte[] buf = null;
                     int filesize = (int)file.length();
@@ -1071,5 +1071,8 @@ public class ZoneInfoFile {
             }
         }
         return buffer;
+    }
+
+    private ZoneInfoFile() {
     }
 }
