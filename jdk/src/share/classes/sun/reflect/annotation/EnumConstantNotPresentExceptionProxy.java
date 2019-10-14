@@ -24,7 +24,6 @@
  */
 
 package sun.reflect.annotation;
-import java.lang.annotation.*;
 
 /**
  * ExceptionProxy for EnumConstantNotPresentException.
@@ -34,10 +33,10 @@ import java.lang.annotation.*;
  */
 public class EnumConstantNotPresentExceptionProxy extends ExceptionProxy {
     private static final long serialVersionUID = -604662101303187330L;
-    Class<? extends Enum> enumType;
+    Class<? extends Enum<?>> enumType;
     String constName;
 
-    public EnumConstantNotPresentExceptionProxy(Class<? extends Enum> enumType,
+    public EnumConstantNotPresentExceptionProxy(Class<? extends Enum<?>> enumType,
                                                 String constName) {
         this.enumType = enumType;
         this.constName = constName;

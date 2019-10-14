@@ -176,7 +176,7 @@ public class TypeVariableImpl<D extends GenericDeclaration>
     public boolean equals(Object o) {
         if (o instanceof TypeVariable &&
                 o.getClass() == TypeVariableImpl.class) {
-            TypeVariable that = (TypeVariable) o;
+            TypeVariable<?> that = (TypeVariable<?>) o;
 
             GenericDeclaration thatDecl = that.getGenericDeclaration();
             String thatName = that.getName();

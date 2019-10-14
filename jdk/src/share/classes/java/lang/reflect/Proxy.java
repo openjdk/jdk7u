@@ -826,6 +826,6 @@ public class Proxy implements java.io.Serializable {
         return ih;
     }
 
-    private static native Class defineClass0(ClassLoader loader, String name,
-                                             byte[] b, int off, int len);
+    private static native Class<?> defineClass0(ClassLoader loader, String name,
+                                                byte[] b, int off, int len);
 }

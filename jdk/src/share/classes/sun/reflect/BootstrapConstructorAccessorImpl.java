@@ -32,9 +32,9 @@ import java.lang.reflect.Constructor;
     bootstrapping. */
 
 class BootstrapConstructorAccessorImpl extends ConstructorAccessorImpl {
-    private final Constructor constructor;
+    private final Constructor<?> constructor;
 
-    BootstrapConstructorAccessorImpl(Constructor c) {
+    BootstrapConstructorAccessorImpl(Constructor<?> c) {
         this.constructor = c;
     }
 
