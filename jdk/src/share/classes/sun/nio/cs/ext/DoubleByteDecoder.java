@@ -209,9 +209,9 @@ abstract class DoubleByteDecoder
         if (bugLevel == null) {
             if (!sun.misc.VM.isBooted())
                 return false;
-            java.security.PrivilegedAction pa =
+            java.security.PrivilegedAction<String> pa =
                 new GetPropertyAction("sun.nio.cs.bugLevel");
-            String value = (String)AccessController.doPrivileged(pa);
+            String value = AccessController.doPrivileged(pa);
             bugLevel = (value != null) ? value : "";
         }
         return bugLevel.equals(bl);
