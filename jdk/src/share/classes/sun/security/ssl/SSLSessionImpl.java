@@ -77,11 +77,6 @@ import static sun.security.ssl.CipherSuite.KeyExchange.*;
  */
 final class SSLSessionImpl extends ExtendedSSLSession {
 
-    /*
-     * we only really need a single null session
-     */
-    static final SSLSessionImpl         nullSession = new SSLSessionImpl();
-
     // compression methods
     private static final byte           compression_null = 0;
 
@@ -150,7 +145,7 @@ final class SSLSessionImpl extends ExtendedSSLSession {
      * be used either by a client or by a server, as a connection is
      * first opened and before handshaking begins.
      */
-    private SSLSessionImpl() {
+    SSLSessionImpl() {
         this(ProtocolVersion.NONE, CipherSuite.C_NULL, null,
             new SessionId(false, null), null, -1, false, null);
     }
@@ -638,14 +633,6 @@ final class SSLSessionImpl extends ExtendedSSLSession {
      * no connections will be able to rejoin this session.
      */
     synchronized public void invalidate() {
-        //
-        // Can't invalidate the NULL session -- this would be
-        // attempted when we get a handshaking error on a brand
-        // new connection, with no "real" session yet.
-        //
-        if (this == nullSession) {
-            return;
-        }
         invalidated = true;
         if (debug != null && Debug.isOn("session")) {
             System.out.println("%% Invalidated:  " + this);
