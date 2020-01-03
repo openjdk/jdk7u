@@ -33,6 +33,7 @@ import java.net.URLConnection;
 import java.net.MalformedURLException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FilePermission;
 import java.io.IOException;
@@ -332,7 +333,9 @@ public class AppletClassLoader extends URLClassLoader {
 
         byte[] b;
         try {
-            b = IOUtils.readFully(in, len, true);
+            b = IOUtils.readAllBytes(in);
+            if (len != -1 && b.length != len)
+                throw new EOFException("Expected:" + len + ", read:" + b.length);
         } finally {
             in.close();
         }
