@@ -224,21 +224,24 @@ instanceKlass* klassVtable::find_transitive_override(instanceKlass* initialsuper
                             int vtable_index, Handle target_loader, Symbol* target_classname, Thread * THREAD) {
   instanceKlass* superk = initialsuper;
   while (superk != NULL && superk->super() != NULL) {
-    instanceKlass* supersuperklass = instanceKlass::cast(superk->super());
-    klassVtable* ssVtable = supersuperklass->vtable();
+    klassVtable* ssVtable = instanceKlass::cast((superk->super()))->vtable();
     if (vtable_index < ssVtable->length()) {
       methodOop super_method = ssVtable->method_at(vtable_index);
+      // get the class holding the matching method
+      // make sure you use that class for is_override
+      instanceKlass* supermethodholder = instanceKlass::cast(super_method->method_holder());
 #ifndef PRODUCT
       Symbol* name= target_method()->name();
       Symbol* signature = target_method()->signature();
       assert(super_method->name() == name && super_method->signature() == signature, "vtable entry name/sig mismatch");
 #endif
-      if (supersuperklass->is_override(super_method, target_loader, target_classname, THREAD)) {
+
+      if (supermethodholder->is_override(super_method, target_loader, target_classname, THREAD)) {
 #ifndef PRODUCT
         if (PrintVtables && Verbose) {
           ResourceMark rm(THREAD);
           tty->print("transitive overriding superclass %s with %s::%s index %d, original flags: ",
-           supersuperklass->internal_name(),
+           supermethodholder->internal_name(),
            _klass->internal_name(), (target_method() != NULL) ?
            target_method()->name()->as_C_string() : "<NULL>", vtable_index);
            super_method->access_flags().print_on(tty);
@@ -456,7 +459,7 @@ bool klassVtable::needs_new_vtable_entry(methodHandle target_method,
 
   // search through the super class hierarchy to see if we need
   // a new entry
-  ResourceMark rm;
+  ResourceMark rm(THREAD);
   Symbol* name = target_method()->name();
   Symbol* signature = target_method()->signature();
   klassOop k = super;
