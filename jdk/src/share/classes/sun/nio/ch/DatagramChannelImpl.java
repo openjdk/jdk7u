@@ -50,9 +50,6 @@ class DatagramChannelImpl
 
     // Our file descriptor
     private final FileDescriptor fd;
-
-    // fd value needed for dev/poll. This value will remain valid
-    // even after the value in the file descriptor object has been set to -1
     private final int fdVal;
 
     // The protocol family of the socket
@@ -104,7 +101,6 @@ class DatagramChannelImpl
 
     // -- End of fields protected by stateLock
 
-
     public DatagramChannelImpl(SelectorProvider sp)
         throws IOException
     {
@@ -139,16 +135,27 @@ class DatagramChannelImpl
                 throw new UnsupportedOperationException("IPv6 not available");
             }
         }
-        this.family = family;
-        this.fd = Net.socket(family, false);
-        this.fdVal = IOUtil.fdVal(fd);
-        this.state = ST_UNCONNECTED;
+
+        ResourceManager.beforeUdpCreate();
+        try {
+            this.family = family;
+            this.fd = Net.socket(family, false);
+            this.fdVal = IOUtil.fdVal(fd);
+            this.state = ST_UNCONNECTED;
+        } catch (IOException ioe) {
+            ResourceManager.afterUdpClose();
+            throw ioe;
+        }
     }
 
     public DatagramChannelImpl(SelectorProvider sp, FileDescriptor fd)
         throws IOException
     {
         super(sp);
+
+        // increment UDP count to match decrement when closing
+        ResourceManager.beforeUdpCreate();
+
         this.family = Net.isIPv6Available() ?
             StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
         this.fd = fd;
@@ -742,10 +749,9 @@ class DatagramChannelImpl
                     localAddress = Net.localAddress(fd);
 
                     // flush any packets already received.
-                    boolean blocking = false;
                     synchronized (blockingLock()) {
+                        boolean blocking = isBlocking();
                         try {
-                            blocking = isBlocking();
                             // remainder of each packet thrown away
                             ByteBuffer tmpBuf = ByteBuffer.allocate(1);
                             if (blocking) {
