@@ -67,6 +67,7 @@ public class SharedSecrets {
     private static JavaUtilCalendarAccess javaUtilCalendarAccess;
     private static JavaSecurityKeyStoreAccess javaSecurityKeyStoreAccess;
     private static JavaxCryptoSealedObjectAccess javaxCryptoSealedObjectAccess;
+    private static JavaObjectInputStreamReadString javaObjectInputStreamReadString;
 
     public static JavaUtilJarAccess javaUtilJarAccess() {
         if (javaUtilJarAccess == null) {
@@ -230,6 +231,17 @@ public class SharedSecrets {
             unsafe.ensureClassInitialized(SealedObject.class);
         }
         return javaxCryptoSealedObjectAccess;
+    }
+
+    public static JavaObjectInputStreamReadString getJavaObjectInputStreamReadString() {
+        if (javaObjectInputStreamReadString == null) {
+            unsafe.ensureClassInitialized(ObjectInputStream.class);
+        }
+        return javaObjectInputStreamReadString;
+    }
+
+    public static void setJavaObjectInputStreamReadString(JavaObjectInputStreamReadString access) {
+        javaObjectInputStreamReadString = access;
     }
 
     public static JavaObjectInputStreamAccess getJavaObjectInputStreamAccess() {
