@@ -529,6 +529,9 @@ class Net {                                             // package-private
                                              int level, int opt, int arg, boolean isIPv6)
         throws IOException;
 
+    static native int poll(FileDescriptor fd, int events, long timeout)
+        throws IOException;
+
     // -- Multicast support --
 
 

@@ -99,25 +99,19 @@ public class SocketAdaptor
                     return;
                 }
 
-                // Implement timeout with a selector
-                SelectionKey sk = null;
-                Selector sel = null;
                 sc.configureBlocking(false);
                 try {
                     if (sc.connect(remote))
                         return;
-                    sel = Util.getTemporarySelector(sc);
-                    sk = sc.register(sel, SelectionKey.OP_CONNECT);
                     long to = timeout;
                     for (;;) {
                         if (!sc.isOpen())
                             throw new ClosedChannelException();
                         long st = System.currentTimeMillis();
-                        int ns = sel.select(to);
-                        if (ns > 0 &&
-                            sk.isConnectable() && sc.finishConnect())
+
+                        int result = sc.poll(PollArrayWrapper.POLLCONN, to);
+                        if (result > 0 && sc.finishConnect())
                             break;
-                        sel.selectedKeys().remove(sk);
                         to -= System.currentTimeMillis() - st;
                         if (to <= 0) {
                             try {
@@ -127,12 +121,8 @@ public class SocketAdaptor
                         }
                     }
                 } finally {
-                    if (sk != null)
-                        sk.cancel();
                     if (sc.isOpen())
                         sc.configureBlocking(true);
-                    if (sel != null)
-                        Util.releaseTemporarySelector(sel);
                 }
 
             } catch (Exception x) {
@@ -201,29 +191,23 @@ public class SocketAdaptor
                     throw new IllegalBlockingModeException();
                 if (timeout == 0)
                     return sc.read(bb);
-
-                // Implement timeout with a selector
-                SelectionKey sk = null;
-                Selector sel = null;
                 sc.configureBlocking(false);
+
                 int n = 0;
                 Object traceContext = IoTrace.socketReadBegin();
                 try {
                     if ((n = sc.read(bb)) != 0)
                         return n;
-                    sel = Util.getTemporarySelector(sc);
-                    sk = sc.register(sel, SelectionKey.OP_READ);
                     long to = timeout;
                     for (;;) {
                         if (!sc.isOpen())
                             throw new ClosedChannelException();
                         long st = System.currentTimeMillis();
-                        int ns = sel.select(to);
-                        if (ns > 0 && sk.isReadable()) {
+                        int result = sc.poll(PollArrayWrapper.POLLIN, to);
+                        if (result > 0) {
                             if ((n = sc.read(bb)) != 0)
                                 return n;
                         }
-                        sel.selectedKeys().remove(sk);
                         to -= System.currentTimeMillis() - st;
                         if (to <= 0)
                             throw new SocketTimeoutException();
@@ -231,12 +215,8 @@ public class SocketAdaptor
                 } finally {
                     IoTrace.socketReadEnd(traceContext, getInetAddress(),
                                           getPort(), timeout, n > 0 ? n : 0);
-                    if (sk != null)
-                        sk.cancel();
                     if (sc.isOpen())
                         sc.configureBlocking(true);
-                    if (sel != null)
-                        Util.releaseTemporarySelector(sel);
                 }
 
             }
