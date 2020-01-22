@@ -880,7 +880,9 @@ public final class JceKeyStore extends KeyStoreSpi {
                         if (computed[i] != actual[i]) {
                             throw new IOException(
                                 "Keystore was tampered with, or "
-                                + "password was incorrect");
+                                + "password was incorrect",
+                                    new UnrecoverableKeyException(
+                                            "Password verification failed"));
                         }
                     }
                 }
