@@ -26,15 +26,18 @@
  * @bug 7122142
  * @summary Test consistent parsing of ex-RUNTIME annotations that
  *          were changed and separately compiled to have CLASS retention
+ * @library /lib/testlibrary
+ * @build jdk.testlibrary.IOUtils
+ * @run main AnnotationTypeRuntimeAssumptionTest
  */
-
-import sun.misc.IOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+
+import jdk.testlibrary.IOUtils;
 
 import static java.lang.annotation.RetentionPolicy.CLASS;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
@@ -148,7 +151,7 @@ public class AnnotationTypeRuntimeAssumptionTest {
                 String altPath = altName.replace('.', '/').concat(".class");
                 try (InputStream is = getResourceAsStream(altPath)) {
                     if (is != null) {
-                        byte[] bytes = IOUtils.readFully(is, -1, true);
+                        byte[] bytes = IOUtils.readFully(is);
                         // patch class bytes to contain original name
                         for (int i = 0; i < bytes.length - 2; i++) {
                             if (bytes[i] == '_' &&
@@ -171,7 +174,7 @@ public class AnnotationTypeRuntimeAssumptionTest {
                 String path = name.replace('.', '/').concat(".class");
                 try (InputStream is = getResourceAsStream(path)) {
                     if (is != null) {
-                        byte[] bytes = IOUtils.readFully(is, -1, true);
+                        byte[] bytes = IOUtils.readFully(is);
                         return defineClass(name, bytes, 0, bytes.length);
                     }
                     else {
