@@ -70,10 +70,10 @@ public class EntriesOrder {
         if (!m.run("cvf a.jar a META-INF/inf".split(" "))) {
             throw new Exception("jar creation failed");
         }
-        sun.security.tools.KeyTool.main(
+        sun.security.tools.keytool.Main.main(
                 ("-keystore jks -storepass changeit -keypass changeit -dname" +
                         " CN=A -alias a -genkeypair -keyalg rsa").split(" "));
-        sun.security.tools.JarSigner.main(
+        sun.security.tools.jarsigner.Main.main(
                 "-keystore jks -storepass changeit a.jar a".split(" "));
         m = new sun.tools.jar.Main(System.out, System.err, "jar");
         if (!m.run("xvf a.jar".split(" "))) {
