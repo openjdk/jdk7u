@@ -366,7 +366,7 @@ public class Realm implements Cloneable {
             return null;
         }
 
-        String intermediaries = cfg.getDefault(sRealm, cRealm);
+        String intermediaries = cfg.getAll("capaths", cRealm, sRealm);
 
         if (intermediaries == null) {
             if (DEBUG) {
@@ -379,7 +379,7 @@ public class Realm implements Cloneable {
 
         String head = sRealm;
         while (true) {
-            String value = cfg.getDefault(head, cRealm);
+            String value = cfg.getAll("capaths", cRealm, head);
             if (value == null) {
                 break;
             }

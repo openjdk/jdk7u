@@ -23,6 +23,7 @@
 /*
  * @test
  * @bug 6319046 8055045
+ * @compile -XDignore.symbol.file ParseConfig.java
  * @run main/othervm ParseConfig
  * @summary Problem with parsing krb5.conf
  */
@@ -38,7 +39,7 @@ public class ParseConfig {
 
         String sample = "kdc.example.com kdc2.example.com";
         for ( int i = 0; i < 4; i++ ) {
-            String expected = config.getDefault("kdc", "EXAMPLE_" + i + ".COM");
+            String expected = config.getAll("realms", "EXAMPLE_" + i + ".COM", "kdc");
             if (!sample.equals(expected)) {
                 throw new Exception("krb5.conf: unexpected kdc value \"" +
                         expected + "\"");
@@ -46,9 +47,9 @@ public class ParseConfig {
         }
 
         // JDK-8055045: IOOBE when reading an empty value
-        config.getDefault("empty1", "NOVAL.COM");
-        config.getDefault("empty2", "NOVAL.COM");
-        config.getDefault("quote1", "NOVAL.COM");
-        config.getDefault("quote2", "NOVAL.COM");
+        config.get("empty1", "NOVAL.COM");
+        config.get("empty2", "NOVAL.COM");
+        config.get("quote1", "NOVAL.COM");
+        config.get("quote2", "NOVAL.COM");
     }
 }
