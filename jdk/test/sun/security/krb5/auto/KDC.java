@@ -793,7 +793,7 @@ public class KDC {
                     new TransitedEncoding(1, new byte[0]),  // TODO
                     new KerberosTime(new Date()),
                     body.from,
-                    till, body.rtime,
+                    till, etp.renewTill,
                     body.addresses != null  // always set caddr
                             ? body.addresses
                             : new HostAddresses(
@@ -820,7 +820,7 @@ public class KDC {
                     tFlags,
                     new KerberosTime(new Date()),
                     body.from,
-                    till, body.rtime,
+                    till, etp.renewTill,
                     service,
                     body.addresses != null  // always set caddr
                             ? body.addresses
