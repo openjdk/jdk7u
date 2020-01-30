@@ -33,8 +33,10 @@ package sun.security.krb5;
 
 import sun.security.krb5.internal.*;
 import sun.security.krb5.internal.crypto.*;
+
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.util.Calendar;
 
 /**
  * This class encapsulates a Kerberos TGS-REQ that is sent from the
@@ -224,7 +226,14 @@ public class KrbTgsReq {
         throws IOException, KrbException, UnknownHostException {
         KerberosTime req_till = null;
         if (till == null) {
-            req_till = new KerberosTime(0);
+            String d = Config.getInstance().get("libdefaults", "ticket_lifetime");
+            if (d != null) {
+                Calendar cal = Calendar.getInstance();
+                cal.add(Calendar.SECOND, Config.duration(d));
+                req_till = new KerberosTime(cal.getTime());
+            } else {
+                req_till = new KerberosTime(0); // Choose KDC maximum allowed
+            }
         } else {
             req_till = till;
         }

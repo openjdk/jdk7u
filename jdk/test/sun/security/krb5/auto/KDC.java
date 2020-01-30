@@ -785,6 +785,18 @@ public class KDC {
             }
             bFlags[Krb5.TKT_OPTS_INITIAL] = true;
 
+            KerberosTime renewTill = etp.renewTill;
+            if (renewTill != null && body.kdcOptions.get(KDCOptions.RENEW)) {
+                // till should never pass renewTill
+                if (till.greaterThan(renewTill)) {
+                    till = renewTill;
+                }
+                if (System.getProperty("test.set.null.renew") != null) {
+                    // Testing 8186576, see NullRenewUntil.java.
+                    renewTill = null;
+                }
+            }
+
             TicketFlags tFlags = new TicketFlags(bFlags);
             EncTicketPart enc = new EncTicketPart(
                     tFlags,
@@ -793,7 +805,7 @@ public class KDC {
                     new TransitedEncoding(1, new byte[0]),  // TODO
                     new KerberosTime(new Date()),
                     body.from,
-                    till, etp.renewTill,
+                    till, renewTill,
                     body.addresses != null  // always set caddr
                             ? body.addresses
                             : new HostAddresses(
@@ -820,7 +832,7 @@ public class KDC {
                     tFlags,
                     new KerberosTime(new Date()),
                     body.from,
-                    till, etp.renewTill,
+                    till, renewTill,
                     service,
                     body.addresses != null  // always set caddr
                             ? body.addresses
