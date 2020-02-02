@@ -24,7 +24,8 @@
 /*
  * @test
  * @bug 6894072
- * @run main/othervm DynamicKeytab
+ * @compile -XDignore.symbol.file DynamicKeytab.java
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock DynamicKeytab
  * @summary always refresh keytab
  */
 

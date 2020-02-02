@@ -25,16 +25,16 @@
  * @test
  * @bug 6894643 6913636
  * @summary Test JSSE Kerberos ciphersuite
- * @run main/othervm SSL TLS_KRB5_WITH_RC4_128_SHA
- * @run main/othervm SSL TLS_KRB5_WITH_RC4_128_MD5
- * @run main/othervm SSL TLS_KRB5_WITH_3DES_EDE_CBC_SHA
- * @run main/othervm SSL TLS_KRB5_WITH_3DES_EDE_CBC_MD5
- * @run main/othervm SSL TLS_KRB5_WITH_DES_CBC_SHA
- * @run main/othervm SSL TLS_KRB5_WITH_DES_CBC_MD5
- * @run main/othervm SSL TLS_KRB5_EXPORT_WITH_RC4_40_SHA
- * @run main/othervm SSL TLS_KRB5_EXPORT_WITH_RC4_40_MD5
- * @run main/othervm SSL TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA
- * @run main/othervm SSL TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SSL TLS_KRB5_WITH_RC4_128_SHA
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SSL TLS_KRB5_WITH_RC4_128_MD5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SSL TLS_KRB5_WITH_3DES_EDE_CBC_SHA
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SSL TLS_KRB5_WITH_3DES_EDE_CBC_MD5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SSL TLS_KRB5_WITH_DES_CBC_SHA
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SSL TLS_KRB5_WITH_DES_CBC_MD5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SSL TLS_KRB5_EXPORT_WITH_RC4_40_SHA
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SSL TLS_KRB5_EXPORT_WITH_RC4_40_MD5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SSL TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SSL TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5
  */
 import java.io.*;
 import java.net.InetAddress;
