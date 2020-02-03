@@ -157,6 +157,8 @@ public class KDC {
     private BlockingQueue<Job> q = new ArrayBlockingQueue<>(100);
     // Options
     private Map<Option,Object> options = new HashMap<>();
+    // Realm-specific krb5.conf settings
+    private List<String> conf = new ArrayList<>();
 
     private Thread thread1, thread2, thread3;
     DatagramSocket u1 = null;
@@ -248,7 +250,7 @@ public class KDC {
     /**
      * Sets an option
      * @param key the option name
-     * @param obj the value
+     * @param value the value
      */
     public void setOption(Option key, Object value) {
         if (value == null) {
@@ -394,6 +396,13 @@ public class KDC {
     }
 
     /**
+     * Add realm-specific krb5.conf setting
+     */
+    public void addConf(String s) {
+        conf.add(s);
+    }
+
+    /**
      * Writes a krb5.conf for one or more KDC that includes KDC locations for
      * each realm and the default realm name. You can also add extra strings
      * into the file. The method should be called like:
@@ -418,6 +427,7 @@ public class KDC {
      * [realms]
      *   REALM.NAME = {
      *     kdc = host:port_number
+     *     # realm-specific settings
      *   }
      * </pre>
      *
@@ -465,10 +475,10 @@ public class KDC {
             }
         }
         sb.append("\n[realms]\n");
-        sb.append(realmLineForKDC(kdc));
+        sb.append(kdc.realmLine());
         for (Object o: more) {
             if (o instanceof KDC) {
-                sb.append(realmLineForKDC((KDC)o));
+                sb.append(((KDC)o).realmLine());
             }
         }
         FileOutputStream fos = new FileOutputStream(f);
@@ -1149,14 +1159,16 @@ public class KDC {
 
     /**
      * Generates a line for a KDC to put inside [realms] of krb5.conf
-     * @param kdc the KDC
-     * @return REALM.NAME = { kdc = host:port }
+     * @return REALM.NAME = { kdc = host:port etc }
      */
-    private static String realmLineForKDC(KDC kdc) {
-        return String.format("%s = {\n    kdc = %s:%d\n}\n",
-                kdc.realm,
-                kdc.kdc,
-                kdc.port);
+    private String realmLine() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(realm).append(" = {\n    kdc = ")
+                .append(kdc).append(':').append(port).append('\n');
+        for (String s: conf) {
+            sb.append("    ").append(s).append('\n');
+        }
+        return sb.append("}\n").toString();
     }
 
     /**
