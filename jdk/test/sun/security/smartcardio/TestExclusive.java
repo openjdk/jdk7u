@@ -26,9 +26,10 @@
  * @bug 6239117
  * @summary verify that beginExclusive()/endExclusive() works
  * @author Andreas Sterbenz
- * @ignore requires special hardware
  * @run main/manual TestExclusive
  */
+
+// This test requires special hardware.
 
 import javax.smartcardio.Card;
 import javax.smartcardio.CardChannel;

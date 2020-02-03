@@ -26,9 +26,10 @@
  * @bug 6293769 6294527 6309280
  * @summary test connect() works
  * @author Andreas Sterbenz
- * @ignore requires special hardware
  * @run main/manual TestConnect
  */
+
+// This test requires special hardware.
 
 import java.util.List;
 import javax.smartcardio.TerminalFactory;

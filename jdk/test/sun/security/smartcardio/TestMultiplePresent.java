@@ -26,9 +26,10 @@
  * @bug 6239117 6445367
  * @summary test that CardTerminals.waitForCard() works
  * @author Andreas Sterbenz
- * @ignore requires special hardware
- * @run main/manual TestPresent
+ * @run main/manual TestMultiplePresent
  */
+
+// This test requires special hardware.
 
 import java.util.List;
 import javax.smartcardio.CardTerminal;

@@ -26,9 +26,10 @@
  * @bug 6239117
  * @summary test connect works correctly if called multiple times/card removed
  * @author Andreas Sterbenz
- * @ignore requires special hardware
- * @run main/manual TestTransmit
+ * @run main/manual TestConnectAgain
  */
+
+// This test requires special hardware.
 
 import javax.smartcardio.Card;
 import javax.smartcardio.CardException;

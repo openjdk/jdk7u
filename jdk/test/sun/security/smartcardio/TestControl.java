@@ -26,9 +26,10 @@
  * @bug 6239117 6470320
  * @summary test if transmitControlCommand() works
  * @author Andreas Sterbenz
- * @ignore requires special hardware
  * @run main/manual TestControl
  */
+
+// This test requires special hardware.
 
 import javax.smartcardio.Card;
 import javax.smartcardio.CardException;
