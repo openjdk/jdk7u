@@ -27,7 +27,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.*;
 import java.io.*;
 import java.lang.reflect.Method;
-import java.security.SecureRandom;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -47,6 +49,11 @@ import java.util.regex.Pattern;
 
 /**
  * A KDC server.
+ *
+ * Note: By setting the system property native.kdc.path to a native
+ * krb5 installation, this class starts a native KDC with the
+ * given realm and host. It can also add new principals and save keytabs.
+ * Other features might not be available.
  * <p>
  * Features:
  * <ol>
@@ -127,10 +134,18 @@ public class KDC {
     public static final int DEFAULT_LIFETIME = 39600;
     public static final int DEFAULT_RENEWTIME = 86400;
 
-    // Under the hood.
+    // What etypes the KDC supports. Comma-separated strings. Null for all.
+    // Please note native KDCs might use different names.
+    private static final String SUPPORTED_ETYPES
+            = System.getProperty("kdc.supported.enctypes");
 
-    // The random generator to generate random keys (including session keys)
-    private static SecureRandom secureRandom = new SecureRandom();
+    // The native KDC
+    private final NativeKdc nativeKdc;
+
+    // The native KDC process
+    private Process kdcProc = null;
+
+    // Under the hood.
 
     // Principal db. principal -> pass. A case-insensitive TreeMap is used
     // so that even if the client provides a name with different case, the KDC
@@ -245,7 +260,8 @@ public class KDC {
      * @return the running KDC instance
      * @throws java.io.IOException for any socket creation error
      */
-    public static KDC create(String realm, String kdc, int port, boolean asDaemon) throws IOException {
+    public static KDC create(String realm, String kdc, int port,
+                             boolean asDaemon) throws IOException {
         return new KDC(realm, kdc, port, asDaemon);
     }
 
@@ -285,24 +301,37 @@ public class KDC {
      */
     public void writeKtab(String tab, boolean append, String... names)
             throws IOException, KrbException {
-        KeyTab ktab = append ? KeyTab.getInstance(tab) : KeyTab.create(tab);
+        KeyTab ktab = null;
+        if (nativeKdc == null) {
+            ktab = append ? KeyTab.getInstance(tab) : KeyTab.create(tab);
+        }
         Iterable<String> entries =
                 (names.length != 0) ? Arrays.asList(names): passwords.keySet();
         for (String name : entries) {
-            char[] pass = passwords.get(name);
-            int kvno = 0;
-            if (Character.isDigit(pass[pass.length-1])) {
-                kvno = pass[pass.length-1] - '0';
+            if (name.indexOf('@') < 0) {
+                name = name + "@" + realm;
             }
-            ktab.addEntry(new PrincipalName(name,
-                    name.indexOf('/') < 0 ?
-                        PrincipalName.KRB_NT_UNKNOWN :
-                        PrincipalName.KRB_NT_SRV_HST),
-                        pass,
-                        kvno,
-                        true);
+            if (nativeKdc == null) {
+                char[] pass = passwords.get(name);
+                int kvno = 0;
+                if (Character.isDigit(pass[pass.length - 1])) {
+                    kvno = pass[pass.length - 1] - '0';
+                }
+                PrincipalName pn = new PrincipalName(name,
+                        name.indexOf('/') < 0 ?
+                                PrincipalName.KRB_NT_UNKNOWN :
+                                PrincipalName.KRB_NT_SRV_HST);
+                ktab.addEntry(pn,
+                              pass,
+                              kvno,
+                              true);
+            } else {
+                nativeKdc.ktadd(name, tab);
+            }
         }
-        ktab.save();
+        if (nativeKdc == null) {
+            ktab.save();
+        }
     }
 
     /**
@@ -359,16 +388,24 @@ public class KDC {
      * @param salt the salt, or null if a default value will be used
      * @param s2kparams the s2kparams, or null if a default value will be used
      */
-    public void addPrincipal(String user, char[] pass, String salt, byte[] s2kparams) {
+    public void addPrincipal(
+            String user, char[] pass, String salt, byte[] s2kparams) {
         if (user.indexOf('@') < 0) {
             user = user + "@" + realm;
         }
-        passwords.put(user, pass);
-        if (salt != null) {
-            salts.put(user, salt);
-        }
-        if (s2kparams != null) {
-            s2kparamses.put(user, s2kparams);
+        if (nativeKdc != null) {
+            if (!user.equals("krbtgt/" + realm)) {
+                nativeKdc.addPrincipal(user, new String(pass));
+            }
+            passwords.put(user, new char[0]);
+        } else {
+            passwords.put(user, pass);
+            if (salt != null) {
+                salts.put(user, salt);
+            }
+            if (s2kparams != null) {
+                s2kparamses.put(user, s2kparams);
+            }
         }
     }
 
@@ -465,12 +502,11 @@ public class KDC {
      */
     public static void saveConfig(String file, KDC kdc, Object... more)
             throws IOException {
-        File f = new File(file);
         StringBuffer sb = new StringBuffer();
         sb.append("[libdefaults]\ndefault_realm = ");
         sb.append(kdc.realm);
         sb.append("\n");
-        for (Object o: more) {
+        for (Object o : more) {
             if (o instanceof String) {
                 sb.append(o);
                 sb.append("\n");
@@ -478,14 +514,12 @@ public class KDC {
         }
         sb.append("\n[realms]\n");
         sb.append(kdc.realmLine());
-        for (Object o: more) {
+        for (Object o : more) {
             if (o instanceof KDC) {
-                sb.append(((KDC)o).realmLine());
+                sb.append(((KDC) o).realmLine());
             }
         }
-        FileOutputStream fos = new FileOutputStream(f);
-        fos.write(sb.toString().getBytes());
-        fos.close();
+        Files.write(Paths.get(file), sb.toString().getBytes());
     }
 
     /**
@@ -505,6 +539,7 @@ public class KDC {
     private KDC(String realm, String kdc) {
         this.realm = realm;
         this.kdc = kdc;
+        this.nativeKdc = null;
     }
 
     /**
@@ -512,7 +547,9 @@ public class KDC {
      */
     protected KDC(String realm, String kdc, int port, boolean asDaemon)
             throws IOException {
-        this(realm, kdc);
+        this.realm = realm;
+        this.kdc = kdc;
+        this.nativeKdc = NativeKdc.get(this);
         startServer(port, asDaemon);
     }
     /**
@@ -521,8 +558,9 @@ public class KDC {
      */
     private static char[] randomPassword() {
         char[] pass = new char[32];
+        Random r = new Random();
         for (int i=0; i<31; i++)
-            pass[i] = (char)secureRandom.nextInt();
+            pass[i] = (char)('a' + r.nextInt(26));
         // The last char cannot be a number, otherwise, keyForUser()
         // believes it's a sign of kvno
         pass[31] = 'Z';
@@ -698,7 +736,10 @@ public class KDC {
                     " sends TGS-REQ for " +
                     service);
             KDCReqBody body = tgsReq.reqBody;
-            int[] eTypes = KDCReqBodyDotEType(body);
+            int[] eTypes = filterSupported(KDCReqBodyDotEType(body));
+            if (eTypes.length == 0) {
+                throw new KrbException(Krb5.KDC_ERR_ETYPE_NOSUPP);
+            }
             int e2 = eTypes[0];     // etype for outgoing session key
             int e3 = eTypes[0];     // etype for outgoing ticket
 
@@ -734,11 +775,19 @@ public class KDC {
             EncryptionKey key = generateRandomKey(e2);
 
             // Check time, TODO
+            KerberosTime from = body.from;
             KerberosTime till = body.till;
+            if (from == null || from.isZero()) {
+                from = timeAfter(0);
+            }
+            KerberosTime rtime = body.rtime;
             if (till == null) {
                 throw new KrbException(Krb5.KDC_ERR_NEVER_VALID); // TODO
             } else if (till.isZero()) {
-                till = new KerberosTime(new Date().getTime() + 1000 * 3600 * 11);
+                till = timeAfter(DEFAULT_LIFETIME);
+            }
+            if (rtime == null && body.kdcOptions.get(KDCOptions.RENEWABLE)) {
+                rtime = timeAfter(DEFAULT_RENEWTIME);
             }
 
             boolean[] bFlags = new boolean[Krb5.TKT_OPTS_MAX+1];
@@ -751,7 +800,7 @@ public class KDC {
             }
             if (body.kdcOptions.get(KDCOptions.RENEWABLE)) {
                 bFlags[Krb5.TKT_OPTS_RENEWABLE] = true;
-                //renew = new KerberosTime(new Date().getTime() + 1000 * 3600 * 24 * 7);
+                //renew = timeAfter(3600 * 24 * 7);
             }
             if (body.kdcOptions.get(KDCOptions.PROXIABLE)) {
                 bFlags[Krb5.TKT_OPTS_PROXIABLE] = true;
@@ -789,8 +838,8 @@ public class KDC {
                     key,
                     etp.cname,
                     new TransitedEncoding(1, new byte[0]),  // TODO
-                    new KerberosTime(new Date()),
-                    body.from,
+                    timeAfter(0),
+                    from,
                     till, renewTill,
                     body.addresses != null  // always set caddr
                             ? body.addresses
@@ -809,15 +858,15 @@ public class KDC {
             );
             EncTGSRepPart enc_part = new EncTGSRepPart(
                     key,
-                    new LastReq(new LastReqEntry[]{
-                        new LastReqEntry(0, new KerberosTime(new Date().getTime() - 10000))
+                    new LastReq(new LastReqEntry[] {
+                        new LastReqEntry(0, timeAfter(-10))
                     }),
                     body.getNonce(),    // TODO: detect replay
-                    new KerberosTime(new Date().getTime() + 1000 * 3600 * 24),
+                    timeAfter(3600 * 24),
                     // Next 5 and last MUST be same with ticket
                     tFlags,
-                    new KerberosTime(new Date()),
-                    body.from,
+                    timeAfter(0),
+                    from,
                     till, renewTill,
                     service,
                     body.addresses != null  // always set caddr
@@ -825,7 +874,8 @@ public class KDC {
                             : new HostAddresses(
                                 new InetAddress[]{InetAddress.getLocalHost()})
                     );
-            EncryptedData edata = new EncryptedData(ckey, enc_part.asn1Encode(), KeyUsage.KU_ENC_TGS_REP_PART_SESSKEY);
+            EncryptedData edata = new EncryptedData(ckey, enc_part.asn1Encode(),
+                    KeyUsage.KU_ENC_TGS_REP_PART_SESSKEY);
             TGSRep tgsRep = new TGSRep(null,
                     etp.cname,
                     t,
@@ -845,7 +895,7 @@ public class KDC {
                     + " " +ke.returnCodeMessage());
             if (kerr == null) {
                 kerr = new KRBError(null, null, null,
-                        new KerberosTime(new Date()),
+                        timeAfter(0),
                         0,
                         ke.returnCode(),
                         body.cname,
@@ -881,16 +931,11 @@ public class KDC {
 
             KDCReqBody body = asReq.reqBody;
 
-            eTypes = KDCReqBodyDotEType(body);
-            int eType = eTypes[0];
-
-            // Maybe server does not support aes256, but a kinit does
-            if (!EType.isSupported(eType)) {
-                if (eTypes.length < 2) {
-                    throw new KrbException(Krb5.KDC_ERR_ETYPE_NOSUPP);
-                }
-                eType = eTypes[1];
+            eTypes = filterSupported(KDCReqBodyDotEType(body));
+            if (eTypes.length == 0) {
+                throw new KrbException(Krb5.KDC_ERR_ETYPE_NOSUPP);
             }
+            int eType = eTypes[0];
 
             EncryptionKey ckey = keyForUser(body.cname, eType, false);
             EncryptionKey skey = keyForUser(service, eType, true);
@@ -919,8 +964,12 @@ public class KDC {
             // Session key
             EncryptionKey key = generateRandomKey(eType);
             // Check time, TODO
+            KerberosTime from = body.from;
             KerberosTime till = body.till;
             KerberosTime rtime = body.rtime;
+            if (from == null || from.isZero()) {
+                from = timeAfter(0);
+            }
             if (till == null) {
                 throw new KrbException(Krb5.KDC_ERR_NEVER_VALID); // TODO
             } else if (till.isZero()) {
@@ -946,7 +995,7 @@ public class KDC {
             }
             if (body.kdcOptions.get(KDCOptions.RENEWABLE)) {
                 bFlags[Krb5.TKT_OPTS_RENEWABLE] = true;
-                //renew = new KerberosTime(new Date().getTime() + 1000 * 3600 * 24 * 7);
+                //renew = timeAfter(3600 * 24 * 7);
             }
             if (body.kdcOptions.get(KDCOptions.PROXIABLE)) {
                 bFlags[Krb5.TKT_OPTS_PROXIABLE] = true;
@@ -968,7 +1017,8 @@ public class KDC {
                         pas2 = new DerValue[] {
                             new DerValue(new ETypeInfo2(1, null, null).asn1Encode()),
                             new DerValue(new ETypeInfo2(1, "", null).asn1Encode()),
-                            new DerValue(new ETypeInfo2(1, OneKDC.REALM, new byte[]{1}).asn1Encode()),
+                            new DerValue(new ETypeInfo2(
+                                    1, OneKDC.REALM, new byte[]{1}).asn1Encode()),
                         };
                         pas = new DerValue[] {
                             new DerValue(new ETypeInfo(1, null).asn1Encode()),
@@ -1071,11 +1121,14 @@ public class KDC {
                 }
             } else {
                 try {
-                    EncryptedData data = newEncryptedData(new DerValue(inPAs[0].getValue()));
+                    EncryptedData data = newEncryptedData(
+                            new DerValue(inPAs[0].getValue()));
                     EncryptionKey pakey = keyForUser(body.cname, data.getEType(), false);
                     data.decrypt(pakey, KeyUsage.KU_PA_ENC_TS);
                 } catch (Exception e) {
-                    throw new KrbException(Krb5.KDC_ERR_PREAUTH_FAILED);
+                    KrbException ke = new KrbException(Krb5.KDC_ERR_PREAUTH_FAILED);
+                    ke.initCause(e);
+                    throw ke;
                 }
                 bFlags[Krb5.TKT_OPTS_PRE_AUTHENT] = true;
             }
@@ -1086,8 +1139,8 @@ public class KDC {
                     key,
                     body.cname,
                     new TransitedEncoding(1, new byte[0]),
-                    new KerberosTime(new Date()),
-                    body.from,
+                    timeAfter(0),
+                    from,
                     till, rtime,
                     body.addresses,
                     null);
@@ -1098,19 +1151,20 @@ public class KDC {
             EncASRepPart enc_part = new EncASRepPart(
                     key,
                     new LastReq(new LastReqEntry[]{
-                        new LastReqEntry(0, new KerberosTime(new Date().getTime() - 10000))
+                        new LastReqEntry(0, timeAfter(-10))
                     }),
                     body.getNonce(),    // TODO: detect replay?
-                    new KerberosTime(new Date().getTime() + 1000 * 3600 * 24),
+                    timeAfter(3600 * 24),
                     // Next 5 and last MUST be same with ticket
                     tFlags,
-                    new KerberosTime(new Date()),
-                    body.from,
+                    timeAfter(0),
+                    from,
                     till, rtime,
                     service,
                     body.addresses
                     );
-            EncryptedData edata = new EncryptedData(ckey, enc_part.asn1Encode(), KeyUsage.KU_ENC_AS_REP_PART);
+            EncryptedData edata = new EncryptedData(ckey, enc_part.asn1Encode(),
+                    KeyUsage.KU_ENC_AS_REP_PART);
             ASRep asRep = new ASRep(
                     outPAs.toArray(new PAData[outPAs.size()]),
                     body.cname,
@@ -1164,7 +1218,7 @@ public class KDC {
                     eData = temp.toByteArray();
                 }
                 kerr = new KRBError(null, null, null,
-                        new KerberosTime(new Date()),
+                        timeAfter(0),
                         0,
                         ke.returnCode(),
                         body.cname,
@@ -1242,6 +1296,35 @@ public class KDC {
         throw new KrbException("Illegal duration format " + s);
     }
 
+    private int[] filterSupported(int[] input) {
+        int count = 0;
+        for (int i = 0; i < input.length; i++) {
+            if (!EType.isSupported(input[i])) {
+                continue;
+            }
+            if (SUPPORTED_ETYPES != null) {
+                boolean supported = false;
+                for (String se : SUPPORTED_ETYPES.split(",")) {
+                    if (Config.getType(se) == input[i]) {
+                        supported = true;
+                        break;
+                    }
+                }
+                if (!supported) {
+                    continue;
+                }
+            }
+            if (count != i) {
+                input[count] = input[i];
+            }
+            count++;
+        }
+        if (count != input.length) {
+            input = Arrays.copyOf(input, count);
+        }
+        return input;
+    }
+
     /**
      * Generates a line for a KDC to put inside [realms] of krb5.conf
      * @return REALM.NAME = { kdc = host:port etc }
@@ -1266,6 +1349,20 @@ public class KDC {
      * @throws java.io.IOException for any communication error
      */
     protected void startServer(int port, boolean asDaemon) throws IOException {
+        if (nativeKdc != null) {
+            startNativeServer(port, asDaemon);
+        } else {
+            startJavaServer(port, asDaemon);
+        }
+    }
+
+    private void startNativeServer(int port, boolean asDaemon) throws IOException {
+        nativeKdc.prepare();
+        nativeKdc.init();
+        kdcProc = nativeKdc.kdc();
+    }
+
+    private void startJavaServer(int port, boolean asDaemon) throws IOException {
         if (port > 0) {
             u1 = new DatagramSocket(port, InetAddress.getByName("127.0.0.1"));
             t1 = new ServerSocket(port);
@@ -1346,15 +1443,33 @@ public class KDC {
         thread3.start();
     }
 
+    public void kinit(String user, String ccache) throws Exception {
+        if (user.indexOf('@') < 0) {
+            user = user + "@" + realm;
+        }
+        if (nativeKdc != null) {
+            nativeKdc.kinit(user, ccache);
+        } else {
+            Context.fromUserPass(user, passwords.get(user), false)
+                    .ccache(ccache);
+        }
+    }
+
     public void terminate() {
-        try {
-            thread1.stop();
-            thread2.stop();
-            thread3.stop();
-            u1.close();
-            t1.close();
-        } catch (Exception e) {
-            // OK
+        if (nativeKdc != null) {
+            System.out.println("Killing kdc...");
+            kdcProc.destroy();
+            System.out.println("Done");
+        } else {
+            try {
+                thread1.stop();
+                thread2.stop();
+                thread3.stop();
+                u1.close();
+                t1.close();
+            } catch (Exception e) {
+                // OK
+            }
         }
     }
 
@@ -1508,6 +1623,278 @@ public class KDC {
         @Override
         public String getType() {
             return "ns";
+        }
+    }
+
+    /**
+     * A native KDC using the binaries in nativePath. Attention:
+     * this is using binaries, not an existing KDC instance.
+     * An implementation of this takes care of configuration,
+     * principal db managing and KDC startup.
+     */
+    static abstract class NativeKdc {
+
+        protected Map<String,String> env;
+        protected String nativePath;
+        protected String base;
+        protected String realm;
+        protected int port;
+
+        NativeKdc(String nativePath, KDC kdc) {
+            if (kdc.port == 0) {
+                kdc.port = 8000 + new java.util.Random().nextInt(10000);
+            }
+            this.nativePath = nativePath;
+            this.realm = kdc.realm;
+            this.port = kdc.port;
+            this.base = Paths.get("" + port).toAbsolutePath().toString();
+        }
+
+        // Add a new principal
+        abstract void addPrincipal(String user, String pass);
+        // Add a keytab entry
+        abstract void ktadd(String user, String ktab);
+        // Initialize KDC
+        abstract void init();
+        // Start kdc
+        abstract Process kdc();
+        // Configuration
+        abstract void prepare();
+        // Fill ccache
+        abstract void kinit(String user, String ccache);
+
+        static NativeKdc get(KDC kdc) {
+            String prop = System.getProperty("native.kdc.path");
+            if (prop == null) {
+                return null;
+            } else if (Files.exists(Paths.get(prop, "sbin/krb5kdc"))) {
+                return new MIT(true, prop, kdc);
+            } else if (Files.exists(Paths.get(prop, "kdc/krb5kdc"))) {
+                return new MIT(false, prop, kdc);
+            } else if (Files.exists(Paths.get(prop, "libexec/kdc"))) {
+                return new Heimdal(prop, kdc);
+            } else {
+                throw new IllegalArgumentException("Strange " + prop);
+            }
+        }
+
+        Process run(boolean wait, String... cmd) {
+            try {
+                System.out.println("Running " + cmd2str(env, cmd));
+                ProcessBuilder pb = new ProcessBuilder();
+                pb.inheritIO();
+                pb.environment().putAll(env);
+                Process p = pb.command(cmd).start();
+                if (wait) {
+                    if (p.waitFor() < 0) {
+                        throw new RuntimeException("exit code is not null");
+                    }
+                    return null;
+                } else {
+                    return p;
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        private String cmd2str(Map<String,String> env, String... cmd) {
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String,String> e : env.entrySet()) {
+                sb.append(e.getKey()+"="+e.getValue());
+                sb.append(" ");
+            }
+            for (int a = 0; a < cmd.length; ++a) {
+                sb.append(cmd);
+                if (a < (cmd.length - 1)) {
+                    sb.append(" ");
+                }
+            }
+            return sb.toString();
+        }
+    }
+
+    // Heimdal KDC. Build your own and run "make install" to nativePath.
+    static class Heimdal extends NativeKdc {
+
+        Heimdal(String nativePath, KDC kdc) {
+            super(nativePath, kdc);
+            Map<String, String> environment = new HashMap<>();
+            environment.put("KRB5_CONFIG", base + "/krb5.conf");
+            environment.put("KRB5_TRACE", "/dev/stderr");
+            environment.put("DYLD_LIBRARY_PATH", nativePath + "/lib");
+            environment.put("LD_LIBRARY_PATH", nativePath + "/lib");
+            this.env = Collections.unmodifiableMap(environment);
+        }
+
+        @Override
+        public void addPrincipal(String user, String pass) {
+            run(true, nativePath + "/bin/kadmin", "-l", "-r", realm,
+                    "add", "-p", pass, "--use-defaults", user);
+        }
+
+        @Override
+        public void ktadd(String user, String ktab) {
+            run(true, nativePath + "/bin/kadmin", "-l", "-r", realm,
+                    "ext_keytab", "-k", ktab, user);
+        }
+
+        @Override
+        public void init() {
+            run(true, nativePath + "/bin/kadmin",  "-l",  "-r", realm,
+                    "init", "--realm-max-ticket-life=1day",
+                    "--realm-max-renewable-life=1month", realm);
+        }
+
+        @Override
+        public Process kdc() {
+            return run(false, nativePath + "/libexec/kdc",
+                    "--addresses=127.0.0.1", "-P", "" + port);
+        }
+
+        @Override
+        public void prepare() {
+            try {
+                Files.createDirectory(Paths.get(base));
+                Files.write(Paths.get(base + "/krb5.conf"), Arrays.asList(
+                        "[libdefaults]",
+                        "default_realm = " + realm,
+                        "default_keytab_name = FILE:" + base + "/krb5.keytab",
+                        "forwardable = true",
+                        "dns_lookup_kdc = no",
+                        "dns_lookup_realm = no",
+                        "dns_canonicalize_hostname = false",
+                        "\n[realms]",
+                        realm + " = {",
+                        "  kdc = localhost:" + port,
+                        "}",
+                        "\n[kdc]",
+                        "db-dir = " + base,
+                        "database = {",
+                        "    label = {",
+                        "        dbname = " + base + "/current-db",
+                        "        realm = " + realm,
+                        "        mkey_file = " + base + "/mkey.file",
+                        "        acl_file = " + base + "/heimdal.acl",
+                        "        log_file = " + base + "/current.log",
+                        "    }",
+                        "}",
+                        SUPPORTED_ETYPES == null ? ""
+                                : ("\n[kadmin]\ndefault_keys = "
+                                + (SUPPORTED_ETYPES + ",")
+                                        .replaceAll(",", ":pw-salt ")),
+                        "\n[logging]",
+                        "kdc = 0-/FILE:" + base + "/messages.log",
+                        "krb5 = 0-/FILE:" + base + "/messages.log",
+                        "default = 0-/FILE:" + base + "/messages.log"
+                ), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        void kinit(String user, String ccache) {
+            String tmpName = base + "/" + user + "." +
+                    System.identityHashCode(this) + ".keytab";
+            ktadd(user, tmpName);
+            run(true, nativePath + "/bin/kinit",
+                    "-f", "-t", tmpName, "-c", ccache, user);
+        }
+    }
+
+    // MIT krb5 KDC. Make your own exploded (install == false), or
+    // "make install" into nativePath (install == true).
+    static class MIT extends NativeKdc {
+
+        private boolean install; // "make install" or "make"
+
+        MIT(boolean install, String nativePath, KDC kdc) {
+            super(nativePath, kdc);
+            this.install = install;
+            Map<String, String> environment = new HashMap<>();
+            environment.put("KRB5_KDC_PROFILE", base + "/kdc.conf");
+            environment.put("KRB5_CONFIG", base + "/krb5.conf");
+            environment.put("KRB5_TRACE", "/dev/stderr");
+            environment.put("DYLD_LIBRARY_PATH", nativePath + "/lib");
+            environment.put("LD_LIBRARY_PATH", nativePath + "/lib");
+            this.env = Collections.unmodifiableMap(environment);
+        }
+
+        @Override
+        public void addPrincipal(String user, String pass) {
+            run(true, nativePath +
+                    (install ? "/sbin/" : "/kadmin/cli/") + "kadmin.local",
+                    "-q", "addprinc -pw " + pass + " " + user);
+        }
+
+        @Override
+        public void ktadd(String user, String ktab) {
+            run(true, nativePath +
+                    (install ? "/sbin/" : "/kadmin/cli/") + "kadmin.local",
+                    "-q", "ktadd -k " + ktab + " -norandkey " + user);
+        }
+
+        @Override
+        public void init() {
+            run(true, nativePath +
+                    (install ? "/sbin/" : "/kadmin/dbutil/") + "kdb5_util",
+                    "create", "-s", "-W", "-P", "olala");
+        }
+
+        @Override
+        public Process kdc() {
+            return run(false, nativePath +
+                    (install ? "/sbin/" : "/kdc/") + "krb5kdc",
+                    "-n");
+        }
+
+        @Override
+        public void prepare() {
+            try {
+                Files.createDirectory(Paths.get(base));
+                Files.write(Paths.get(base + "/kdc.conf"), Arrays.asList(
+                        "[kdcdefaults]",
+                        "\n[realms]",
+                        realm + "= {",
+                        "  kdc_listen = " + this.port,
+                        "  kdc_tcp_listen = " + this.port,
+                        "  database_name = " + base + "/principal",
+                        "  key_stash_file = " + base + "/.k5.ATHENA.MIT.EDU",
+                        SUPPORTED_ETYPES == null ? ""
+                                : ("  supported_enctypes = "
+                                + (SUPPORTED_ETYPES + ",")
+                                        .replaceAll(",", ":normal ")),
+                        "}"
+                ), StandardCharsets.UTF_8);
+                Files.write(Paths.get(base + "/krb5.conf"), Arrays.asList(
+                        "[libdefaults]",
+                        "default_realm = " + realm,
+                        "default_keytab_name = FILE:" + base + "/krb5.keytab",
+                        "forwardable = true",
+                        "dns_lookup_kdc = no",
+                        "dns_lookup_realm = no",
+                        "dns_canonicalize_hostname = false",
+                        "\n[realms]",
+                        realm + " = {",
+                        "  kdc = localhost:" + port,
+                        "}",
+                        "\n[logging]",
+                        "kdc = FILE:" + base + "/krb5kdc.log"
+                ), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        void kinit(String user, String ccache) {
+            String tmpName = base + "/" + user + "." +
+                    System.identityHashCode(this) + ".keytab";
+            ktadd(user, tmpName);
+            run(true, nativePath +
+                    (install ? "/bin/" : "/clients/kinit/") + "kinit",
+                    "-f", "-t", tmpName, "-c", ccache, user);
         }
     }
 
