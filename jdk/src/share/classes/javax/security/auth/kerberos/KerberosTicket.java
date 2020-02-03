@@ -373,7 +373,7 @@ public class KerberosTicket implements Destroyable, Refreshable,
      * @return true if this ticket is forwardable, false if not.
      */
     public final boolean isForwardable() {
-        return flags[FORWARDABLE_TICKET_FLAG];
+        return flags == null? false: flags[FORWARDABLE_TICKET_FLAG];
     }
 
     /**
@@ -385,7 +385,7 @@ public class KerberosTicket implements Destroyable, Refreshable,
      * false otherwise.
      */
     public final boolean isForwarded() {
-        return flags[FORWARDED_TICKET_FLAG];
+        return flags == null? false: flags[FORWARDED_TICKET_FLAG];
     }
 
     /**
@@ -394,7 +394,7 @@ public class KerberosTicket implements Destroyable, Refreshable,
      * @return true if this ticket is proxiable, false if not.
      */
     public final boolean isProxiable() {
-        return flags[PROXIABLE_TICKET_FLAG];
+        return flags == null? false: flags[PROXIABLE_TICKET_FLAG];
     }
 
     /**
@@ -403,7 +403,7 @@ public class KerberosTicket implements Destroyable, Refreshable,
      * @return true if this ticket is a proxy-ticket, false if not.
      */
     public final boolean isProxy() {
-        return flags[PROXY_TICKET_FLAG];
+        return flags == null? false: flags[PROXY_TICKET_FLAG];
     }
 
 
@@ -413,7 +413,7 @@ public class KerberosTicket implements Destroyable, Refreshable,
      * @return true if this ticket is post-dated, false if not.
      */
     public final boolean isPostdated() {
-        return flags[POSTDATED_TICKET_FLAG];
+        return flags == null? false: flags[POSTDATED_TICKET_FLAG];
     }
 
     /**
@@ -424,7 +424,7 @@ public class KerberosTicket implements Destroyable, Refreshable,
      * @return true if this ticket is renewable, false if not.
      */
     public final boolean isRenewable() {
-        return flags[RENEWABLE_TICKET_FLAG];
+        return flags == null? false: flags[RENEWABLE_TICKET_FLAG];
     }
 
     /**
@@ -435,7 +435,7 @@ public class KerberosTicket implements Destroyable, Refreshable,
      * protocol, false if not.
      */
     public final boolean isInitial() {
-        return flags[INITIAL_TICKET_FLAG];
+        return flags == null? false: flags[INITIAL_TICKET_FLAG];
     }
 
     /**
@@ -475,7 +475,7 @@ public class KerberosTicket implements Destroyable, Refreshable,
      * @return the expiration time for this ticket's validity period.
      */
     public final java.util.Date getEndTime() {
-        return (Date) endTime.clone();
+        return (endTime == null) ? null : (Date) endTime.clone();
     }
 
     /**
@@ -511,7 +511,7 @@ public class KerberosTicket implements Destroyable, Refreshable,
 
     /** Determines if this ticket is still current.  */
     public boolean isCurrent() {
-        return (System.currentTimeMillis() <= getEndTime().getTime());
+        return endTime == null? false: (System.currentTimeMillis() <= endTime.getTime());
     }
 
     /**
