@@ -767,6 +767,9 @@ static bool merge_point_safe(Node* region) {
 #ifdef _LP64
         if (m->Opcode() == Op_ConvI2L)
           return false;
+        if (m->is_CastII() && m->isa_CastII()->has_range_check()) {
+          return false;
+        }
 #endif
       }
     }

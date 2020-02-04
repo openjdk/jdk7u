@@ -55,6 +55,7 @@ class CallStaticJavaNode;
 class CatchNode;
 class CatchProjNode;
 class CheckCastPPNode;
+class CastIINode;
 class ClearArrayNode;
 class CmpNode;
 class CodeBuffer;
@@ -592,6 +593,7 @@ public:
     DEFINE_CLASS_ID(Type,  Node, 2)
       DEFINE_CLASS_ID(Phi,   Type, 0)
       DEFINE_CLASS_ID(ConstraintCast, Type, 1)
+        DEFINE_CLASS_ID(CastII, ConstraintCast, 0)
       DEFINE_CLASS_ID(CheckCastPP, Type, 2)
       DEFINE_CLASS_ID(CMove, Type, 3)
       DEFINE_CLASS_ID(SafePointScalarObject, Type, 4)
@@ -711,6 +713,7 @@ public:
   DEFINE_CLASS_QUERY(Catch)
   DEFINE_CLASS_QUERY(CatchProj)
   DEFINE_CLASS_QUERY(CheckCastPP)
+  DEFINE_CLASS_QUERY(CastII)
   DEFINE_CLASS_QUERY(ConstraintCast)
   DEFINE_CLASS_QUERY(ClearArray)
   DEFINE_CLASS_QUERY(CMove)
