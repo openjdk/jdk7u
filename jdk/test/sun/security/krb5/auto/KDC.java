@@ -215,6 +215,10 @@ public class KDC {
          * What backend server can be delegated to
          */
         OK_AS_DELEGATE,
+        /**
+         * If true, will check if TGS-REQ contains a non-null addresses field.
+         */
+        CHECK_ADDRESSES,
     };
 
     //static {
@@ -793,6 +797,11 @@ public class KDC {
             if (body.kdcOptions.get(KDCOptions.FORWARDABLE)) {
                 bFlags[Krb5.TKT_OPTS_FORWARDABLE] = true;
             }
+            if (options.containsKey(Option.CHECK_ADDRESSES)
+                    && body.kdcOptions.get(KDCOptions.FORWARDED)
+                    && body.addresses == null) {
+                throw new KrbException(Krb5.KDC_ERR_BADOPTION);
+            }
             if (body.kdcOptions.get(KDCOptions.FORWARDED) ||
                     etp.flags.get(Krb5.TKT_OPTS_FORWARDED)) {
                 bFlags[Krb5.TKT_OPTS_FORWARDED] = true;
@@ -840,10 +849,8 @@ public class KDC {
                     timeAfter(0),
                     from,
                     till, renewTill,
-                    body.addresses != null  // always set caddr
-                            ? body.addresses
-                            : new HostAddresses(
-                                new InetAddress[]{InetAddress.getLocalHost()}),
+                    body.addresses != null ? body.addresses
+                            : etp.caddr,
                     null);
             EncryptionKey skey = keyForUser(service, e3, true);
             if (skey == null) {
@@ -868,10 +875,7 @@ public class KDC {
                     from,
                     till, renewTill,
                     service,
-                    body.addresses != null  // always set caddr
-                            ? body.addresses
-                            : new HostAddresses(
-                                new InetAddress[]{InetAddress.getLocalHost()})
+                    body.addresses
                     );
             EncryptedData edata = new EncryptedData(ckey, enc_part.asn1Encode(),
                     KeyUsage.KU_ENC_TGS_REP_PART_SESSKEY);
