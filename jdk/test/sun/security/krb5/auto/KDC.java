@@ -797,9 +797,10 @@ public class KDC {
             if (body.kdcOptions.get(KDCOptions.FORWARDABLE)) {
                 bFlags[Krb5.TKT_OPTS_FORWARDABLE] = true;
             }
+            // We do not request for addresses for FORWARDED tickets
             if (options.containsKey(Option.CHECK_ADDRESSES)
                     && body.kdcOptions.get(KDCOptions.FORWARDED)
-                    && body.addresses == null) {
+                    && body.addresses != null) {
                 throw new KrbException(Krb5.KDC_ERR_BADOPTION);
             }
             if (body.kdcOptions.get(KDCOptions.FORWARDED) ||
