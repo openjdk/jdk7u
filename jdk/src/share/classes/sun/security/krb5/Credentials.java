@@ -423,9 +423,11 @@ public class Credentials {
                 if (DEBUG) {
                     System.out.println(">> Acquire default native Credentials");
                 }
-                int[] etypes = EType.getDefaults("default_tkt_enctypes");
-                if (etypes != null) {
-                    result = acquireDefaultNativeCreds(etypes);
+                try {
+                    result = acquireDefaultNativeCreds(
+                            EType.getDefaults("default_tkt_enctypes"));
+                } catch (KrbException ke) {
+                    // when there is no default_tkt_enctypes.
                 }
             }
         }

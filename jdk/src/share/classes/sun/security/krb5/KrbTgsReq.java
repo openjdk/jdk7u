@@ -221,8 +221,7 @@ public class KrbTgsReq {
                          AuthorizationData authorizationData,
                          Ticket[] additionalTickets,
                          EncryptionKey subKey)
-        throws Asn1Exception, IOException, KdcErrException, KrbApErrException,
-               UnknownHostException, KrbCryptoException {
+        throws IOException, KrbException, UnknownHostException {
         KerberosTime req_till = null;
         if (till == null) {
             req_till = new KerberosTime(0);
@@ -244,10 +243,6 @@ public class KrbTgsReq {
         int[] req_eTypes = null;
         if (eTypes == null) {
             req_eTypes = EType.getDefaults("default_tgs_enctypes");
-            if (req_eTypes == null) {
-                throw new KrbCryptoException(
-            "No supported encryption types listed in default_tgs_enctypes");
-            }
         } else {
             req_eTypes = eTypes;
         }
