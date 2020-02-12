@@ -885,6 +885,10 @@ public class GIFImageReader extends ImageReader {
         try {
             // Read and decode the image data, fill in theImage
             this.initCodeSize = stream.readUnsignedByte();
+            // GIF allows max 8 bpp, so anything larger is bogus for the roots.
+            if (this.initCodeSize < 1 || this.initCodeSize > 8) {
+                throw new IIOException("Bad code size:" + this.initCodeSize);
+            }
 
             // Read first data block
             this.blockLength = stream.readUnsignedByte();
@@ -983,7 +987,6 @@ public class GIFImageReader extends ImageReader {
             processReadAborted();
             return theImage;
         } catch (IOException e) {
-            e.printStackTrace();
             throw new IIOException("I/O error reading image!", e);
         }
     }
