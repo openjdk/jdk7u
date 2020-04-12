@@ -52,6 +52,11 @@ else
 LFLAGS_JSIG += -mt -xnolib
 endif
 
+ifdef USE_GNULD
+# Create a RELRO section for memory segments that should be read-only after relocation
+LFLAGS_JSIG += -Xlinker -z -Xlinker relro
+endif
+
 $(LIBJSIG): $(ADD_GNU_DEBUGLINK) $(FIX_EMPTY_SEC_HDR_FLAGS) $(JSIGSRCDIR)/jsig.c $(LIBJSIG_MAPFILE)
 	@echo Making signal interposition lib...
 	$(QUIETLY) $(CC) $(SYMFLAG) $(ARCHFLAG) $(SHARED_FLAG) $(PICFLAG) \

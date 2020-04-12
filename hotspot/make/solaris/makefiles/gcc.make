@@ -171,6 +171,9 @@ ifdef USE_GNULD
 # Enable linker optimization
 LFLAGS += -Xlinker -O1
 
+# Create a RELRO section for memory segments that should be read-only after relocation
+LFLAGS += -Xlinker -z -Xlinker relro
+
 # Use $(MAPFLAG:FILENAME=real_file_name) to specify a map file.
 MAPFLAG = -Xlinker --version-script=FILENAME 
 else 

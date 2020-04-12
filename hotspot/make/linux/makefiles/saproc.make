@@ -79,6 +79,9 @@ ALT_SAINCDIR=
 endif
 SA_LFLAGS = $(MAPFLAG:FILENAME=$(SAMAPFILE)) $(LDFLAGS_HASH_STYLE)
 
+# Create a RELRO section for memory segments that should be read-only after relocation
+SA_LFLAGS += -Xlinker -z -Xlinker relro
+
 $(LIBSAPROC): $(SASRCFILES) $(SAMAPFILE)
 	$(QUIETLY) if [ "$(BOOT_JAVA_HOME)" = "" ]; then \
 	  echo "ALT_BOOTDIR, BOOTDIR or JAVA_HOME needs to be defined to build SA"; \

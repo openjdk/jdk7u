@@ -51,6 +51,9 @@ LIBJSIG_MAPFILE = $(MAKEFILES_DIR)/mapfile-vers-jsig
 
 LFLAGS_JSIG += -D_GNU_SOURCE -D_REENTRANT $(LDFLAGS_HASH_STYLE)
 
+# Create a RELRO section for memory segments that should be read-only after relocation
+LFLAGS_JSIG += -Xlinker -z -Xlinker relro
+
 # DEBUG_BINARIES overrides everything, use full -g debug information
 ifeq ($(DEBUG_BINARIES), true)
   JSIG_DEBUG_CFLAGS = -g

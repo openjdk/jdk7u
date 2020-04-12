@@ -264,6 +264,9 @@ else
   # Enable linker optimization
   LFLAGS += -Xlinker -O1
 
+  # Create a RELRO section for memory segments that should be read-only after relocation
+  LFLAGS += -Xlinker -z -Xlinker relro
+
   # Use $(SONAMEFLAG:SONAME=soname) to specify the intrinsic name of a shared obj
   SONAMEFLAG = -Xlinker -soname=SONAME
 
