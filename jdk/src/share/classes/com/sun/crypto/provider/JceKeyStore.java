@@ -112,7 +112,7 @@ public final class JceKeyStore extends KeyStoreSpi {
     {
         Key key = null;
 
-        Object entry = entries.get(alias.toLowerCase());
+        Object entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
 
         if (!((entry instanceof PrivateKeyEntry) ||
               (entry instanceof SecretKeyEntry))) {
@@ -155,7 +155,7 @@ public final class JceKeyStore extends KeyStoreSpi {
     {
         Certificate[] chain = null;
 
-        Object entry = entries.get(alias.toLowerCase());
+        Object entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
 
         if ((entry instanceof PrivateKeyEntry)
             && (((PrivateKeyEntry)entry).chain != null)) {
@@ -183,7 +183,7 @@ public final class JceKeyStore extends KeyStoreSpi {
     public Certificate engineGetCertificate(String alias) {
         Certificate cert = null;
 
-        Object entry = entries.get(alias.toLowerCase());
+        Object entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
 
         if (entry != null) {
             if (entry instanceof TrustedCertEntry) {
@@ -208,7 +208,7 @@ public final class JceKeyStore extends KeyStoreSpi {
     public Date engineGetCreationDate(String alias) {
         Date date = null;
 
-        Object entry = entries.get(alias.toLowerCase());
+        Object entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
 
         if (entry != null) {
             // We have to create a new instance of java.util.Date because
@@ -271,7 +271,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                     }
 
                     // store the entry
-                    entries.put(alias.toLowerCase(), entry);
+                    entries.put(alias.toLowerCase(Locale.ENGLISH), entry);
 
                 } else {
                     SecretKeyEntry entry = new SecretKeyEntry();
@@ -279,7 +279,7 @@ public final class JceKeyStore extends KeyStoreSpi {
 
                     // seal and store the key
                     entry.sealedKey = keyProtector.seal(key);
-                    entries.put(alias.toLowerCase(), entry);
+                    entries.put(alias.toLowerCase(Locale.ENGLISH), entry);
                 }
 
             } catch (Exception e) {
@@ -327,7 +327,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                 entry.chain = null;
             }
 
-            entries.put(alias.toLowerCase(), entry);
+            entries.put(alias.toLowerCase(Locale.ENGLISH), entry);
         }
     }
 
@@ -350,7 +350,7 @@ public final class JceKeyStore extends KeyStoreSpi {
     {
         synchronized(entries) {
 
-            Object entry = entries.get(alias.toLowerCase());
+            Object entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
             if (entry != null) {
                 if (entry instanceof PrivateKeyEntry) {
                     throw new KeyStoreException("Cannot overwrite own "
@@ -363,7 +363,7 @@ public final class JceKeyStore extends KeyStoreSpi {
             TrustedCertEntry trustedCertEntry = new TrustedCertEntry();
             trustedCertEntry.cert = cert;
             trustedCertEntry.date = new Date();
-            entries.put(alias.toLowerCase(), trustedCertEntry);
+            entries.put(alias.toLowerCase(Locale.ENGLISH), trustedCertEntry);
         }
     }
 
@@ -378,7 +378,7 @@ public final class JceKeyStore extends KeyStoreSpi {
         throws KeyStoreException
     {
         synchronized(entries) {
-            entries.remove(alias.toLowerCase());
+            entries.remove(alias.toLowerCase(Locale.ENGLISH));
         }
     }
 
@@ -399,7 +399,7 @@ public final class JceKeyStore extends KeyStoreSpi {
      * @return true if the alias exists, false otherwise
      */
     public boolean engineContainsAlias(String alias) {
-        return entries.containsKey(alias.toLowerCase());
+        return entries.containsKey(alias.toLowerCase(Locale.ENGLISH));
     }
 
     /**
@@ -421,7 +421,7 @@ public final class JceKeyStore extends KeyStoreSpi {
     public boolean engineIsKeyEntry(String alias) {
         boolean isKey = false;
 
-        Object entry = entries.get(alias.toLowerCase());
+        Object entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
         if ((entry instanceof PrivateKeyEntry)
             || (entry instanceof SecretKeyEntry)) {
             isKey = true;
@@ -439,7 +439,7 @@ public final class JceKeyStore extends KeyStoreSpi {
      */
     public boolean engineIsCertificateEntry(String alias) {
         boolean isCert = false;
-        Object entry = entries.get(alias.toLowerCase());
+        Object entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
         if (entry instanceof TrustedCertEntry) {
             isCert = true;
         }
