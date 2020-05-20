@@ -252,10 +252,10 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
                 int space = constraintEntry.indexOf(' ');
                 String algorithm = AlgorithmDecomposer.hashName(
                         ((space > 0 ? constraintEntry.substring(0, space) :
-                                constraintEntry).
-                                toUpperCase(Locale.ENGLISH)));
+                                constraintEntry)));
 
-                List<Constraint> constraintList = constraintsMap.get(algorithm);
+                List<Constraint> constraintList = constraintsMap.get(
+                    algorithm.toUpperCase(Locale.ENGLISH));
                 if (constraintList == null) {
                     constraintList = new ArrayList<>(1);
                 }
@@ -264,7 +264,8 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
                 for (String alias : AlgorithmDecomposer.getAliases(algorithm)) {
                     List<Constraint> aliasList = constraintsMap.get(alias);
                     if (aliasList == null) {
-                        constraintsMap.put(alias, constraintList);
+                        constraintsMap.put(
+                            alias.toUpperCase(Locale.ENGLISH), constraintList);
                     }
                 }
                 if (space <= 0) {
@@ -354,7 +355,7 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
 
         // Get applicable constraints based off the signature algorithm
         private List<Constraint> getConstraints(String algorithm) {
-            return constraintsMap.get(algorithm);
+            return constraintsMap.get(algorithm.toUpperCase(Locale.ENGLISH));
         }
 
         // Check if KeySizeConstraints permit the specified key
@@ -410,6 +411,7 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
             Set<String> algorithms = new HashSet<>();
             if (algorithm != null) {
                 algorithms.addAll(AlgorithmDecomposer.decomposeOneHash(algorithm));
+                algorithms.add(algorithm);
             }
 
             // Attempt to add the public key algorithm if cert provided
