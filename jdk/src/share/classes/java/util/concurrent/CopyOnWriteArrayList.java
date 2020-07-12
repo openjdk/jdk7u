@@ -118,9 +118,8 @@ public class CopyOnWriteArrayList<E>
      */
     public CopyOnWriteArrayList(Collection<? extends E> c) {
         Object[] elements = c.toArray();
-        // c.toArray might (incorrectly) not return Object[] (see 6260652)
-        if (elements.getClass() != Object[].class)
-            elements = Arrays.copyOf(elements, elements.length, Object[].class);
+        if (c.getClass() != java.util.ArrayList.class)
+          elements = Arrays.copyOf(elements, elements.length, Object[].class);
         setArray(elements);
     }
 
@@ -721,6 +720,9 @@ public class CopyOnWriteArrayList<E>
      */
     public int addAllAbsent(Collection<? extends E> c) {
         Object[] cs = c.toArray();
+        if (c.getClass() != ArrayList.class) {
+            cs = cs.clone();
+        }
         if (cs.length == 0)
             return 0;
         Object[] uniq = new Object[cs.length];

@@ -163,11 +163,13 @@ public class ArrayList<E> extends AbstractList<E>
      * @throws NullPointerException if the specified collection is null
      */
     public ArrayList(Collection<? extends E> c) {
-        elementData = c.toArray();
-        size = elementData.length;
-        // c.toArray might (incorrectly) not return Object[] (see 6260652)
-        if (elementData.getClass() != Object[].class)
-            elementData = Arrays.copyOf(elementData, size, Object[].class);
+        Object[] a = c.toArray();
+        size = a.length;
+        if (c.getClass() == ArrayList.class) {
+          elementData = a;
+        } else {
+          elementData = Arrays.copyOf(a, size, Object[].class);
+        }
     }
 
     /**
