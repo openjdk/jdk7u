@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -116,7 +116,9 @@ protected:
 
 public:
 
-  HeapRegion* hr() const { return _hr; }
+  HeapRegion* hr() const {
+    return (HeapRegion*) OrderAccess::load_ptr_acquire(&_hr);
+  }
 
   jint occupied() const {
     // Overkill, but if we ever need it...
@@ -129,10 +131,12 @@ public:
       set_next(NULL);
       set_prev(NULL);
     }
-    _hr = hr;
     _collision_list_next = NULL;
     _occupied = 0;
     _bm.clear();
+    // Make sure that the bitmap clearing above has been finished before publishing
+    // this PRT to concurrent threads.
+    OrderAccess::release_store_ptr(&_hr, hr);
   }
 
   void add_reference(OopOrNarrowOopStar from) {
@@ -416,7 +420,7 @@ void OtherRegionsTable::add_reference(OopOrNarrowOopStar from, int tid) {
     if (G1TraceHeapRegionRememberedSet) {
       gclog_or_tty->print_cr("  from-card cache hit.");
     }
-    assert(contains_reference(from), "We just added it!");
+    assert(contains_reference(from), err_msg("We just found " PTR_FORMAT " in the FromCardCache", from));
     return;
   } else {
     _from_card_cache[tid][cur_hrs_ind] = from_card;
@@ -431,7 +435,7 @@ void OtherRegionsTable::add_reference(OopOrNarrowOopStar from, int tid) {
     if (G1TraceHeapRegionRememberedSet) {
       gclog_or_tty->print_cr("  coarse map hit.");
     }
-    assert(contains_reference(from), "We just added it!");
+    assert(contains_reference(from), err_msg("We just found " PTR_FORMAT " in the Coarse table", from));
     return;
   }
 
@@ -465,7 +469,7 @@ void OtherRegionsTable::add_reference(OopOrNarrowOopStar from, int tid) {
         if (G1TraceHeapRegionRememberedSet) {
           gclog_or_tty->print_cr("   added card to sparse table.");
         }
-        assert(contains_reference_locked(from), "We just added it!");
+        assert(contains_reference_locked(from), err_msg("We just added " PTR_FORMAT " to the Sparse table", from));
         return;
       } else {
         if (G1TraceHeapRegionRememberedSet) {
@@ -524,7 +528,7 @@ void OtherRegionsTable::add_reference(OopOrNarrowOopStar from, int tid) {
                           hr()->bottom(), from);
     }
   }
-  assert(contains_reference(from), "We just added it!");
+  assert(contains_reference(from), err_msg("We just added " PTR_FORMAT " to the PRT", from));
 }
 
 PerRegionTable*
