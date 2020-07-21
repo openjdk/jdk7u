@@ -132,4 +132,4 @@ endif
 
 # Shun the less than portable MMX assembly code in pnggccrd.c,
 # and use alternative implementations in C.
-CPPFLAGS += -DPNG_NO_MMX_CODE
+CPPFLAGS += -DPNG_NO_MMX_CODE -DPNG_ARM_NEON_OPT=0 -DPNG_ARM_NEON_IMPLEMENTATION=0
