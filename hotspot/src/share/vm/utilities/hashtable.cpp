@@ -97,7 +97,7 @@ template <class T, MEMFLAGS F> jint Hashtable<T, F>::_seed = 0;
 template <class T, MEMFLAGS F> unsigned int Hashtable<T, F>::new_hash(Symbol* sym) {
   ResourceMark rm;
   // Use alternate hashing algorithm on this symbol.
-  return AltHashing::halfsiphash_64(seed(), (const int8_t*)sym->as_C_string(), sym->utf8_length());
+  return AltHashing::halfsiphash_32(seed(), (const uint8_t*)sym->as_C_string(), sym->utf8_length());
 }
 
 template <class T, MEMFLAGS F> unsigned int Hashtable<T, F>::new_hash(oop string) {
@@ -105,7 +105,7 @@ template <class T, MEMFLAGS F> unsigned int Hashtable<T, F>::new_hash(oop string
   int length;
   jchar* chars = java_lang_String::as_unicode_string(string, length);
   // Use alternate hashing algorithm on the string
-  return AltHashing::halfsiphash_64(seed(), chars, length);
+  return AltHashing::halfsiphash_32(seed(), chars, length);
 }
 
 // Create a new table and using alternate hash code, populate the new table
