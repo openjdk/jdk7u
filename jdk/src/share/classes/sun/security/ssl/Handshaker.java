@@ -36,6 +36,7 @@ import javax.crypto.spec.*;
 import javax.net.ssl.*;
 import sun.misc.HexDumpEncoder;
 
+import sun.security.action.GetIntegerAction;
 import sun.security.internal.spec.*;
 import sun.security.internal.interfaces.TlsMasterSecret;
 
@@ -185,6 +186,10 @@ abstract class Handshaker {
     // Allow full handshake without Extended Master Secret extension.
     static final boolean allowLegacyMasterSecret =
             Debug.getBooleanProperty("jdk.tls.allowLegacyMasterSecret", true);
+
+    // Set the max size limit for Handshake Message to 2^15
+    static final int maxHandshakeMessageSize = AccessController.doPrivileged(
+            new GetIntegerAction("jdk.tls.maxHandshakeMessageSize", 32768)).intValue();
 
     // Is it requested to use extended master secret extension?
     boolean requestedToUseEMS = false;
@@ -935,6 +940,15 @@ abstract class Handshaker {
 
             messageType = (byte)input.getInt8();
             messageLen = input.getInt24();
+
+            if (messageLen > maxHandshakeMessageSize) {
+                throw new SSLProtocolException(
+                        "The size of the handshake message ("
+                        + messageLen
+                        + ") exceeds the maximum allowed size ("
+                        + maxHandshakeMessageSize
+                        + ")");
+            }
 
             if (input.available() < messageLen) {
                 input.reset();
