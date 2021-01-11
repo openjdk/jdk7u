@@ -884,6 +884,7 @@ class ClassHierarchyWalker {
   klassOop find_witness_in(KlassDepChange& changes,
                            klassOop context_type,
                            bool participants_hide_witnesses);
+  bool witnessed_reabstraction_in_supers(klassOop k);
  public:
   klassOop find_witness_subtype(klassOop context_type, KlassDepChange* changes = NULL) {
     assert(doing_subtype_search(), "must set up a subtype search");
@@ -996,14 +997,19 @@ klassOop ClassHierarchyWalker::find_witness_in(KlassDepChange& changes,
     }
   }
 
-  if (is_witness(new_type) &&
-      !ignore_witness(new_type)) {
-    return new_type;
+  if (is_witness(new_type)) {
+    if (!ignore_witness(new_type)) {
+      return new_type;
+    }
+  } else if (!doing_subtype_search()) {
+    // No witness found, but is_witness() doesn't detect method re-abstraction in case of spot-checking.
+    if (witnessed_reabstraction_in_supers(new_type)) {
+      return new_type;
+    }
   }
 
   return NULL;
 }
-
 
 // Walk hierarchy under a context type, looking for unexpected types.
 // Do not report participant types, and recursively walk beneath
@@ -1122,6 +1128,34 @@ klassOop ClassHierarchyWalker::find_witness_anywhere(klassOop context_type,
 #undef ADD_SUBCLASS_CHAIN
 }
 
+bool ClassHierarchyWalker::witnessed_reabstraction_in_supers(klassOop ctxk) {
+  Klass* k = Klass::cast(ctxk);
+  instanceKlass* ik = instanceKlass::cast(ctxk);
+  if (!k->oop_is_instance()) {
+    return false; // no methods to find in an array type
+  } else {
+    // Looking for a case when an abstract method is inherited into a concrete class.
+    if (Dependencies::is_concrete_klass(ctxk) && !k->is_interface()) {
+      methodOop m = instanceKlass::cast(ctxk)->find_instance_method(_name, _signature);
+      if (m != NULL) {
+        return false; // no reabstraction possible: local method found
+      }
+      for (instanceKlass* super = instanceKlass::cast(ik->java_super()); super != NULL; super = instanceKlass::cast(super->java_super())) {
+        m = super->find_instance_method(_name, _signature);
+        if (m != NULL) { // inherited method found
+          if (m->is_abstract()) {
+            _found_methods[_num_participants] = m;
+            return true; // abstract method found
+          }
+          return false;
+        }
+      }
+      assert(false, "root method not found");
+      return true;
+    }
+    return false;
+  }
+}
 
 bool Dependencies::is_concrete_klass(klassOop k) {
   if (Klass::cast(k)->is_abstract())  return false;
