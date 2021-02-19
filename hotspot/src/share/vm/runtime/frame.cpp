@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1334,20 +1334,21 @@ void frame::interpreter_frame_verify_monitor(BasicObjectLock* value) const {
 
 
 void frame::describe(FrameValues& values, int frame_no) {
+  intptr_t* frame_pointer = real_fp();
   if (is_entry_frame() || is_compiled_frame() || is_interpreted_frame() || is_native_frame()) {
     // Label values common to most frames
     values.describe(-1, unextended_sp(), err_msg("unextended_sp for #%d", frame_no));
     values.describe(-1, sp(), err_msg("sp for #%d", frame_no));
-    values.describe(-1, fp(), err_msg("fp for #%d", frame_no));
+    values.describe(-1, frame_pointer, err_msg("frame pointer for #%d", frame_no));
   }
   if (is_interpreted_frame()) {
     methodOop m = interpreter_frame_method();
     int bci = interpreter_frame_bci();
 
     // Label the method and current bci
-    values.describe(-1, MAX2(sp(), fp()),
+    values.describe(-1, MAX2(sp(), frame_pointer),
                     FormatBuffer<1024>("#%d method %s @ %d", frame_no, m->name_and_sig_as_C_string(), bci), 2);
-    values.describe(-1, MAX2(sp(), fp()),
+    values.describe(-1, MAX2(sp(), frame_pointer),
                     err_msg("- %d locals %d max stack", m->max_locals(), m->max_stack()), 1);
     if (m->max_locals() > 0) {
       intptr_t* l0 = interpreter_frame_local_at(0);
@@ -1379,18 +1380,18 @@ void frame::describe(FrameValues& values, int frame_no) {
     }
   } else if (is_entry_frame()) {
     // For now just label the frame
-    values.describe(-1, MAX2(sp(), fp()), err_msg("#%d entry frame", frame_no), 2);
+    values.describe(-1, MAX2(sp(), frame_pointer), err_msg("#%d entry frame", frame_no), 2);
   } else if (is_compiled_frame()) {
     // For now just label the frame
     nmethod* nm = cb()->as_nmethod_or_null();
-    values.describe(-1, MAX2(sp(), fp()),
+    values.describe(-1, MAX2(sp(), frame_pointer),
                     FormatBuffer<1024>("#%d nmethod " INTPTR_FORMAT " for method %s%s", frame_no,
                                        nm, nm->method()->name_and_sig_as_C_string(),
                                        is_deoptimized_frame() ? " (deoptimized" : ""), 2);
   } else if (is_native_frame()) {
     // For now just label the frame
     nmethod* nm = cb()->as_nmethod_or_null();
-    values.describe(-1, MAX2(sp(), fp()),
+    values.describe(-1, MAX2(sp(), frame_pointer),
                     FormatBuffer<1024>("#%d nmethod " INTPTR_FORMAT " for native method %s", frame_no,
                                        nm, nm->method()->name_and_sig_as_C_string()), 2);
   }
@@ -1450,9 +1451,8 @@ void FrameValues::validate() {
 }
 
 
-void FrameValues::print() {
+void FrameValues::print(JavaThread* thread) {
   _values.sort(compare);
-  JavaThread* thread = JavaThread::current();
 
   // Sometimes values like the fp can be invalid values if the
   // register map wasn't updated during the walk.  Trim out values
@@ -1460,12 +1460,22 @@ void FrameValues::print() {
   int min_index = 0;
   int max_index = _values.length() - 1;
   intptr_t* v0 = _values.at(min_index).location;
-  while (!thread->is_in_stack((address)v0)) {
-    v0 = _values.at(++min_index).location;
-  }
   intptr_t* v1 = _values.at(max_index).location;
-  while (!thread->is_in_stack((address)v1)) {
-    v1 = _values.at(--max_index).location;
+
+  if (thread == Thread::current()) {
+    while (!thread->is_in_stack((address)v0)) {
+      v0 = _values.at(++min_index).location;
+    }
+    while (!thread->is_in_stack((address)v1)) {
+      v1 = _values.at(--max_index).location;
+    }
+  } else {
+    while (!thread->on_local_stack((address)v0)) {
+      v0 = _values.at(++min_index).location;
+    }
+    while (!thread->on_local_stack((address)v1)) {
+      v1 = _values.at(--max_index).location;
+    }
   }
   intptr_t* min = MIN2(v0, v1);
   intptr_t* max = MAX2(v0, v1);
