@@ -79,6 +79,15 @@ ifeq ($(UNAME_S), Linux)
   endif
   OS_VERSION := $(shell $(UNAME) -r)
 endif
+ifeq ($(UNAME_S), Darwin)
+  OS_NAME     = macosx
+  OS_ARCH    := $(shell $(UNAME) -m)
+  # Check for unknown arch, try uname -p if uname -m says unknown
+  ifeq ($(OS_ARCH),unknown)
+    OS_ARCH    := $(shell $(UNAME) -p)
+  endif
+  OS_VERSION := $(shell $(UNAME) -r)
+endif
 ifeq ($(OS_NAME),)
   OS_NAME = windows
   # GNU Make or MKS overrides $(PROCESSOR_ARCHITECTURE) to always
@@ -119,6 +128,7 @@ OS_ARCH:=$(patsubst X64,$(OS_ARCH_X64_NAME),$(OS_ARCH))
 OS_ARCH:=$(patsubst AMD64,$(OS_ARCH_X64_NAME),$(OS_ARCH))
 OS_ARCH:=$(patsubst amd64,$(OS_ARCH_X64_NAME),$(OS_ARCH))
 OS_ARCH:=$(patsubst x86_64,$(OS_ARCH_X64_NAME),$(OS_ARCH))
+OS_ARCH:=$(patsubst 86_64,$(OS_ARCH_X64_NAME),$(OS_ARCH))
 OS_ARCH:=$(patsubst 8664,$(OS_ARCH_X64_NAME),$(OS_ARCH))
 OS_ARCH:=$(patsubst EM64T,$(OS_ARCH_X64_NAME),$(OS_ARCH))
 OS_ARCH:=$(patsubst em64t,$(OS_ARCH_X64_NAME),$(OS_ARCH))
@@ -510,12 +520,16 @@ jdk_nio2: $(call TestDirs, java/nio/Buffer java/nio/ByteOrder \
 
 # Stable samevm testruns (minus items from PROBLEM_LIST)
 JDK_ALL_TARGETS += jdk_nio3
-jdk_nio3: $(call TestDirs, com/sun/nio sun/nio)
+jdk_nio3: $(call TestDirs, sun/nio)
 	$(call RunSamevmBatch)
 
 # All nio tests
 jdk_nio: jdk_nio1 jdk_nio2 jdk_nio3
 	@$(SummaryInfo)
+
+# Stable samevm testruns (minus items from PROBLEM_LIST)
+jdk_sctp: $(call TestDirs, com/sun/nio/sctp)
+	$(call RunSamevmBatch)
 
 # Stable othervm testruns (minus items from PROBLEM_LIST)
 #   Using samevm has serious problems with these tests
