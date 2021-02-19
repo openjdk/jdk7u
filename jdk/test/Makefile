@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1995, 2012, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -510,12 +510,16 @@ jdk_nio2: $(call TestDirs, java/nio/Buffer java/nio/ByteOrder \
 
 # Stable samevm testruns (minus items from PROBLEM_LIST)
 JDK_ALL_TARGETS += jdk_nio3
-jdk_nio3: $(call TestDirs, com/sun/nio sun/nio)
+jdk_nio3: $(call TestDirs, sun/nio)
 	$(call RunSamevmBatch)
 
 # All nio tests
 jdk_nio: jdk_nio1 jdk_nio2 jdk_nio3
 	@$(SummaryInfo)
+
+# Stable samevm testruns (minus items from PROBLEM_LIST)
+jdk_sctp: $(call TestDirs, com/sun/nio/sctp)
+	$(call RunSamevmBatch)
 
 # Stable othervm testruns (minus items from PROBLEM_LIST)
 #   Using samevm has serious problems with these tests
@@ -538,7 +542,8 @@ jdk_security2: $(call TestDirs, javax/crypto com/sun/crypto)
 #   Using samevm has serious problems with these tests
 JDK_ALL_TARGETS += jdk_security3
 jdk_security3: $(call TestDirs, com/sun/security lib/security \
-               javax/security sun/security)
+               javax/security sun/security \
+               com/oracle/security/ucrypto)
 	$(call SharedLibraryPermissions,sun/security)
 	$(call RunOthervmBatch)
 
