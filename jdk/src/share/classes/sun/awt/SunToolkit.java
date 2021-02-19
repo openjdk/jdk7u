@@ -35,6 +35,7 @@ import java.awt.event.KeyEvent;
 import java.awt.image.*;
 import java.awt.TrayIcon;
 import java.awt.SystemTray;
+import java.awt.event.InputEvent;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -101,30 +102,28 @@ public abstract class SunToolkit extends Toolkit
      */
     public final static int MAX_BUTTONS_SUPPORTED = 20;
 
+    private static void initEQ(AppContext appContext) {
+        EventQueue eventQueue;
+
+        String eqName = System.getProperty("AWT.EventQueueClass",
+                "java.awt.EventQueue");
+
+        try {
+            eventQueue = (EventQueue)Class.forName(eqName).newInstance();
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Failed loading " + eqName + ": " + e);
+            eventQueue = new EventQueue();
+        }
+        appContext.put(AppContext.EVENT_QUEUE_KEY, eventQueue);
+
+        PostEventQueue postEventQueue = new PostEventQueue(eventQueue);
+        appContext.put(POST_EVENT_QUEUE_KEY, postEventQueue);
+    }
+
     public SunToolkit() {
-        Runnable initEQ = new Runnable() {
-            public void run () {
-                EventQueue eventQueue;
-
-                String eqName = System.getProperty("AWT.EventQueueClass",
-                                                   "java.awt.EventQueue");
-
-                try {
-                    eventQueue = (EventQueue)Class.forName(eqName).newInstance();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    System.err.println("Failed loading " + eqName + ": " + e);
-                    eventQueue = new EventQueue();
-                }
-                AppContext appContext = AppContext.getAppContext();
-                appContext.put(AppContext.EVENT_QUEUE_KEY, eventQueue);
-
-                PostEventQueue postEventQueue = new PostEventQueue(eventQueue);
-                appContext.put(POST_EVENT_QUEUE_KEY, postEventQueue);
-            }
-        };
-
-        initEQ.run();
+        // 7122796: Always create an EQ for the main AppContext
+        initEQ(AppContext.getMainAppContext());
     }
 
     public boolean useBufferPerWindow() {
@@ -288,19 +287,7 @@ public abstract class SunToolkit extends Toolkit
         // return correct values
         AppContext appContext = new AppContext(threadGroup);
 
-        EventQueue eventQueue;
-        String eqName = System.getProperty("AWT.EventQueueClass",
-                                           "java.awt.EventQueue");
-        try {
-            eventQueue = (EventQueue)Class.forName(eqName).newInstance();
-        } catch (Exception e) {
-            System.err.println("Failed loading " + eqName + ": " + e);
-            eventQueue = new EventQueue();
-        }
-        appContext.put(AppContext.EVENT_QUEUE_KEY, eventQueue);
-
-        PostEventQueue postEventQueue = new PostEventQueue(eventQueue);
-        appContext.put(POST_EVENT_QUEUE_KEY, postEventQueue);
+        initEQ(appContext);
 
         return appContext;
     }
@@ -471,48 +458,11 @@ public abstract class SunToolkit extends Toolkit
         AWTAccessor.getWindowAccessor().setLWRequestStatus(changed, status);
     };
 
-    public static void checkAndSetPolicy(Container cont, boolean isSwingCont)
-    {
-        FocusTraversalPolicy defaultPolicy = KeyboardFocusManager
-            .getCurrentKeyboardFocusManager().getDefaultFocusTraversalPolicy();
+    public static void checkAndSetPolicy(Container cont) {
+        FocusTraversalPolicy defaultPolicy = KeyboardFocusManager.
+            getCurrentKeyboardFocusManager().
+                getDefaultFocusTraversalPolicy();
 
-        String toolkitName = Toolkit.getDefaultToolkit().getClass().getName();
-        // if this is not XAWT then use default policy
-        // because Swing change it
-        if (!"sun.awt.X11.XToolkit".equals(toolkitName)) {
-            cont.setFocusTraversalPolicy(defaultPolicy);
-            return;
-        }
-
-        String policyName = defaultPolicy.getClass().getName();
-
-        if (DefaultFocusTraversalPolicy.class != defaultPolicy.getClass()) {
-            // Policy was changed
-            // Check if it is awt policy or swing policy
-            // If it is Swing policy we shouldn't use it in AWT frames
-            // If it is AWT policy  we shouldn't use it in Swing frames
-            // Otherwise we should use this policy
-            if (policyName.startsWith("java.awt.")) {
-                // AWT
-                if (isSwingCont) {
-                    // Can't use AWT policy in Swing windows - should use Swing's one.
-                    defaultPolicy = createLayoutPolicy();
-                } else {
-                    // New awt policy.
-                }
-            } else if (policyName.startsWith("javax.swing.")) {
-                if (isSwingCont) {
-                    // New Swing's policy
-                } else {
-                    defaultPolicy = new DefaultFocusTraversalPolicy();
-                }
-            }
-        } else {
-            // Policy is default, use different default policy for swing
-            if (isSwingCont) {
-                defaultPolicy = createLayoutPolicy();
-            }
-        }
         cont.setFocusTraversalPolicy(defaultPolicy);
     }
 
@@ -591,7 +541,7 @@ public abstract class SunToolkit extends Toolkit
         postEvent(targetToAppContext(e.getSource()), pe);
     }
 
-    private static final Lock flushLock = new ReentrantLock();
+    protected static final Lock flushLock = new ReentrantLock();
     private static boolean isFlushingPendingEvents = false;
 
     /*
@@ -1124,6 +1074,23 @@ public abstract class SunToolkit extends Toolkit
             c = AWTAccessor.getComponentAccessor().getParent(c);
         }
         return c;
+    }
+
+    /**
+     * Returns key modifiers used by Swing to set up a focus accelerator key stroke.
+     */
+    public int getFocusAcceleratorKeyMask() {
+        return InputEvent.ALT_MASK;
+    }
+
+    /**
+     * Tests whether specified key modifiers mask can be used to enter a printable
+     * character. This is a default implementation of this method, which reflects
+     * the way things work on Windows: here, pressing ctrl + alt allows user to enter
+     * characters from the extended character set (like euro sign or math symbols)
+     */
+    public boolean isPrintableCharacterModifiersMask(int mods) {
+        return ((mods & InputEvent.ALT_MASK) == (mods & InputEvent.CTRL_MASK));
     }
 
     /**

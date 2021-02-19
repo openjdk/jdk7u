@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -161,8 +161,6 @@ public:
   size_t max_capacity() const;
 
   HeapWord* mem_allocate(size_t size,
-                         bool   is_large_noref,
-                         bool   is_tlab,
                          bool*  gc_overhead_limit_was_exceeded);
 
   // We may support a shared contiguous allocation area, if the youngest
@@ -200,7 +198,7 @@ public:
   // Mostly used for testing purposes. Caller does not hold the Heap_lock on entry.
   void collect(GCCause::Cause cause, int max_level);
 
-  // Returns "TRUE" iff "p" points into the allocated area of the heap.
+  // Returns "TRUE" iff "p" points into the committed areas of the heap.
   // The methods is_in(), is_in_closed_subset() and is_in_youngest() may
   // be expensive to compute in general, so, to prevent
   // their inadvertent use in product jvm's, we restrict their use to
@@ -315,8 +313,6 @@ public:
   // contributed as it needs.
   void release_scratch();
 
-  size_t large_typearray_limit();
-
   // Ensure parsability: override
   virtual void ensure_parsability(bool retire_tlabs);
 
@@ -361,11 +357,10 @@ public:
   void prepare_for_verify();
 
   // Override.
-  void verify(bool allow_dirty, bool silent, bool /* option */);
+  void verify(bool allow_dirty, bool silent, VerifyOption option);
 
   // Override.
-  void print() const;
-  void print_on(outputStream* st) const;
+  virtual void print_on(outputStream* st) const;
   virtual void print_gc_threads_on(outputStream* st) const;
   virtual void gc_threads_do(ThreadClosure* tc) const;
   virtual void print_tracing_info() const;
@@ -424,8 +419,7 @@ public:
   // asserted to be this type.
   static GenCollectedHeap* heap();
 
-  void set_par_threads(int t);
-
+  void set_par_threads(uint t);
 
   // Invoke the "do_oop" method of one of the closures "not_older_gens"
   // or "older_gens" on root locations for the generation at
