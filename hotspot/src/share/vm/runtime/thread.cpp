@@ -749,8 +749,9 @@ bool Thread::claim_oops_do_par_case(int strong_roots_parity) {
   jint thread_parity = _oops_do_parity;
   if (thread_parity != strong_roots_parity) {
     jint res = Atomic::cmpxchg(strong_roots_parity, &_oops_do_parity, thread_parity);
-    if (res == thread_parity) return true;
-    else {
+    if (res == thread_parity) {
+      return true;
+    } else {
       guarantee(res == strong_roots_parity, "Or else what?");
       assert(SharedHeap::heap()->n_par_threads() > 0,
              "Should only fail when parallel.");
@@ -966,7 +967,7 @@ static void call_initializeSystemClass(TRAPS) {
 // General purpose hook into Java code, run once when the VM is initialized.
 // The Java library method itself may be changed independently from the VM.
 static void call_postVMInitHook(TRAPS) {
-  klassOop k = SystemDictionary::sun_misc_PostVMInitHook_klass();
+  klassOop k = SystemDictionary::PostVMInitHook_klass();
   instanceKlassHandle klass (THREAD, k);
   if (klass.not_null()) {
     JavaValue result(T_VOID);
@@ -1272,7 +1273,6 @@ void JavaThread::initialize() {
   _exception_oop = NULL;
   _exception_pc  = 0;
   _exception_handler_pc = 0;
-  _exception_stack_size = 0;
   _is_method_handle_return = 0;
   _jvmti_thread_state= NULL;
   _should_post_on_exceptions_flag = JNI_FALSE;
@@ -2860,6 +2860,44 @@ void JavaThread::trace_frames() {
   }
 }
 
+class PrintAndVerifyOopClosure: public OopClosure {
+ protected:
+  template <class T> inline void do_oop_work(T* p) {
+    oop obj = oopDesc::load_decode_heap_oop(p);
+    if (obj == NULL) return;
+    tty->print(INTPTR_FORMAT ": ", p);
+    if (obj->is_oop_or_null()) {
+      if (obj->is_objArray()) {
+        tty->print_cr("valid objArray: " INTPTR_FORMAT, (oopDesc*) obj);
+      } else {
+        obj->print();
+      }
+    } else {
+      tty->print_cr("invalid oop: " INTPTR_FORMAT, (oopDesc*) obj);
+    }
+    tty->cr();
+  }
+ public:
+  virtual void do_oop(oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p)  { do_oop_work(p); }
+};
+
+
+static void oops_print(frame* f, const RegisterMap *map) {
+  PrintAndVerifyOopClosure print;
+  f->print_value();
+  f->oops_do(&print, NULL, (RegisterMap*)map);
+}
+
+// Print our all the locations that contain oops and whether they are
+// valid or not.  This useful when trying to find the oldest frame
+// where an oop has gone bad since the frame walk is from youngest to
+// oldest.
+void JavaThread::trace_oops() {
+  tty->print_cr("[Trace oops]");
+  frames_do(oops_print);
+}
+
 
 #ifdef ASSERT
 // Print or validate the layout of stack frames
@@ -3347,7 +3385,9 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // Notify JVMTI agents that VM initialization is complete - nop if no agents.
   JvmtiExport::post_vm_initialized();
 
-  Chunk::start_chunk_pool_cleaner_task();
+  if (CleanChunkPoolAsync) {
+    Chunk::start_chunk_pool_cleaner_task();
+  }
 
   // initialize compiler(s)
   CompileBroker::compilation_init();
@@ -3698,6 +3738,14 @@ bool Threads::destroy_vm() {
     // heap is unparseable if they are caught. Grab the Heap_lock
     // to prevent this. The GC vm_operations will not be able to
     // queue until after the vm thread is dead.
+    // After this point, we'll never emerge out of the safepoint before
+    // the VM exits, so concurrent GC threads do not need to be explicitly
+    // stopped; they remain inactive until the process exits.
+    // Note: some concurrent G1 threads may be running during a safepoint,
+    // but these will not be accessing the heap, just some G1-specific side
+    // data structures that are not accessed by any other threads but them
+    // after this point in a terminal safepoint.
+
     MutexLocker ml(Heap_lock);
 
     VMThread::wait_for_vm_thread_exit();
@@ -3858,8 +3906,9 @@ void Threads::possibly_parallel_oops_do(OopClosure* f, CodeBlobClosure* cf) {
     }
   }
   VMThread* vmt = VMThread::vm_thread();
-  if (vmt->claim_oops_do(is_par, cp))
+  if (vmt->claim_oops_do(is_par, cp)) {
     vmt->oops_do(f, cf);
+  }
 }
 
 #ifndef SERIALGC
