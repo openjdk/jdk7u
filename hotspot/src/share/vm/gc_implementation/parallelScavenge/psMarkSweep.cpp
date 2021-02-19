@@ -198,10 +198,9 @@ void PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
 
     allocate_stacks();
 
-    NOT_PRODUCT(ref_processor()->verify_no_references_recorded());
     COMPILER2_PRESENT(DerivedPointerTable::clear());
 
-    ref_processor()->enable_discovery();
+    ref_processor()->enable_discovery(true /*verify_disabled*/, true /*verify_no_refs*/);
     ref_processor()->setup_policy(clear_all_softrefs);
 
     mark_sweep_phase1(clear_all_softrefs);
@@ -516,7 +515,6 @@ void PSMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   {
     ParallelScavengeHeap::ParStrongRootsScope psrs;
     Universe::oops_do(mark_and_push_closure());
-    ReferenceProcessor::oops_do(mark_and_push_closure());
     JNIHandles::oops_do(mark_and_push_closure());   // Global (strong) JNI handles
     CodeBlobToOopClosure each_active_code_blob(mark_and_push_closure(), /*do_marking=*/ true);
     Threads::oops_do(mark_and_push_closure(), &each_active_code_blob);
@@ -623,7 +621,6 @@ void PSMarkSweep::mark_sweep_phase3() {
 
   // General strong roots.
   Universe::oops_do(adjust_root_pointer_closure());
-  ReferenceProcessor::oops_do(adjust_root_pointer_closure());
   JNIHandles::oops_do(adjust_root_pointer_closure());   // Global (strong) JNI handles
   Threads::oops_do(adjust_root_pointer_closure(), NULL);
   ObjectSynchronizer::oops_do(adjust_root_pointer_closure());
@@ -675,15 +672,20 @@ void PSMarkSweep::mark_sweep_phase4() {
 }
 
 jlong PSMarkSweep::millis_since_last_gc() {
-  jlong ret_val = os::javaTimeMillis() - _time_of_last_gc;
+  // We need a monotonically non-deccreasing time in ms but
+  // os::javaTimeMillis() does not guarantee monotonicity.
+  jlong now = os::javaTimeNanos() / NANOSECS_PER_MILLISEC;
+  jlong ret_val = now - _time_of_last_gc;
   // XXX See note in genCollectedHeap::millis_since_last_gc().
   if (ret_val < 0) {
-    NOT_PRODUCT(warning("time warp: %d", ret_val);)
+    NOT_PRODUCT(warning("time warp: "INT64_FORMAT, ret_val);)
     return 0;
   }
   return ret_val;
 }
 
 void PSMarkSweep::reset_millis_since_last_gc() {
-  _time_of_last_gc = os::javaTimeMillis();
+  // We need a monotonically non-deccreasing time in ms but
+  // os::javaTimeMillis() does not guarantee monotonicity.
+  _time_of_last_gc = os::javaTimeNanos() / NANOSECS_PER_MILLISEC;
 }
