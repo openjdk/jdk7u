@@ -36,6 +36,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_bsd
+# include "os_bsd.inline.hpp"
+#endif
 
 // Mutexes used in the VM.
 
@@ -132,6 +135,12 @@ extern Mutex*   HotCardCache_lock;               // protects the hot card cache
 
 extern Mutex*   Management_lock;                 // a lock used to serialize JVM management
 extern Monitor* Service_lock;                    // a lock used for service thread operation
+extern Mutex*   Stacktrace_lock;                 // used to guard access to the stacktrace table
+
+extern Monitor* JfrQuery_lock;                   // protects JFR use
+extern Monitor* JfrMsg_lock;                     // protects JFR messaging
+extern Mutex*   JfrBuffer_lock;                  // protects JFR buffer operations
+extern Mutex*   JfrStream_lock;                  // protects JFR stream access
 
 // A MutexLocker provides mutual exclusion with respect to a given mutex
 // for the scope which contains the locker.  The lock is an OS lock, not
