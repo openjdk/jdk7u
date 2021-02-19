@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ class DirtyCardToOopClosure;
 class CMBitMap;
 class CMMarkStack;
 class G1ParScanThreadState;
+class CMTask;
 
 // A class that scans oops in a given heap region (much as OopsInGenClosure
 // scans oops in a generation.)
@@ -40,7 +41,7 @@ class OopsInHeapRegionClosure: public OopsInGenClosure {
 protected:
   HeapRegion* _from;
 public:
-  virtual void set_region(HeapRegion* from) { _from = from; }
+  void set_region(HeapRegion* from) { _from = from; }
 };
 
 class G1ParClosureSuper : public OopsInHeapRegionClosure {
@@ -49,6 +50,8 @@ protected:
   G1RemSet* _g1_rem;
   ConcurrentMark* _cm;
   G1ParScanThreadState* _par_scan_state;
+  bool _during_initial_mark;
+  bool _mark_in_progress;
 public:
   G1ParClosureSuper(G1CollectedHeap* g1, G1ParScanThreadState* par_scan_state);
   bool apply_to_weak_ref_discovered_field() { return true; }
@@ -101,8 +104,8 @@ public:
 class G1ParCopyHelper : public G1ParClosureSuper {
   G1ParScanClosure *_scanner;
 protected:
-  template <class T> void mark_forwardee(T* p);
-  oop copy_to_survivor_space(oop obj);
+  template <class T> void mark_object(T* p);
+  oop copy_to_survivor_space(oop obj, bool should_mark_copy);
 public:
   G1ParCopyHelper(G1CollectedHeap* g1, G1ParScanThreadState* par_scan_state,
                   G1ParScanClosure *scanner) :
@@ -110,7 +113,7 @@ public:
 };
 
 template<bool do_gen_barrier, G1Barrier barrier,
-         bool do_mark_forwardee>
+         bool do_mark_object>
 class G1ParCopyClosure : public G1ParCopyHelper {
   G1ParScanClosure _scanner;
   template <class T> void do_oop_work(T* p);
@@ -119,8 +122,6 @@ public:
     _scanner(g1, par_scan_state), G1ParCopyHelper(g1, par_scan_state, &_scanner) { }
   template <class T> void do_oop_nv(T* p) {
     do_oop_work(p);
-    if (do_mark_forwardee)
-      mark_forwardee(p);
   }
   virtual void do_oop(oop* p)       { do_oop_nv(p); }
   virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
@@ -161,44 +162,6 @@ public:
   bool do_header() { return false; }
 };
 
-class FilterInHeapRegionAndIntoCSClosure : public OopsInHeapRegionClosure {
-  G1CollectedHeap* _g1;
-  OopsInHeapRegionClosure* _oc;
-public:
-  FilterInHeapRegionAndIntoCSClosure(G1CollectedHeap* g1,
-                                     OopsInHeapRegionClosure* oc) :
-    _g1(g1), _oc(oc)
-  {}
-  template <class T> void do_oop_nv(T* p);
-  virtual void do_oop(oop* p) { do_oop_nv(p); }
-  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
-  bool apply_to_weak_ref_discovered_field() { return true; }
-  bool do_header() { return false; }
-  void set_region(HeapRegion* from) {
-    _oc->set_region(from);
-  }
-};
-
-class FilterAndMarkInHeapRegionAndIntoCSClosure : public OopsInHeapRegionClosure {
-  G1CollectedHeap* _g1;
-  ConcurrentMark* _cm;
-  OopsInHeapRegionClosure* _oc;
-public:
-  FilterAndMarkInHeapRegionAndIntoCSClosure(G1CollectedHeap* g1,
-                                            OopsInHeapRegionClosure* oc,
-                                            ConcurrentMark* cm)
-  : _g1(g1), _oc(oc), _cm(cm) { }
-
-  template <class T> void do_oop_nv(T* p);
-  virtual void do_oop(oop* p) { do_oop_nv(p); }
-  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
-  bool apply_to_weak_ref_discovered_field() { return true; }
-  bool do_header() { return false; }
-  void set_region(HeapRegion* from) {
-    _oc->set_region(from);
-  }
-};
-
 class FilterOutOfRegionClosure: public OopClosure {
   HeapWord* _r_bottom;
   HeapWord* _r_end;
@@ -212,6 +175,18 @@ public:
   bool apply_to_weak_ref_discovered_field() { return true; }
   bool do_header() { return false; }
   int out_of_region() { return _out_of_region; }
+};
+
+// Closure for iterating over object fields during concurrent marking
+class G1CMOopClosure : public OopClosure {
+  G1CollectedHeap*   _g1h;
+  ConcurrentMark*    _cm;
+  CMTask*            _task;
+public:
+  G1CMOopClosure(G1CollectedHeap* g1h, ConcurrentMark* cm, CMTask* task);
+  template <class T> void do_oop_nv(T* p);
+  virtual void do_oop(      oop* p) { do_oop_nv(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
 };
 
 #endif // SHARE_VM_GC_IMPLEMENTATION_G1_G1OOPCLOSURES_HPP
