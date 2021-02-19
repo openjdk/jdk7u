@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.Enumeration;
+import java.security.AccessController;
 import sun.net.ResourceManager;
 
 /**
@@ -54,6 +55,15 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
     private boolean loopbackMode = true;
     private int ttl = -1;
 
+    private static final String os = AccessController.doPrivileged(
+        new sun.security.action.GetPropertyAction("os.name")
+    );
+
+    /**
+     * flag set if the native connect() call not to be used
+     */
+    private final static boolean connectDisabled = os.contains("OS X");
+
     /**
      * Load net library into runtime.
      */
@@ -66,8 +76,8 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
      * Creates a datagram socket
      */
     protected synchronized void create() throws SocketException {
-        fd = new FileDescriptor();
         ResourceManager.beforeUdpCreate();
+        fd = new FileDescriptor();
         try {
             datagramSocketCreate();
         } catch (SocketException ioe) {
@@ -349,4 +359,7 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
     protected abstract void connect0(InetAddress address, int port) throws SocketException;
     protected abstract void disconnect0(int family);
 
+    protected boolean nativeConnectDisabled() {
+        return connectDisabled;
+    }
 }
