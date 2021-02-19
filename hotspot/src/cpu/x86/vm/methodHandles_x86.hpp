@@ -110,6 +110,7 @@ public:
 
 class RicochetFrame {
   friend class MethodHandles;
+  friend class VMStructs;
 
  private:
   intptr_t* _continuation;          // what to do when control gets back here
@@ -290,6 +291,10 @@ public:
     verify_klass(_masm, mh_reg, SystemDictionaryHandles::MethodHandle_klass(),
                  "reference is a MH");
   }
+
+  // Similar to InterpreterMacroAssembler::jump_from_interpreted.
+  // Takes care of special dispatch from single stepping too.
+  static void jump_from_method_handle(MacroAssembler* _masm, Register method, Register temp);
 
   static void trace_method_handle(MacroAssembler* _masm, const char* adaptername) PRODUCT_RETURN;
 
