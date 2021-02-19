@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -767,6 +767,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
 final class AbstractTrustManagerWrapper extends X509ExtendedTrustManager
             implements X509TrustManager {
 
+    // the delegated trust manager
     private final X509TrustManager tm;
 
     AbstractTrustManagerWrapper(X509TrustManager tm) {
@@ -859,20 +860,7 @@ final class AbstractTrustManagerWrapper extends X509ExtendedTrustManager
                 constraints = new SSLAlgorithmConstraints(sslSocket, true);
             }
 
-            AlgorithmChecker checker = new AlgorithmChecker(constraints);
-            try {
-                checker.init(false);
-
-                // a forward checker, need to check from trust to target
-                for (int i = chain.length - 1; i >= 0; i--) {
-                    Certificate cert = chain[i];
-                    // We don't care about the unresolved critical extensions.
-                    checker.check(cert, Collections.<String>emptySet());
-                }
-            } catch (CertPathValidatorException cpve) {
-                throw new CertificateException(
-                    "Certificates does not conform to algorithm constraints");
-            }
+            checkAlgorithmConstraints(chain, constraints);
         }
     }
 
@@ -914,20 +902,40 @@ final class AbstractTrustManagerWrapper extends X509ExtendedTrustManager
                 constraints = new SSLAlgorithmConstraints(engine, true);
             }
 
-            AlgorithmChecker checker = new AlgorithmChecker(constraints);
-            try {
-                checker.init(false);
+            checkAlgorithmConstraints(chain, constraints);
+        }
+    }
 
-                // A forward checker, need to check from trust to target
-                for (int i = chain.length - 1; i >= 0; i--) {
+    private void checkAlgorithmConstraints(X509Certificate[] chain,
+            AlgorithmConstraints constraints) throws CertificateException {
+
+        try {
+            // Does the certificate chain end with a trusted certificate?
+            int checkedLength = chain.length - 1;
+
+            Collection<X509Certificate> trustedCerts = new HashSet<>();
+            X509Certificate[] certs = tm.getAcceptedIssuers();
+            if ((certs != null) && (certs.length > 0)){
+                Collections.addAll(trustedCerts, certs);
+            }
+
+            if (trustedCerts.contains(chain[checkedLength])) {
+                    checkedLength--;
+            }
+
+            // A forward checker, need to check from trust to target
+            if (checkedLength >= 0) {
+                AlgorithmChecker checker = new AlgorithmChecker(constraints);
+                checker.init(false);
+                for (int i = checkedLength; i >= 0; i--) {
                     Certificate cert = chain[i];
                     // We don't care about the unresolved critical extensions.
                     checker.check(cert, Collections.<String>emptySet());
                 }
-            } catch (CertPathValidatorException cpve) {
-                throw new CertificateException(
-                    "Certificates does not conform to algorithm constraints");
             }
+        } catch (CertPathValidatorException cpve) {
+            throw new CertificateException(
+                "Certificates does not conform to algorithm constraints");
         }
     }
 }
