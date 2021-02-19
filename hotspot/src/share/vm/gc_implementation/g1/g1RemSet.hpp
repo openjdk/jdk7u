@@ -40,7 +40,7 @@ class G1RemSet: public CHeapObj {
 protected:
   G1CollectedHeap* _g1;
   unsigned _conc_refine_cards;
-  size_t n_workers();
+  uint n_workers();
 
 protected:
   enum SomePrivateConstants {
@@ -104,8 +104,6 @@ public:
   void scanRS(OopsInHeapRegionClosure* oc, int worker_i);
   void updateRS(DirtyCardQueue* into_cset_dcq, int worker_i);
 
-  HeapRegion* calculateStartRegion(int i);
-
   CardTableModRefBS* ct_bs() { return _ct_bs; }
   size_t cardsScanned() { return _total_cards_scanned; }
 
@@ -124,7 +122,7 @@ public:
   // parallel thread id of the current thread, and "claim_val" is the
   // value that should be used to claim heap regions.
   void scrub_par(BitMap* region_bm, BitMap* card_bm,
-                 int worker_num, int claim_val);
+                 uint worker_num, int claim_val);
 
   // Refine the card corresponding to "card_ptr".  If "sts" is non-NULL,
   // join and leave around parts that must be atomic wrt GC.  (NULL means
@@ -141,8 +139,6 @@ public:
   // Prepare remembered set for verification.
   virtual void prepare_for_verify();
 };
-
-#define G1_REM_SET_LOGGING 0
 
 class CountNonCleanMemRegionClosure: public MemRegionClosure {
   G1CollectedHeap* _g1;
