@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,7 @@ import javax.print.attribute.standard.PrinterName;
 import java.io.File;
 import java.io.FileReader;
 import java.net.URL;
+import java.nio.file.Files;
 
 /*
  * Remind: This class uses solaris commands. We also need a linux
@@ -119,7 +120,8 @@ public class UnixPrintServiceLookup extends PrintServiceLookup
     }
 
     static boolean isBSD() {
-        return osname.equals("Linux");
+        return (osname.equals("Linux") ||
+                osname.contains("OS X"));
     }
 
     static final int UNINITIALIZED = -1;
@@ -134,8 +136,8 @@ public class UnixPrintServiceLookup extends PrintServiceLookup
     };
 
     String[] lpcAllCom = {
-        "/usr/sbin/lpc status | grep : | sed -e 's/://'",
-        "/usr/sbin/lpc -a status | grep -E '^[ 0-9a-zA-Z_-]*@' | awk -F'@' '{print $1}' | sort"
+        "/usr/sbin/lpc status all | grep : | sed -e 's/://'",
+        "/usr/sbin/lpc status all | grep -E '^[ 0-9a-zA-Z_-]*@' | awk -F'@' '{print $1}' | sort"
     };
 
     String[] lpcNameCom = {
@@ -145,7 +147,7 @@ public class UnixPrintServiceLookup extends PrintServiceLookup
 
 
     static int getBSDCommandIndex() {
-        String command  = "/usr/sbin/lpc status";
+        String command  = "/usr/sbin/lpc status all";
         String[] names = execCmd(command);
 
         if ((names == null) || (names.length == 0)) {
@@ -713,7 +715,7 @@ public class UnixPrintServiceLookup extends PrintServiceLookup
 
                         Process proc;
                         BufferedReader bufferedReader = null;
-                        File f = File.createTempFile("prn","xc");
+                        File f = Files.createTempFile("prn","xc").toFile();
                         cmd[2] = cmd[2]+">"+f.getAbsolutePath();
 
                         proc = Runtime.getRuntime().exec(cmd);
