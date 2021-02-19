@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,29 +19,23 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-/* @test
-   @bug 7118283
-   @summary Test if a corrupted zip file crashes VM
-   */
+#ifndef OS_POSIX_VM_OS_POSIX_HPP
+#define OS_POSIX_VM_OS_POSIX_HPP
+class Posix {
+  friend class os;
 
-import java.util.zip.*;
-import java.io.*;
-import java.util.*;
+protected:
+  static void print_distro_info(outputStream* st);
+  static void print_rlimit_info(outputStream* st);
+  static void print_uname_info(outputStream* st);
+  static void print_libversion_info(outputStream* st);
+  static void print_load_average(outputStream* st);
 
-public class VmCrash {
-    public static void main(String[] argv) throws Exception {
-        try {
-            ZipFile zf = new ZipFile(new File(System.getProperty("test.src","."),
-                                              "vmcrash.zip"));
-            for (Enumeration e = zf.entries(); e.hasMoreElements();) {
-                System.out.println(e.nextElement());
-            }
-            throw new RuntimeException("Corrupted zip read without exception");
-        } catch (ZipException ex) {
-            System.out.println("expected ZipException:");
-            //ex.printStackTrace();
-        }
-    }
-}
+
+};
+
+
+#endif
