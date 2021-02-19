@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
 
 // Adapters
 enum /* platform_dependent_constants */ {
-  adapter_code_size = NOT_LP64(22000 DEBUG_ONLY(+ 40000)) LP64_ONLY(32000 DEBUG_ONLY(+ 80000))
+  adapter_code_size = NOT_LP64(23000 DEBUG_ONLY(+ 40000)) LP64_ONLY(35000 DEBUG_ONLY(+ 50000))
 };
 
 public:
@@ -145,6 +145,8 @@ class RicochetFrame : public ResourceObj {
   }
 
   static void verify_clean(MacroAssembler* _masm) NOT_DEBUG_RETURN;
+
+  static void describe(const frame* fr, FrameValues& values, int frame_no) PRODUCT_RETURN;
 };
 
 // Additional helper methods for MethodHandles code generation:
@@ -220,5 +222,9 @@ public:
                  temp_reg, temp2_reg,
                  "reference is a MH");
   }
+
+  // Similar to InterpreterMacroAssembler::jump_from_interpreted.
+  // Takes care of special dispatch from single stepping too.
+  static void jump_from_method_handle(MacroAssembler* _masm, Register method, Register temp, Register temp2);
 
   static void trace_method_handle(MacroAssembler* _masm, const char* adaptername) PRODUCT_RETURN;
