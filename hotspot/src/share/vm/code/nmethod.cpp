@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
+#include "code/dependencies.hpp"
 #include "code/nmethod.hpp"
 #include "code/scopeDesc.hpp"
 #include "compiler/abstractCompiler.hpp"
@@ -450,7 +451,6 @@ void nmethod::init_defaults() {
   _stack_traversal_mark       = 0;
   _unload_reported            = false;           // jvmti state
 
-  NOT_PRODUCT(_has_debug_info = false);
 #ifdef ASSERT
   _oops_are_stale             = false;
 #endif
