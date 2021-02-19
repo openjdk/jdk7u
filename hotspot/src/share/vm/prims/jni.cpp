@@ -70,15 +70,6 @@
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/histogram.hpp"
-#ifdef TARGET_ARCH_x86
-# include "jniTypes_x86.hpp"
-#endif
-#ifdef TARGET_ARCH_sparc
-# include "jniTypes_sparc.hpp"
-#endif
-#ifdef TARGET_ARCH_zero
-# include "jniTypes_zero.hpp"
-#endif
 #ifdef TARGET_OS_FAMILY_linux
 # include "os_linux.inline.hpp"
 # include "thread_linux.inline.hpp"
@@ -501,7 +492,7 @@ JNI_ENTRY(jfieldID, jni_FromReflectedField(JNIEnv *env, jobject field))
 
   // First check if this is a static field
   if (modifiers & JVM_ACC_STATIC) {
-    intptr_t offset = instanceKlass::cast(k1())->offset_from_fields( slot );
+    intptr_t offset = instanceKlass::cast(k1())->field_offset( slot );
     JNIid* id = instanceKlass::cast(k1())->jni_id_for(offset);
     assert(id != NULL, "corrupt Field object");
     debug_only(id->set_is_static_field_id();)
@@ -513,7 +504,7 @@ JNI_ENTRY(jfieldID, jni_FromReflectedField(JNIEnv *env, jobject field))
   // The slot is the index of the field description in the field-array
   // The jfieldID is the offset of the field within the object
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
-  intptr_t offset = instanceKlass::cast(k1())->offset_from_fields( slot );
+  intptr_t offset = instanceKlass::cast(k1())->field_offset( slot );
   assert(instanceKlass::cast(k1())->contains_field_offset(offset), "stay within object");
   ret = jfieldIDWorkaround::to_instance_jfieldID(k1(), offset);
   return ret;
@@ -3296,6 +3287,19 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_GetDefaultJavaVMInitArgs(void *args_) {
   return ret;
 }
 
+#ifndef PRODUCT
+
+#include "utilities/quickSort.hpp"
+
+void execute_internal_vm_tests() {
+  if (ExecuteInternalVMTests) {
+    assert(QuickSort::test_quick_sort(), "test_quick_sort failed");
+    tty->print_cr("All tests passed");
+  }
+}
+
+#endif
+
 HS_DTRACE_PROBE_DECL3(hotspot_jni, CreateJavaVM__entry, vm, penv, args);
 DT_RETURN_MARK_DECL(CreateJavaVM, jint);
 
@@ -3386,6 +3390,7 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, v
   }
 
   NOT_PRODUCT(test_error_handler(ErrorHandlerTest));
+  NOT_PRODUCT(execute_internal_vm_tests());
   return result;
 }
 
