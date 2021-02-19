@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -269,7 +269,7 @@ klassOop constantPoolOopDesc::klass_ref_at_if_loaded_check(constantPoolHandle th
 methodOop constantPoolOopDesc::method_at_if_loaded(constantPoolHandle cpool,
                                                    int which, Bytecodes::Code invoke_code) {
   assert(!constantPoolCacheOopDesc::is_secondary_index(which), "no indy instruction here");
-  if (cpool->cache() == NULL)  return false;  // nothing to load yet
+  if (cpool->cache() == NULL)  return NULL;  // nothing to load yet
   int cache_index = which - CPCACHE_INDEX_TAG;
   if (!(cache_index >= 0 && cache_index < cpool->cache()->length())) {
     if (PrintMiscellaneous && (Verbose||WizardMode)) {
@@ -1355,7 +1355,7 @@ static void print_cpool_bytes(jint cnt, u1 *bytes) {
       }
       case JVM_CONSTANT_Long: {
         u8 val = Bytes::get_Java_u8(bytes);
-        printf("long         "INT64_FORMAT, *(jlong *) &val);
+        printf("long         "INT64_FORMAT, (int64_t) *(jlong *) &val);
         ent_size = 8;
         idx++; // Long takes two cpool slots
         break;
