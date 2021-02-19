@@ -434,11 +434,9 @@ HeapWord* GenCollectedHeap::attempt_allocation(size_t size,
 }
 
 HeapWord* GenCollectedHeap::mem_allocate(size_t size,
-                                         bool is_large_noref,
-                                         bool is_tlab,
                                          bool* gc_overhead_limit_was_exceeded) {
   return collector_policy()->mem_allocate_work(size,
-                                               is_tlab,
+                                               false /* is_tlab */,
                                                gc_overhead_limit_was_exceeded);
 }
 
@@ -601,8 +599,7 @@ void GenCollectedHeap::do_collection(bool  full,
           // atomic wrt other collectors in this configuration, we
           // are guaranteed to have empty discovered ref lists.
           if (rp->discovery_is_atomic()) {
-            rp->verify_no_references_recorded();
-            rp->enable_discovery();
+            rp->enable_discovery(true /*verify_disabled*/, true /*verify_no_refs*/);
             rp->setup_policy(do_clear_all_soft_refs);
           } else {
             // collect() below will enable discovery as appropriate
@@ -960,7 +957,7 @@ bool GenCollectedHeap::is_in_young(oop p) {
   return result;
 }
 
-// Returns "TRUE" iff "p" points into the allocated area of the heap.
+// Returns "TRUE" iff "p" points into the committed areas of the heap.
 bool GenCollectedHeap::is_in(const void* p) const {
   #ifndef ASSERT
   guarantee(VerifyBeforeGC   ||
@@ -1120,11 +1117,9 @@ size_t GenCollectedHeap::unsafe_max_tlab_alloc(Thread* thr) const {
 
 HeapWord* GenCollectedHeap::allocate_new_tlab(size_t size) {
   bool gc_overhead_limit_was_exceeded;
-  HeapWord* result = mem_allocate(size   /* size */,
-                                  false  /* is_large_noref */,
-                                  true   /* is_tlab */,
-                                  &gc_overhead_limit_was_exceeded);
-  return result;
+  return collector_policy()->mem_allocate_work(size /* size */,
+                                               true /* is_tlab */,
+                                               &gc_overhead_limit_was_exceeded);
 }
 
 // Requires "*prev_ptr" to be non-NULL.  Deletes and a block of minimal size
@@ -1177,10 +1172,6 @@ void GenCollectedHeap::release_scratch() {
   for (int i = 0; i < _n_gens; i++) {
     _gens[i]->reset_scratch();
   }
-}
-
-size_t GenCollectedHeap::large_typearray_limit() {
-  return gen_policy()->large_typearray_limit();
 }
 
 class GenPrepareForVerifyClosure: public GenCollectedHeap::GenClosure {
@@ -1260,7 +1251,7 @@ GCStats* GenCollectedHeap::gc_stats(int level) const {
   return _gens[level]->gc_stats();
 }
 
-void GenCollectedHeap::verify(bool allow_dirty, bool silent, bool option /* ignored */) {
+void GenCollectedHeap::verify(bool allow_dirty, bool silent, VerifyOption option /* ignored */) {
   if (!silent) {
     gclog_or_tty->print("permgen ");
   }
@@ -1277,13 +1268,8 @@ void GenCollectedHeap::verify(bool allow_dirty, bool silent, bool option /* igno
     gclog_or_tty->print("remset ");
   }
   rem_set()->verify();
-  if (!silent) {
-     gclog_or_tty->print("ref_proc ");
-  }
-  ReferenceProcessor::verify();
 }
 
-void GenCollectedHeap::print() const { print_on(tty); }
 void GenCollectedHeap::print_on(outputStream* st) const {
   for (int i = 0; i < _n_gens; i++) {
     _gens[i]->print_on(st);
@@ -1392,6 +1378,10 @@ void GenCollectedHeap::gc_epilogue(bool full) {
   generation_iterate(&blk, false);  // not old-to-young.
   perm_gen()->gc_epilogue(full);
 
+  if (!CleanChunkPoolAsync) {
+    Chunk::clean_chunk_pool();
+  }
+
   always_do_update_barrier = UseConcMarkSweepGC;
 };
 
@@ -1470,26 +1460,22 @@ class GenTimeOfLastGCClosure: public GenCollectedHeap::GenClosure {
 };
 
 jlong GenCollectedHeap::millis_since_last_gc() {
-  jlong now = os::javaTimeMillis();
+  // We need a monotonically non-deccreasing time in ms but
+  // os::javaTimeMillis() does not guarantee monotonicity.
+  jlong now = os::javaTimeNanos() / NANOSECS_PER_MILLISEC;
   GenTimeOfLastGCClosure tolgc_cl(now);
   // iterate over generations getting the oldest
   // time that a generation was collected
   generation_iterate(&tolgc_cl, false);
   tolgc_cl.do_generation(perm_gen());
-  // XXX Despite the assert above, since javaTimeMillis()
-  // doesnot guarantee monotonically increasing return
-  // values (note, i didn't say "strictly monotonic"),
-  // we need to guard against getting back a time
-  // later than now. This should be fixed by basing
-  // on someting like gethrtime() which guarantees
-  // monotonicity. Note that cond_wait() is susceptible
-  // to a similar problem, because its interface is
-  // based on absolute time in the form of the
-  // system time's notion of UCT. See also 4506635
-  // for yet another problem of similar nature. XXX
+
+  // javaTimeNanos() is guaranteed to be monotonically non-decreasing
+  // provided the underlying platform provides such a time source
+  // (and it is bug free). So we still have to guard against getting
+  // back a time later than 'now'.
   jlong retVal = now - tolgc_cl.time();
   if (retVal < 0) {
-    NOT_PRODUCT(warning("time warp: %d", retVal);)
+    NOT_PRODUCT(warning("time warp: "INT64_FORMAT, retVal);)
     return 0;
   }
   return retVal;
