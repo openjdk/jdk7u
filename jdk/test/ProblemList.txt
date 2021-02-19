@@ -380,30 +380,6 @@ java/io/File/MaxPathLength.java                                 windows-all
 # 6963118
 java/nio/channels/Selector/Wakeup.java                          windows-all
 
-# 6959891
-com/sun/nio/sctp/SctpChannel/SocketOptionTests.java
-
-# Fails with -ea -esa, Assertion error, but only on Solaris 10 machines?
-com/sun/nio/sctp/SctpChannel/Send.java				generic-all
-com/sun/nio/sctp/SctpChannel/Shutdown.java			generic-all
-
-# Fails on OpenSolaris, IllegalStateException: Cannot add or remove addresses
-#    from a channel that is bound to the wildcard address
-com/sun/nio/sctp/SctpChannel/Bind.java				generic-all
-
-# Failed on OpenSolaris, java.lang.AssertionError: Unknown event type
-com/sun/nio/sctp/SctpChannel/Receive.java			generic-all
-
-# Solaris 11 gave assert error and "connection refused", samevm issues?
-com/sun/nio/sctp/SctpServerChannel/NonBlockingAccept.java 	generic-all
-
-# Fails with othervm on solaris 11 i586
-com/sun/nio/sctp/SctpChannel/CommUp.java			generic-all
-com/sun/nio/sctp/SctpChannel/Connect.java			generic-all
-com/sun/nio/sctp/SctpMultiChannel/Branch.java			generic-all
-com/sun/nio/sctp/SctpMultiChannel/Send.java			generic-all
-com/sun/nio/sctp/SctpMultiChannel/SocketOptionTests.java	generic-all
-
 ############################################################################
 
 # jdk_rmi
@@ -584,7 +560,6 @@ sun/security/ssl/javax/net/ssl/NewAPIs/SessionTimeOutTests.java	generic-all
 sun/security/tools/jarsigner/concise_jarsigner.sh		generic-all
 
 # Various failures on Linux Fedora 9 X64, othervm mode
-lib/security/cacerts/VerifyCACerts.java				generic-all
 sun/security/ssl/javax/net/ssl/NewAPIs/SSLEngine/TestAllSuites.java generic-all
 sun/security/ssl/sanity/ciphersuites/CheckCipherSuites.java	generic-all
 sun/security/tools/jarsigner/oldsig.sh				generic-all
