@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,8 @@ private:
   ciType*          _type;
   int              _offset;
   bool             _is_constant;
-  ciInstanceKlass* _known_to_link_with;
+  ciInstanceKlass* _known_to_link_with_put;
+  ciInstanceKlass* _known_to_link_with_get;
   ciConstant       _constant_value;
 
   // Used for will_link
@@ -63,9 +64,6 @@ private:
 
   // shared constructor code
   void initialize_from(fieldDescriptor* fd);
-
-  // The implementation of the print method.
-  void print_impl(outputStream* st);
 
 public:
   ciFlags flags() { return _flags; }
@@ -177,6 +175,13 @@ public:
   bool is_final       () { return flags().is_final(); }
   bool is_volatile    () { return flags().is_volatile(); }
   bool is_transient   () { return flags().is_transient(); }
+
+  bool is_call_site_target() {
+    ciInstanceKlass* callsite_klass = CURRENT_ENV->CallSite_klass();
+    if (callsite_klass == NULL)
+      return false;
+    return (holder()->is_subclass_of(callsite_klass) && (name() == ciSymbol::target_name()));
+  }
 
   // Debugging output
   void print();
