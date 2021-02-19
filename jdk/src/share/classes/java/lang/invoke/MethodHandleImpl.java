@@ -1071,8 +1071,8 @@ import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
             assert(target.type().equals(fallback.type()));
             MethodHandle tailcall = MethodHandles.exactInvoker(target.type());
             MethodHandle select = selectAlternative();
-            select = bindArgument(select, 2, fallback);
-            select = bindArgument(select, 1, target);
+            select = bindArgument(select, 2, CountingMethodHandle.wrap(fallback));
+            select = bindArgument(select, 1, CountingMethodHandle.wrap(target));
             // select(z: boolean) => (z ? target : fallback)
             MethodHandle filter = filterArgument(tailcall, 0, select);
             assert(filter.type().parameterType(0) == boolean.class);
@@ -1258,12 +1258,4 @@ import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
         return THROW_EXCEPTION;
     }
     static <T extends Throwable> Empty throwException(T t) throws T { throw t; }
-
-    // Linkage support:
-    static void registerBootstrap(Class<?> callerClass, MethodHandle bootstrapMethod) {
-        MethodHandleNatives.registerBootstrap(callerClass, bootstrapMethod);
-    }
-    static MethodHandle getBootstrap(Class<?> callerClass) {
-        return MethodHandleNatives.getBootstrap(callerClass);
-    }
 }
