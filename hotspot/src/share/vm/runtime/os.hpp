@@ -39,6 +39,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "jvm_windows.h"
 #endif
+#ifdef TARGET_OS_FAMILY_bsd
+# include "jvm_bsd.h"
+#endif
 
 // os defines the interface to operating system; this includes traditional
 // OS services (time, I/O) as well as other functionality with system-
@@ -181,6 +184,9 @@ class os: AllStatic {
   //    Returns true if it worked, false if it didn't.
   static bool bind_to_processor(uint processor_id);
 
+  // Give a name to the current thread.
+  static void set_native_thread_name(const char *name);
+
   // Interface for stack banging (predetect possible stack overflow for
   // exception processing)  There are guard pages, and above that shadow
   // pages for stack overflow checking.
@@ -208,11 +214,13 @@ class os: AllStatic {
                                      size_t region_max_size,
                                      uint min_pages);
 
-  // Method for tracing page sizes returned by the above method; enabled by
+  // Methods for tracing page sizes returned by the above method; enabled by
   // TracePageSizes.  The region_{min,max}_size parameters should be the values
   // passed to page_size_for_region() and page_size should be the result of that
   // call.  The (optional) base and size parameters should come from the
   // ReservedSpace base() and size() methods.
+  static void trace_page_sizes(const char* str, const size_t* page_sizes,
+                               int count) PRODUCT_RETURN;
   static void trace_page_sizes(const char* str, const size_t region_min_size,
                                const size_t region_max_size,
                                const size_t page_size,
@@ -480,6 +488,7 @@ class os: AllStatic {
   // Output format may be different on different platforms.
   static void print_os_info(outputStream* st);
   static void print_cpu_info(outputStream* st);
+  static void pd_print_cpu_info(outputStream* st);
   static void print_memory_info(outputStream* st);
   static void print_dll_info(outputStream* st);
   static void print_environment_variables(outputStream* st, const char** env_list, char* buffer, int len);
@@ -575,28 +584,28 @@ class os: AllStatic {
   static int socket(int domain, int type, int protocol);
   static int socket_close(int fd);
   static int socket_shutdown(int fd, int howto);
-  static int recv(int fd, char *buf, int nBytes, int flags);
-  static int send(int fd, char *buf, int nBytes, int flags);
-  static int raw_send(int fd, char *buf, int nBytes, int flags);
+  static int recv(int fd, char* buf, size_t nBytes, uint flags);
+  static int send(int fd, char* buf, size_t nBytes, uint flags);
+  static int raw_send(int fd, char* buf, size_t nBytes, uint flags);
   static int timeout(int fd, long timeout);
   static int listen(int fd, int count);
-  static int connect(int fd, struct sockaddr *him, int len);
-  static int bind(int fd, struct sockaddr *him, int len);
-  static int accept(int fd, struct sockaddr *him, int *len);
-  static int recvfrom(int fd, char *buf, int nbytes, int flags,
-                             struct sockaddr *from, int *fromlen);
-  static int get_sock_name(int fd, struct sockaddr *him, int *len);
-  static int sendto(int fd, char *buf, int len, int flags,
-                           struct sockaddr *to, int tolen);
-  static int socket_available(int fd, jint *pbytes);
+  static int connect(int fd, struct sockaddr* him, socklen_t len);
+  static int bind(int fd, struct sockaddr* him, socklen_t len);
+  static int accept(int fd, struct sockaddr* him, socklen_t* len);
+  static int recvfrom(int fd, char* buf, size_t nbytes, uint flags,
+                      struct sockaddr* from, socklen_t* fromlen);
+  static int get_sock_name(int fd, struct sockaddr* him, socklen_t* len);
+  static int sendto(int fd, char* buf, size_t len, uint flags,
+                    struct sockaddr* to, socklen_t tolen);
+  static int socket_available(int fd, jint* pbytes);
 
   static int get_sock_opt(int fd, int level, int optname,
-                           char *optval, int* optlen);
+                          char* optval, socklen_t* optlen);
   static int set_sock_opt(int fd, int level, int optname,
-                           const char *optval, int optlen);
+                          const char* optval, socklen_t optlen);
   static int get_host_name(char* name, int namelen);
 
-  static struct hostent*  get_host_by_name(char* name);
+  static struct hostent* get_host_by_name(char* name);
 
   // Printing 64 bit integers
   static const char* jlong_format_specifier();
@@ -672,6 +681,9 @@ class os: AllStatic {
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_bsd
+# include "os_bsd.hpp"
+#endif
 #ifdef TARGET_OS_ARCH_linux_x86
 # include "os_linux_x86.hpp"
 #endif
@@ -696,7 +708,12 @@ class os: AllStatic {
 #ifdef TARGET_OS_ARCH_linux_ppc
 # include "os_linux_ppc.hpp"
 #endif
-
+#ifdef TARGET_OS_ARCH_bsd_x86
+# include "os_bsd_x86.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_bsd_zero
+# include "os_bsd_zero.hpp"
+#endif
 
   // debugging support (mostly used by debug.cpp but also fatal error handler)
   static bool find(address pc, outputStream* st = tty); // OS specific function to make sense out of an address
