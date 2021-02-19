@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,7 +132,6 @@ PVOID  topLevelVectoredExceptionHandler = NULL;
 // save DLL module handle, used by GetModuleFileName
 
 HINSTANCE vm_lib_handle;
-static int getLastErrorString(char *buf, size_t len);
 
 BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved) {
   switch (reason) {
@@ -710,6 +709,11 @@ int os::active_processor_count() {
   }
 }
 
+void os::set_native_thread_name(const char *name) {
+  // Not yet implemented.
+  return;
+}
+
 bool os::distribute_processes(uint length, uint* distribution) {
   // Not yet implemented.
   return false;
@@ -816,17 +820,15 @@ jlong os::javaTimeMillis() {
   }
 }
 
-#define NANOS_PER_SEC         CONST64(1000000000)
-#define NANOS_PER_MILLISEC    1000000
 jlong os::javaTimeNanos() {
   if (!has_performance_count) {
-    return javaTimeMillis() * NANOS_PER_MILLISEC; // the best we can do.
+    return javaTimeMillis() * NANOSECS_PER_MILLISEC; // the best we can do.
   } else {
     LARGE_INTEGER current_count;
     QueryPerformanceCounter(&current_count);
     double current = as_long(current_count);
     double freq = performance_frequency;
-    jlong time = (jlong)((current/freq) * NANOS_PER_SEC);
+    jlong time = (jlong)((current/freq) * NANOSECS_PER_SEC);
     return time;
   }
 }
@@ -842,15 +844,15 @@ void os::javaTimeNanos_info(jvmtiTimerInfo *info_ptr) {
     info_ptr->may_skip_forward = true;
   } else {
     jlong freq = performance_frequency;
-    if (freq < NANOS_PER_SEC) {
+    if (freq < NANOSECS_PER_SEC) {
       // the performance counter is 64 bits and we will
       // be multiplying it -- so no wrap in 64 bits
       info_ptr->max_value = ALL_64_BITS;
-    } else if (freq > NANOS_PER_SEC) {
+    } else if (freq > NANOSECS_PER_SEC) {
       // use the max value the counter can reach to
       // determine the max value which could be returned
       julong max_counter = (julong)ALL_64_BITS;
-      info_ptr->max_value = (jlong)(max_counter / (freq / NANOS_PER_SEC));
+      info_ptr->max_value = (jlong)(max_counter / (freq / NANOSECS_PER_SEC));
     } else {
       // the performance counter is 64 bits and we will
       // be using it directly -- so no wrap in 64 bits
@@ -1389,7 +1391,7 @@ bool os::dll_address_to_library_name(address addr, char* buf,
 
 bool os::dll_address_to_function_name(address addr, char *buf,
                                       int buflen, int *offset) {
-  if (Decoder::decode(addr, buf, buflen, offset) == Decoder::no_error) {
+  if (Decoder::decode(addr, buf, buflen, offset)) {
     return true;
   }
   if (offset != NULL)  *offset  = -1;
@@ -1449,7 +1451,7 @@ void * os::dll_load(const char *name, char *ebuf, int ebuflen)
     return result;
   }
 
-  long errcode = GetLastError();
+  DWORD errcode = GetLastError();
   if (errcode == ERROR_MOD_NOT_FOUND) {
     strncpy(ebuf, "Can't find dependent libraries", ebuflen-1);
     ebuf[ebuflen-1]='\0';
@@ -1460,11 +1462,11 @@ void * os::dll_load(const char *name, char *ebuf, int ebuflen)
   // If we can read dll-info and find that dll was built
   // for an architecture other than Hotspot is running in
   // - then print to buffer "DLL was built for a different architecture"
-  // else call getLastErrorString to obtain system error message
+  // else call os::lasterror to obtain system error message
 
   // Read system error message into ebuf
   // It may or may not be overwritten below (in the for loop and just above)
-  getLastErrorString(ebuf, (size_t) ebuflen);
+  lasterror(ebuf, (size_t) ebuflen);
   ebuf[ebuflen-1]='\0';
   int file_descriptor=::open(name, O_RDONLY | O_BINARY, 0);
   if (file_descriptor<0)
@@ -1497,7 +1499,7 @@ void * os::dll_load(const char *name, char *ebuf, int ebuflen)
   ::close(file_descriptor);
   if (failed_to_get_lib_arch)
   {
-    // file i/o error - report getLastErrorString(...) msg
+    // file i/o error - report os::lasterror(...) msg
     return NULL;
   }
 
@@ -1540,7 +1542,7 @@ void * os::dll_load(const char *name, char *ebuf, int ebuflen)
     "Didn't find runing architecture code in arch_array");
 
   // If the architure is right
-  // but some other error took place - report getLastErrorString(...) msg
+  // but some other error took place - report os::lasterror(...) msg
   if (lib_arch == running_arch)
   {
     return NULL;
@@ -1646,6 +1648,10 @@ void os::print_os_info(outputStream* st) {
   st->print(" Build %d", osvi.dwBuildNumber);
   st->print(" %s", osvi.szCSDVersion);           // service pack
   st->cr();
+}
+
+void os::pd_print_cpu_info(outputStream* st) {
+  // Nothing to do for now.
 }
 
 void os::print_memory_info(outputStream* st) {
@@ -1768,12 +1774,12 @@ void os::print_jni_name_suffix_on(outputStream* st, int args_size) {
 // This method is a copy of JDK's sysGetLastErrorString
 // from src/windows/hpi/src/system_md.c
 
-size_t os::lasterror(char *buf, size_t len) {
-  long errval;
+size_t os::lasterror(char* buf, size_t len) {
+  DWORD errval;
 
   if ((errval = GetLastError()) != 0) {
-      /* DOS error */
-    int n = (int)FormatMessage(
+    // DOS error
+    size_t n = (size_t)FormatMessage(
           FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
           NULL,
           errval,
@@ -1782,7 +1788,7 @@ size_t os::lasterror(char *buf, size_t len) {
           (DWORD)len,
           NULL);
     if (n > 3) {
-      /* Drop final '.', CR, LF */
+      // Drop final '.', CR, LF
       if (buf[n - 1] == '\n') n--;
       if (buf[n - 1] == '\r') n--;
       if (buf[n - 1] == '.') n--;
@@ -1792,15 +1798,23 @@ size_t os::lasterror(char *buf, size_t len) {
   }
 
   if (errno != 0) {
-    /* C runtime error that has no corresponding DOS error code */
-    const char *s = strerror(errno);
+    // C runtime error that has no corresponding DOS error code
+    const char* s = strerror(errno);
     size_t n = strlen(s);
     if (n >= len) n = len - 1;
     strncpy(buf, s, n);
     buf[n] = '\0';
     return n;
   }
+
   return 0;
+}
+
+int os::get_last_error() {
+  DWORD error = GetLastError();
+  if (error == 0)
+    error = errno;
+  return (int)error;
 }
 
 // sun.misc.Signal
@@ -2074,7 +2088,6 @@ LONG Handle_IDiv_Exception(struct _EXCEPTION_POINTERS* exceptionInfo) {
 #elif _M_AMD64
   PCONTEXT ctx = exceptionInfo->ContextRecord;
   address pc = (address)ctx->Rip;
-  NOT_PRODUCT(Events::log("idiv overflow exception at " INTPTR_FORMAT , pc));
   assert(pc[0] == 0xF7, "not an idiv opcode");
   assert((pc[1] & ~0x7) == 0xF8, "cannot handle non-register operands");
   assert(ctx->Rax == min_jint, "unexpected idiv exception");
@@ -2086,7 +2099,6 @@ LONG Handle_IDiv_Exception(struct _EXCEPTION_POINTERS* exceptionInfo) {
 #else
   PCONTEXT ctx = exceptionInfo->ContextRecord;
   address pc = (address)ctx->Eip;
-  NOT_PRODUCT(Events::log("idiv overflow exception at " INTPTR_FORMAT , pc));
   assert(pc[0] == 0xF7, "not an idiv opcode");
   assert((pc[1] & ~0x7) == 0xF8, "cannot handle non-register operands");
   assert(ctx->Eax == min_jint, "unexpected idiv exception");
@@ -2610,6 +2622,57 @@ int os::vm_allocation_granularity() {
 static HANDLE    _hProcess;
 static HANDLE    _hToken;
 
+// Container for NUMA node list info
+class NUMANodeListHolder {
+private:
+  int *_numa_used_node_list;  // allocated below
+  int _numa_used_node_count;
+
+  void free_node_list() {
+    if (_numa_used_node_list != NULL) {
+      FREE_C_HEAP_ARRAY(int, _numa_used_node_list);
+    }
+  }
+
+public:
+  NUMANodeListHolder() {
+    _numa_used_node_count = 0;
+    _numa_used_node_list = NULL;
+    // do rest of initialization in build routine (after function pointers are set up)
+  }
+
+  ~NUMANodeListHolder() {
+    free_node_list();
+  }
+
+  bool build() {
+    DWORD_PTR proc_aff_mask;
+    DWORD_PTR sys_aff_mask;
+    if (!GetProcessAffinityMask(GetCurrentProcess(), &proc_aff_mask, &sys_aff_mask)) return false;
+    ULONG highest_node_number;
+    if (!os::Kernel32Dll::GetNumaHighestNodeNumber(&highest_node_number)) return false;
+    free_node_list();
+    _numa_used_node_list = NEW_C_HEAP_ARRAY(int, highest_node_number + 1);
+    for (unsigned int i = 0; i <= highest_node_number; i++) {
+      ULONGLONG proc_mask_numa_node;
+      if (!os::Kernel32Dll::GetNumaNodeProcessorMask(i, &proc_mask_numa_node)) return false;
+      if ((proc_aff_mask & proc_mask_numa_node)!=0) {
+        _numa_used_node_list[_numa_used_node_count++] = i;
+      }
+    }
+    return (_numa_used_node_count > 1);
+  }
+
+  int get_count() {return _numa_used_node_count;}
+  int get_node_list_entry(int n) {
+    // for indexes out of range, returns -1
+    return (n < _numa_used_node_count ? _numa_used_node_list[n] : -1);
+  }
+
+} numa_node_list_holder;
+
+
+
 static size_t _large_page_size = 0;
 
 static bool resolve_functions_for_large_page_init() {
@@ -2648,6 +2711,153 @@ static void cleanup_after_large_page_init() {
   if (_hToken) CloseHandle(_hToken);
   _hToken = NULL;
 }
+
+static bool numa_interleaving_init() {
+  bool success = false;
+  bool use_numa_interleaving_specified = !FLAG_IS_DEFAULT(UseNUMAInterleaving);
+
+  // print a warning if UseNUMAInterleaving flag is specified on command line
+  bool warn_on_failure = use_numa_interleaving_specified;
+# define WARN(msg) if (warn_on_failure) { warning(msg); }
+
+  // NUMAInterleaveGranularity cannot be less than vm_allocation_granularity (or _large_page_size if using large pages)
+  size_t min_interleave_granularity = UseLargePages ? _large_page_size : os::vm_allocation_granularity();
+  NUMAInterleaveGranularity = align_size_up(NUMAInterleaveGranularity, min_interleave_granularity);
+
+  if (os::Kernel32Dll::NumaCallsAvailable()) {
+    if (numa_node_list_holder.build()) {
+      if (PrintMiscellaneous && Verbose) {
+        tty->print("NUMA UsedNodeCount=%d, namely ", numa_node_list_holder.get_count());
+        for (int i = 0; i < numa_node_list_holder.get_count(); i++) {
+          tty->print("%d ", numa_node_list_holder.get_node_list_entry(i));
+        }
+        tty->print("\n");
+      }
+      success = true;
+    } else {
+      WARN("Process does not cover multiple NUMA nodes.");
+    }
+  } else {
+    WARN("NUMA Interleaving is not supported by the operating system.");
+  }
+  if (!success) {
+    if (use_numa_interleaving_specified) WARN("...Ignoring UseNUMAInterleaving flag.");
+  }
+  return success;
+#undef WARN
+}
+
+// this routine is used whenever we need to reserve a contiguous VA range
+// but we need to make separate VirtualAlloc calls for each piece of the range
+// Reasons for doing this:
+//  * UseLargePagesIndividualAllocation was set (normally only needed on WS2003 but possible to be set otherwise)
+//  * UseNUMAInterleaving requires a separate node for each piece
+static char* allocate_pages_individually(size_t bytes, char* addr, DWORD flags, DWORD prot,
+                                         bool should_inject_error=false) {
+  char * p_buf;
+  // note: at setup time we guaranteed that NUMAInterleaveGranularity was aligned up to a page size
+  size_t page_size = UseLargePages ? _large_page_size : os::vm_allocation_granularity();
+  size_t chunk_size = UseNUMAInterleaving ? NUMAInterleaveGranularity : page_size;
+
+  // first reserve enough address space in advance since we want to be
+  // able to break a single contiguous virtual address range into multiple
+  // large page commits but WS2003 does not allow reserving large page space
+  // so we just use 4K pages for reserve, this gives us a legal contiguous
+  // address space. then we will deallocate that reservation, and re alloc
+  // using large pages
+  const size_t size_of_reserve = bytes + chunk_size;
+  if (bytes > size_of_reserve) {
+    // Overflowed.
+    return NULL;
+  }
+  p_buf = (char *) VirtualAlloc(addr,
+                                size_of_reserve,  // size of Reserve
+                                MEM_RESERVE,
+                                PAGE_READWRITE);
+  // If reservation failed, return NULL
+  if (p_buf == NULL) return NULL;
+
+  os::release_memory(p_buf, bytes + chunk_size);
+
+  // we still need to round up to a page boundary (in case we are using large pages)
+  // but not to a chunk boundary (in case InterleavingGranularity doesn't align with page size)
+  // instead we handle this in the bytes_to_rq computation below
+  p_buf = (char *) align_size_up((size_t)p_buf, page_size);
+
+  // now go through and allocate one chunk at a time until all bytes are
+  // allocated
+  size_t  bytes_remaining = bytes;
+  // An overflow of align_size_up() would have been caught above
+  // in the calculation of size_of_reserve.
+  char * next_alloc_addr = p_buf;
+  HANDLE hProc = GetCurrentProcess();
+
+#ifdef ASSERT
+  // Variable for the failure injection
+  long ran_num = os::random();
+  size_t fail_after = ran_num % bytes;
+#endif
+
+  int count=0;
+  while (bytes_remaining) {
+    // select bytes_to_rq to get to the next chunk_size boundary
+
+    size_t bytes_to_rq = MIN2(bytes_remaining, chunk_size - ((size_t)next_alloc_addr % chunk_size));
+    // Note allocate and commit
+    char * p_new;
+
+#ifdef ASSERT
+    bool inject_error_now = should_inject_error && (bytes_remaining <= fail_after);
+#else
+    const bool inject_error_now = false;
+#endif
+
+    if (inject_error_now) {
+      p_new = NULL;
+    } else {
+      if (!UseNUMAInterleaving) {
+        p_new = (char *) VirtualAlloc(next_alloc_addr,
+                                      bytes_to_rq,
+                                      flags,
+                                      prot);
+      } else {
+        // get the next node to use from the used_node_list
+        assert(numa_node_list_holder.get_count() > 0, "Multiple NUMA nodes expected");
+        DWORD node = numa_node_list_holder.get_node_list_entry(count % numa_node_list_holder.get_count());
+        p_new = (char *)os::Kernel32Dll::VirtualAllocExNuma(hProc,
+                                                            next_alloc_addr,
+                                                            bytes_to_rq,
+                                                            flags,
+                                                            prot,
+                                                            node);
+      }
+    }
+
+    if (p_new == NULL) {
+      // Free any allocated pages
+      if (next_alloc_addr > p_buf) {
+        // Some memory was committed so release it.
+        size_t bytes_to_release = bytes - bytes_remaining;
+        os::release_memory(p_buf, bytes_to_release);
+      }
+#ifdef ASSERT
+      if (should_inject_error) {
+        if (TracePageSizes && Verbose) {
+          tty->print_cr("Reserving pages individually failed.");
+        }
+      }
+#endif
+      return NULL;
+    }
+    bytes_remaining -= bytes_to_rq;
+    next_alloc_addr += bytes_to_rq;
+    count++;
+  }
+  // made it this far, success
+  return p_buf;
+}
+
+
 
 void os::large_page_init() {
   if (!UseLargePages) return;
@@ -2718,9 +2928,30 @@ char* os::reserve_memory(size_t bytes, char* addr, size_t alignment_hint) {
   assert((size_t)addr % os::vm_allocation_granularity() == 0,
          "reserve alignment");
   assert(bytes % os::vm_allocation_granularity() == 0, "reserve block size");
-  char* res = (char*)VirtualAlloc(addr, bytes, MEM_RESERVE, PAGE_READWRITE);
+  char* res;
+  // note that if UseLargePages is on, all the areas that require interleaving
+  // will go thru reserve_memory_special rather than thru here.
+  bool use_individual = (UseNUMAInterleaving && !UseLargePages);
+  if (!use_individual) {
+    res = (char*)VirtualAlloc(addr, bytes, MEM_RESERVE, PAGE_READWRITE);
+  } else {
+    elapsedTimer reserveTimer;
+    if( Verbose && PrintMiscellaneous ) reserveTimer.start();
+    // in numa interleaving, we have to allocate pages individually
+    // (well really chunks of NUMAInterleaveGranularity size)
+    res = allocate_pages_individually(bytes, addr, MEM_RESERVE, PAGE_READWRITE);
+    if (res == NULL) {
+      warning("NUMA page allocation failed");
+    }
+    if( Verbose && PrintMiscellaneous ) {
+      reserveTimer.stop();
+      tty->print_cr("reserve_memory of %Ix bytes took %ld ms (%ld ticks)", bytes,
+                    reserveTimer.milliseconds(), reserveTimer.ticks());
+    }
+  }
   assert(res == NULL || addr == NULL || addr == res,
          "Unexpected address from reserve.");
+
   return res;
 }
 
@@ -2750,91 +2981,26 @@ bool os::can_execute_large_page_memory() {
 char* os::reserve_memory_special(size_t bytes, char* addr, bool exec) {
 
   const DWORD prot = exec ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  const DWORD flags = MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES;
 
-  if (UseLargePagesIndividualAllocation) {
+  // with large pages, there are two cases where we need to use Individual Allocation
+  // 1) the UseLargePagesIndividualAllocation flag is set (set by default on WS2003)
+  // 2) NUMA Interleaving is enabled, in which case we use a different node for each page
+  if (UseLargePagesIndividualAllocation || UseNUMAInterleaving) {
     if (TracePageSizes && Verbose) {
        tty->print_cr("Reserving large pages individually.");
     }
-    char * p_buf;
-    // first reserve enough address space in advance since we want to be
-    // able to break a single contiguous virtual address range into multiple
-    // large page commits but WS2003 does not allow reserving large page space
-    // so we just use 4K pages for reserve, this gives us a legal contiguous
-    // address space. then we will deallocate that reservation, and re alloc
-    // using large pages
-    const size_t size_of_reserve = bytes + _large_page_size;
-    if (bytes > size_of_reserve) {
-      // Overflowed.
-      warning("Individually allocated large pages failed, "
-        "use -XX:-UseLargePagesIndividualAllocation to turn off");
+    char * p_buf = allocate_pages_individually(bytes, addr, flags, prot, LargePagesIndividualAllocationInjectError);
+    if (p_buf == NULL) {
+      // give an appropriate warning message
+      if (UseNUMAInterleaving) {
+        warning("NUMA large page allocation failed, UseLargePages flag ignored");
+      }
+      if (UseLargePagesIndividualAllocation) {
+        warning("Individually allocated large pages failed, "
+                "use -XX:-UseLargePagesIndividualAllocation to turn off");
+      }
       return NULL;
-    }
-    p_buf = (char *) VirtualAlloc(addr,
-                                 size_of_reserve,  // size of Reserve
-                                 MEM_RESERVE,
-                                 PAGE_READWRITE);
-    // If reservation failed, return NULL
-    if (p_buf == NULL) return NULL;
-
-    release_memory(p_buf, bytes + _large_page_size);
-    // round up to page boundary.  If the size_of_reserve did not
-    // overflow and the reservation did not fail, this align up
-    // should not overflow.
-    p_buf = (char *) align_size_up((size_t)p_buf, _large_page_size);
-
-    // now go through and allocate one page at a time until all bytes are
-    // allocated
-    size_t  bytes_remaining = align_size_up(bytes, _large_page_size);
-    // An overflow of align_size_up() would have been caught above
-    // in the calculation of size_of_reserve.
-    char * next_alloc_addr = p_buf;
-
-#ifdef ASSERT
-    // Variable for the failure injection
-    long ran_num = os::random();
-    size_t fail_after = ran_num % bytes;
-#endif
-
-    while (bytes_remaining) {
-      size_t bytes_to_rq = MIN2(bytes_remaining, _large_page_size);
-      // Note allocate and commit
-      char * p_new;
-
-#ifdef ASSERT
-      bool inject_error = LargePagesIndividualAllocationInjectError &&
-          (bytes_remaining <= fail_after);
-#else
-      const bool inject_error = false;
-#endif
-
-      if (inject_error) {
-        p_new = NULL;
-      } else {
-        p_new = (char *) VirtualAlloc(next_alloc_addr,
-                                    bytes_to_rq,
-                                    MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES,
-                                    prot);
-      }
-
-      if (p_new == NULL) {
-        // Free any allocated pages
-        if (next_alloc_addr > p_buf) {
-          // Some memory was committed so release it.
-          size_t bytes_to_release = bytes - bytes_remaining;
-          release_memory(p_buf, bytes_to_release);
-        }
-#ifdef ASSERT
-        if (UseLargePagesIndividualAllocation &&
-            LargePagesIndividualAllocationInjectError) {
-          if (TracePageSizes && Verbose) {
-             tty->print_cr("Reserving large pages individually failed.");
-          }
-        }
-#endif
-        return NULL;
-      }
-      bytes_remaining -= bytes_to_rq;
-      next_alloc_addr += bytes_to_rq;
     }
 
     return p_buf;
@@ -2863,14 +3029,43 @@ bool os::commit_memory(char* addr, size_t bytes, bool exec) {
   assert(bytes % os::vm_page_size() == 0, "commit in page-sized chunks");
   // Don't attempt to print anything if the OS call fails. We're
   // probably low on resources, so the print itself may cause crashes.
-  bool result = VirtualAlloc(addr, bytes, MEM_COMMIT, PAGE_READWRITE) != 0;
-  if (result != NULL && exec) {
-    DWORD oldprot;
-    // Windows doc says to use VirtualProtect to get execute permissions
-    return VirtualProtect(addr, bytes, PAGE_EXECUTE_READWRITE, &oldprot) != 0;
+
+  // unless we have NUMAInterleaving enabled, the range of a commit
+  // is always within a reserve covered by a single VirtualAlloc
+  // in that case we can just do a single commit for the requested size
+  if (!UseNUMAInterleaving) {
+    if (VirtualAlloc(addr, bytes, MEM_COMMIT, PAGE_READWRITE) == NULL) return false;
+    if (exec) {
+      DWORD oldprot;
+      // Windows doc says to use VirtualProtect to get execute permissions
+      if (!VirtualProtect(addr, bytes, PAGE_EXECUTE_READWRITE, &oldprot)) return false;
+    }
+    return true;
   } else {
-    return result;
+
+    // when NUMAInterleaving is enabled, the commit might cover a range that
+    // came from multiple VirtualAlloc reserves (using allocate_pages_individually).
+    // VirtualQuery can help us determine that.  The RegionSize that VirtualQuery
+    // returns represents the number of bytes that can be committed in one step.
+    size_t bytes_remaining = bytes;
+    char * next_alloc_addr = addr;
+    while (bytes_remaining > 0) {
+      MEMORY_BASIC_INFORMATION alloc_info;
+      VirtualQuery(next_alloc_addr, &alloc_info, sizeof(alloc_info));
+      size_t bytes_to_rq = MIN2(bytes_remaining, (size_t)alloc_info.RegionSize);
+      if (VirtualAlloc(next_alloc_addr, bytes_to_rq, MEM_COMMIT, PAGE_READWRITE) == NULL)
+        return false;
+      if (exec) {
+        DWORD oldprot;
+        if (!VirtualProtect(next_alloc_addr, bytes_to_rq, PAGE_EXECUTE_READWRITE, &oldprot))
+          return false;
+      }
+      bytes_remaining -= bytes_to_rq;
+      next_alloc_addr += bytes_to_rq;
+    }
   }
+  // if we made it this far, return true
+  return true;
 }
 
 bool os::commit_memory(char* addr, size_t size, size_t alignment_hint,
@@ -2940,18 +3135,25 @@ bool os::unguard_memory(char* addr, size_t bytes) {
 }
 
 void os::realign_memory(char *addr, size_t bytes, size_t alignment_hint) { }
-void os::free_memory(char *addr, size_t bytes)         { }
+void os::free_memory(char *addr, size_t bytes, size_t alignment_hint)    { }
 void os::numa_make_global(char *addr, size_t bytes)    { }
 void os::numa_make_local(char *addr, size_t bytes, int lgrp_hint)    { }
 bool os::numa_topology_changed()                       { return false; }
-size_t os::numa_get_groups_num()                       { return 1; }
+size_t os::numa_get_groups_num()                       { return MAX2(numa_node_list_holder.get_count(), 1); }
 int os::numa_get_group_id()                            { return 0; }
 size_t os::numa_get_leaf_groups(int *ids, size_t size) {
-  if (size > 0) {
+  if (numa_node_list_holder.get_count() == 0 && size > 0) {
+    // Provide an answer for UMA systems
     ids[0] = 0;
     return 1;
+  } else {
+    // check for size bigger than actual groups_num
+    size = MIN2(size, numa_get_groups_num());
+    for (int i = 0; i < (int)size; i++) {
+      ids[i] = numa_node_list_holder.get_node_list_entry(i);
+    }
+    return size;
   }
-  return 0;
 }
 
 bool os::get_page_info(char *start, page_info* info) {
@@ -3092,7 +3294,7 @@ void os::yield_all(int attempts) {
 // so we compress Java's ten down to seven.  It would be better
 // if we dynamically adjusted relative priorities.
 
-int os::java_to_os_priority[MaxPriority + 1] = {
+int os::java_to_os_priority[CriticalPriority + 1] = {
   THREAD_PRIORITY_IDLE,                         // 0  Entry should never be used
   THREAD_PRIORITY_LOWEST,                       // 1  MinPriority
   THREAD_PRIORITY_LOWEST,                       // 2
@@ -3103,10 +3305,11 @@ int os::java_to_os_priority[MaxPriority + 1] = {
   THREAD_PRIORITY_ABOVE_NORMAL,                 // 7
   THREAD_PRIORITY_ABOVE_NORMAL,                 // 8
   THREAD_PRIORITY_HIGHEST,                      // 9  NearMaxPriority
-  THREAD_PRIORITY_HIGHEST                       // 10 MaxPriority
+  THREAD_PRIORITY_HIGHEST,                      // 10 MaxPriority
+  THREAD_PRIORITY_HIGHEST                       // 11 CriticalPriority
 };
 
-int prio_policy1[MaxPriority + 1] = {
+int prio_policy1[CriticalPriority + 1] = {
   THREAD_PRIORITY_IDLE,                         // 0  Entry should never be used
   THREAD_PRIORITY_LOWEST,                       // 1  MinPriority
   THREAD_PRIORITY_LOWEST,                       // 2
@@ -3117,16 +3320,20 @@ int prio_policy1[MaxPriority + 1] = {
   THREAD_PRIORITY_ABOVE_NORMAL,                 // 7
   THREAD_PRIORITY_HIGHEST,                      // 8
   THREAD_PRIORITY_HIGHEST,                      // 9  NearMaxPriority
-  THREAD_PRIORITY_TIME_CRITICAL                 // 10 MaxPriority
+  THREAD_PRIORITY_TIME_CRITICAL,                // 10 MaxPriority
+  THREAD_PRIORITY_TIME_CRITICAL                 // 11 CriticalPriority
 };
 
 static int prio_init() {
   // If ThreadPriorityPolicy is 1, switch tables
   if (ThreadPriorityPolicy == 1) {
     int i;
-    for (i = 0; i < MaxPriority + 1; i++) {
+    for (i = 0; i < CriticalPriority + 1; i++) {
       os::java_to_os_priority[i] = prio_policy1[i];
     }
+  }
+  if (UseCriticalJavaThreadPriority) {
+    os::java_to_os_priority[MaxPriority] = os::java_to_os_priority[CriticalPriority] ;
   }
   return 0;
 }
@@ -3476,7 +3683,7 @@ jint os::init_2(void) {
     if(Verbose && PrintMiscellaneous)
       tty->print("[Memory Serialize  Page address: " INTPTR_FORMAT "]\n", (intptr_t)mem_serialize_page);
 #endif
-}
+  }
 
   os::large_page_init();
 
@@ -3580,7 +3787,13 @@ jint os::init_2(void) {
   prio_init();
 
   if (UseNUMA && !ForceNUMA) {
-    UseNUMA = false; // Currently unsupported.
+    UseNUMA = false; // We don't fully support this yet
+  }
+
+  if (UseNUMAInterleaving) {
+    // first check whether this Windows OS supports VirtualAllocExNuma, if not ignore this flag
+    bool success = numa_interleaving_init();
+    if (!success) UseNUMAInterleaving = false;
   }
 
   return JNI_OK;
@@ -4543,7 +4756,7 @@ bool os::check_heap(bool force) {
           fatal("corrupted C heap");
         }
       }
-      int err = GetLastError();
+      DWORD err = GetLastError();
       if (err != ERROR_NO_MORE_ITEMS && err != ERROR_CALL_NOT_IMPLEMENTED) {
         fatal(err_msg("heap walk aborted with error %d", err));
       }
@@ -4574,45 +4787,6 @@ LONG WINAPI os::win32::serialize_fault_filter(struct _EXCEPTION_POINTERS* e) {
 
   return EXCEPTION_CONTINUE_SEARCH;
 }
-
-static int getLastErrorString(char *buf, size_t len)
-{
-    long errval;
-
-    if ((errval = GetLastError()) != 0)
-    {
-      /* DOS error */
-      size_t n = (size_t)FormatMessage(
-            FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
-            NULL,
-            errval,
-            0,
-            buf,
-            (DWORD)len,
-            NULL);
-      if (n > 3) {
-        /* Drop final '.', CR, LF */
-        if (buf[n - 1] == '\n') n--;
-        if (buf[n - 1] == '\r') n--;
-        if (buf[n - 1] == '.') n--;
-        buf[n] = '\0';
-      }
-      return (int)n;
-    }
-
-    if (errno != 0)
-    {
-      /* C runtime error that has no corresponding DOS error code */
-      const char *s = strerror(errno);
-      size_t n = strlen(s);
-      if (n >= len) n = len - 1;
-      strncpy(buf, s, n);
-      buf[n] = '\0';
-      return (int)n;
-    }
-    return 0;
-}
-
 
 // We don't build a headless jre for Windows
 bool os::is_headless_jre() { return false; }
@@ -4646,7 +4820,7 @@ static void initSock() {
   ::mutexUnlock(&sockFnTableMutex);
 }
 
-struct hostent*  os::get_host_by_name(char* name) {
+struct hostent* os::get_host_by_name(char* name) {
   if (!sock_initialized) {
     initSock();
   }
@@ -4677,39 +4851,39 @@ int os::listen(int fd, int count) {
   return 0;
 }
 
-int os::connect(int fd, struct sockaddr *him, int len) {
+int os::connect(int fd, struct sockaddr* him, socklen_t len) {
   ShouldNotReachHere();
   return 0;
 }
 
-int os::accept(int fd, struct sockaddr *him, int *len) {
+int os::accept(int fd, struct sockaddr* him, socklen_t* len) {
   ShouldNotReachHere();
   return 0;
 }
 
-int os::sendto(int fd, char *buf, int len, int flags,
-                        struct sockaddr *to, int tolen) {
+int os::sendto(int fd, char* buf, size_t len, uint flags,
+               struct sockaddr* to, socklen_t tolen) {
   ShouldNotReachHere();
   return 0;
 }
 
-int os::recvfrom(int fd, char *buf, int nBytes, int flags,
-                         sockaddr *from, int *fromlen) {
+int os::recvfrom(int fd, char *buf, size_t nBytes, uint flags,
+                 sockaddr* from, socklen_t* fromlen) {
   ShouldNotReachHere();
   return 0;
 }
 
-int os::recv(int fd, char *buf, int nBytes, int flags) {
+int os::recv(int fd, char* buf, size_t nBytes, uint flags) {
   ShouldNotReachHere();
   return 0;
 }
 
-int os::send(int fd, char *buf, int nBytes, int flags) {
+int os::send(int fd, char* buf, size_t nBytes, uint flags) {
   ShouldNotReachHere();
   return 0;
 }
 
-int os::raw_send(int fd, char *buf, int nBytes, int flags) {
+int os::raw_send(int fd, char* buf, size_t nBytes, uint flags) {
   ShouldNotReachHere();
   return 0;
 }
@@ -4729,24 +4903,24 @@ int os::socket_shutdown(int fd, int howto) {
   return 0;
 }
 
-int os::bind(int fd, struct sockaddr *him, int len) {
+int os::bind(int fd, struct sockaddr* him, socklen_t len) {
   ShouldNotReachHere();
   return 0;
 }
 
-int os::get_sock_name(int fd, struct sockaddr *him, int *len) {
+int os::get_sock_name(int fd, struct sockaddr* him, socklen_t* len) {
   ShouldNotReachHere();
   return 0;
 }
 
 int os::get_sock_opt(int fd, int level, int optname,
-                             char *optval, int* optlen) {
+                     char* optval, socklen_t* optlen) {
   ShouldNotReachHere();
   return 0;
 }
 
 int os::set_sock_opt(int fd, int level, int optname,
-                             const char *optval, int optlen) {
+                     const char* optval, socklen_t optlen) {
   ShouldNotReachHere();
   return 0;
 }
@@ -4754,7 +4928,14 @@ int os::set_sock_opt(int fd, int level, int optname,
 
 // Kernel32 API
 typedef SIZE_T (WINAPI* GetLargePageMinimum_Fn)(void);
+typedef LPVOID (WINAPI *VirtualAllocExNuma_Fn) (HANDLE, LPVOID, SIZE_T, DWORD, DWORD, DWORD);
+typedef BOOL (WINAPI *GetNumaHighestNodeNumber_Fn) (PULONG);
+typedef BOOL (WINAPI *GetNumaNodeProcessorMask_Fn) (UCHAR, PULONGLONG);
+
 GetLargePageMinimum_Fn      os::Kernel32Dll::_GetLargePageMinimum = NULL;
+VirtualAllocExNuma_Fn       os::Kernel32Dll::_VirtualAllocExNuma = NULL;
+GetNumaHighestNodeNumber_Fn os::Kernel32Dll::_GetNumaHighestNodeNumber = NULL;
+GetNumaNodeProcessorMask_Fn os::Kernel32Dll::_GetNumaNodeProcessorMask = NULL;
 BOOL                        os::Kernel32Dll::initialized = FALSE;
 SIZE_T os::Kernel32Dll::GetLargePageMinimum() {
   assert(initialized && _GetLargePageMinimum != NULL,
@@ -4769,16 +4950,53 @@ BOOL os::Kernel32Dll::GetLargePageMinimumAvailable() {
   return _GetLargePageMinimum != NULL;
 }
 
+BOOL os::Kernel32Dll::NumaCallsAvailable() {
+  if (!initialized) {
+    initialize();
+  }
+  return _VirtualAllocExNuma != NULL;
+}
 
-#ifndef JDK6_OR_EARLIER
+LPVOID os::Kernel32Dll::VirtualAllocExNuma(HANDLE hProc, LPVOID addr, SIZE_T bytes, DWORD flags, DWORD prot, DWORD node) {
+  assert(initialized && _VirtualAllocExNuma != NULL,
+    "NUMACallsAvailable() not yet called");
 
-void os::Kernel32Dll::initialize() {
+  return _VirtualAllocExNuma(hProc, addr, bytes, flags, prot, node);
+}
+
+BOOL os::Kernel32Dll::GetNumaHighestNodeNumber(PULONG ptr_highest_node_number) {
+  assert(initialized && _GetNumaHighestNodeNumber != NULL,
+    "NUMACallsAvailable() not yet called");
+
+  return _GetNumaHighestNodeNumber(ptr_highest_node_number);
+}
+
+BOOL os::Kernel32Dll::GetNumaNodeProcessorMask(UCHAR node, PULONGLONG proc_mask) {
+  assert(initialized && _GetNumaNodeProcessorMask != NULL,
+    "NUMACallsAvailable() not yet called");
+
+  return _GetNumaNodeProcessorMask(node, proc_mask);
+}
+
+
+void os::Kernel32Dll::initializeCommon() {
   if (!initialized) {
     HMODULE handle = ::GetModuleHandle("Kernel32.dll");
     assert(handle != NULL, "Just check");
     _GetLargePageMinimum = (GetLargePageMinimum_Fn)::GetProcAddress(handle, "GetLargePageMinimum");
+    _VirtualAllocExNuma = (VirtualAllocExNuma_Fn)::GetProcAddress(handle, "VirtualAllocExNuma");
+    _GetNumaHighestNodeNumber = (GetNumaHighestNodeNumber_Fn)::GetProcAddress(handle, "GetNumaHighestNodeNumber");
+    _GetNumaNodeProcessorMask = (GetNumaNodeProcessorMask_Fn)::GetProcAddress(handle, "GetNumaNodeProcessorMask");
     initialized = TRUE;
   }
+}
+
+
+
+#ifndef JDK6_OR_EARLIER
+
+void os::Kernel32Dll::initialize() {
+  initializeCommon();
 }
 
 
@@ -4883,18 +5101,19 @@ Module32First_Fn            os::Kernel32Dll::_Module32First = NULL;
 Module32Next_Fn             os::Kernel32Dll::_Module32Next = NULL;
 GetNativeSystemInfo_Fn      os::Kernel32Dll::_GetNativeSystemInfo = NULL;
 
+
 void os::Kernel32Dll::initialize() {
   if (!initialized) {
     HMODULE handle = ::GetModuleHandle("Kernel32.dll");
     assert(handle != NULL, "Just check");
 
     _SwitchToThread = (SwitchToThread_Fn)::GetProcAddress(handle, "SwitchToThread");
-    _GetLargePageMinimum = (GetLargePageMinimum_Fn)::GetProcAddress(handle, "GetLargePageMinimum");
     _CreateToolhelp32Snapshot = (CreateToolhelp32Snapshot_Fn)
       ::GetProcAddress(handle, "CreateToolhelp32Snapshot");
     _Module32First = (Module32First_Fn)::GetProcAddress(handle, "Module32First");
     _Module32Next = (Module32Next_Fn)::GetProcAddress(handle, "Module32Next");
     _GetNativeSystemInfo = (GetNativeSystemInfo_Fn)::GetProcAddress(handle, "GetNativeSystemInfo");
+    initializeCommon();  // resolve the functions that always need resolving
 
     initialized = TRUE;
   }
@@ -4959,6 +5178,8 @@ void os::Kernel32Dll::GetNativeSystemInfo(LPSYSTEM_INFO lpSystemInfo) {
 
   _GetNativeSystemInfo(lpSystemInfo);
 }
+
+
 
 // PSAPI API
 
@@ -5075,7 +5296,7 @@ void os::Advapi32Dll::initialize() {
       _OpenProcessToken = (OpenProcessToken_Fn)::GetProcAddress(handle,
         "OpenProcessToken");
       _LookupPrivilegeValue = (LookupPrivilegeValue_Fn)::GetProcAddress(handle,
-        "LookupPrivilegeValue");
+        "LookupPrivilegeValueA");
     }
     initialized = TRUE;
   }
@@ -5113,4 +5334,3 @@ BOOL os::Advapi32Dll::AdvapiAvailable() {
 }
 
 #endif
-
