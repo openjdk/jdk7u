@@ -346,15 +346,15 @@ void Compile::identify_useful_nodes(Unique_Node_List &useful) {
 // Disconnect all useless nodes by disconnecting those at the boundary.
 void Compile::remove_useless_nodes(Unique_Node_List &useful) {
   uint next = 0;
-  while( next < useful.size() ) {
+  while (next < useful.size()) {
     Node *n = useful.at(next++);
     // Use raw traversal of out edges since this code removes out edges
     int max = n->outcnt();
-    for (int j = 0; j < max; ++j ) {
+    for (int j = 0; j < max; ++j) {
       Node* child = n->raw_out(j);
-      if( ! useful.member(child) ) {
-        assert( !child->is_top() || child != top(),
-                "If top is cached in Compile object it is in useful list");
+      if (! useful.member(child)) {
+        assert(!child->is_top() || child != top(),
+               "If top is cached in Compile object it is in useful list");
         // Only need to remove this out-edge to the useless node
         n->raw_del_out(j);
         --j;
@@ -362,7 +362,14 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       }
     }
     if (n->outcnt() == 1 && n->has_special_unique_user()) {
-      record_for_igvn( n->unique_out() );
+      record_for_igvn(n->unique_out());
+    }
+  }
+  // Remove useless macro and predicate opaq nodes
+  for (int i = C->macro_count()-1; i >= 0; i--) {
+    Node* n = C->macro_node(i);
+    if (!useful.member(n)) {
+      remove_macro_node(n);
     }
   }
   debug_only(verify_graph_edges(true/*check for no_dead_code*/);)
@@ -517,7 +524,20 @@ uint Compile::scratch_emit_size(const Node* n) {
   buf.stubs()->initialize_shared_locs( &locs_buf[lsize * 2], lsize);
 
   // Do the emission.
+
+  Label fakeL; // Fake label for branch instructions.
+  Label*   saveL = NULL;
+  uint save_bnum = 0;
+  bool is_branch = n->is_MachBranch();
+  if (is_branch) {
+    MacroAssembler masm(&buf);
+    masm.bind(fakeL);
+    n->as_MachBranch()->save_label(&saveL, &save_bnum);
+    n->as_MachBranch()->label_set(&fakeL, 0);
+  }
   n->emit(buf, this->regalloc());
+  if (is_branch) // Restore label.
+    n->as_MachBranch()->label_set(saveL, save_bnum);
 
   // End scratch_emit_size section.
   set_in_scratch_emit_size(false);
@@ -706,6 +726,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
       while (_late_inlines.length() > 0) {
         CallGenerator* cg = _late_inlines.pop();
         cg->do_late_inline();
+        if (failing())  return;
       }
     }
     assert(_late_inlines.length() == 0, "should have been processed");
@@ -804,7 +825,6 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                            &_handler_table, &_inc_table,
                            compiler,
                            env()->comp_level(),
-                           true, /*has_debug_info*/
                            has_unsafe_access()
                            );
   }
@@ -1206,11 +1226,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     // Make sure the Bottom and NotNull variants alias the same.
     // Also, make sure exact and non-exact variants alias the same.
     if( ptr == TypePtr::NotNull || ta->klass_is_exact() ) {
-      if (ta->const_oop()) {
-        tj = ta = TypeAryPtr::make(TypePtr::Constant,ta->const_oop(),ta->ary(),ta->klass(),false,offset);
-      } else {
-        tj = ta = TypeAryPtr::make(TypePtr::BotPTR,ta->ary(),ta->klass(),false,offset);
-      }
+      tj = ta = TypeAryPtr::make(TypePtr::BotPTR,ta->ary(),ta->klass(),false,offset);
     }
   }
 
@@ -1683,13 +1699,20 @@ void Compile::Optimize() {
 
   // Perform escape analysis
   if (_do_escape_analysis && ConnectionGraph::has_candidates(this)) {
+    if (has_loops()) {
+      // Cleanup graph (remove dead nodes).
+      TracePhase t2("idealLoop", &_t_idealLoop, true);
+      PhaseIdealLoop ideal_loop( igvn, false, true );
+      if (major_progress()) print_method("PhaseIdealLoop before EA", 2);
+      if (failing())  return;
+    }
     TracePhase t2("escapeAnalysis", &_t_escapeAnalysis, true);
     ConnectionGraph::do_analysis(this, &igvn);
 
     if (failing())  return;
 
     igvn.optimize();
-    print_method("Iter GVN 3", 2);
+    print_method("Iter GVN after EA", 2);
 
     if (failing())  return;
 
