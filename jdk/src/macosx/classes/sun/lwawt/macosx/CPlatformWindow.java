@@ -64,7 +64,7 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     private static native void nativeSynthesizeMouseEnteredExitedEvents(long nsWindowPtr);
     private static native void nativeDispose(long nsWindowPtr);
 
-    private static native int nativeGetNSWindowDisplayID_AppKitThread(long nsWindowPtr);
+    private static native int nativeGetNSWindowDisplayID(long nsWindowPtr);
 
     // Loger to report issues happened during execution but that do not affect functionality
     private static final PlatformLogger logger = PlatformLogger.getLogger("sun.lwawt.macosx.CPlatformWindow");
@@ -443,7 +443,7 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     public GraphicsDevice getGraphicsDevice() {
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
         CGraphicsEnvironment cge = (CGraphicsEnvironment)ge;
-        int displayID = nativeGetNSWindowDisplayID_AppKitThread(getNSWindowPtr());
+        int displayID = nativeGetNSWindowDisplayID(getNSWindowPtr());
         GraphicsDevice gd = cge.getScreenDevice(displayID);
         if (gd == null) {
             // this could possibly happen during device removal
@@ -672,20 +672,15 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
         // Re-apply the size constraints and the size to ensure the space
         // occupied by the grow box is counted properly
-        setMinimumSize(1, 1); // the method ignores its arguments
+        peer.updateMinimumSize();
 
         Rectangle bounds = peer.getBounds();
         setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
     }
 
     @Override
-    public void setMinimumSize(int width, int height) {
-        //TODO width, height should be used
-        //NOTE: setResizable() calls setMinimumSize(1,1) relaying on the logic below
-        final long nsWindowPtr = getNSWindowPtr();
-        final Dimension min = target.getMinimumSize();
-        final Dimension max = target.getMaximumSize();
-        nativeSetNSWindowMinMax(nsWindowPtr, min.getWidth(), min.getHeight(), max.getWidth(), max.getHeight());
+    public void setSizeConstraints(int minW, int minH, int maxW, int maxH) {
+        nativeSetNSWindowMinMax(getNSWindowPtr(), minW, minH, maxW, maxH);
     }
 
     @Override
