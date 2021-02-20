@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.ParserConfigurationException;
 
 import com.sun.org.apache.xml.internal.security.c14n.CanonicalizationException;
@@ -251,6 +252,7 @@ public class RetrievalMethodResolver extends KeyResolverSpi {
       try {
          javax.xml.parsers.DocumentBuilderFactory dbf =javax.xml.parsers.DocumentBuilderFactory.newInstance();
          dbf.setNamespaceAware(true);
+         dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, Boolean.TRUE);
          javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
          org.w3c.dom.Document doc =
             db.parse(new java.io.ByteArrayInputStream(bytes));
@@ -283,7 +285,7 @@ public class RetrievalMethodResolver extends KeyResolverSpi {
            Element e=null;
            while (it.hasNext()) {
                    Node currentNode=(Node)it.next();
-                   if (currentNode instanceof Element) {
+                   if (currentNode != null && currentNode.getNodeType() == Node.ELEMENT_NODE) {
                            e=(Element)currentNode;
                            break;
                    }
@@ -292,14 +294,14 @@ public class RetrievalMethodResolver extends KeyResolverSpi {
            List parents=new ArrayList(10);
 
                 //Obtain all the parents of the elemnt
-                do {
+                while (e != null) {
                         parents.add(e);
                         Node n=e.getParentNode();
-                        if (!(n instanceof Element )) {
+                        if (n == null || n.getNodeType() != Node.ELEMENT_NODE) {
                                 break;
                         }
                         e=(Element)n;
-                } while (e!=null);
+                }
                 //Visit them in reverse order.
                 ListIterator it2=parents.listIterator(parents.size()-1);
                 Element ele=null;
