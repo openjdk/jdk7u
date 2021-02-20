@@ -309,7 +309,6 @@ demo/jvmti/mtrace/TraceJFrame.java				macosx-all
 
 # Need to be marked othervm, or changed to be samevm safe
 com/sun/jndi/ldap/ReadTimeoutTest.java                          generic-all
-com/sun/jndi/rmi/registry/RegistryContext/UnbindIdempotent.java generic-all
 
 # Need to be marked othervm, or changed to be samevm safe
 com/sun/org/apache/xml/internal/security/transforms/ClassLoaderTest.java generic-all
@@ -475,9 +474,6 @@ java/rmi/activation/Activatable/forceLogSnapshot/ForceLogSnapshot.java  generic-
 # Registry already running on port, solaris
 java/rmi/Naming/legalRegistryNames/LegalRegistryNames.java      generic-all
 
-# Fails on Linux 32 and 64bit -server?, impl not garbage collected???
-java/rmi/transport/pinLastArguments/PinLastArguments.java       generic-all
-
 # 7146541
 java/rmi/transport/rapidExportUnexport/RapidExportUnexport.java	linux-all
 
@@ -517,7 +513,6 @@ java/rmi/activation/ActivationSystem/unregisterGroup/UnregisterGroup.java generi
 java/rmi/activation/CommandEnvironment/SetChildEnv.java generic-all
 java/rmi/registry/classPathCodebase/ClassPathCodebase.java generic-all
 java/rmi/registry/reexport/Reexport.java generic-all
-java/rmi/server/Unreferenced/finiteGCLatency/FiniteGCLatency.java generic-all
 java/rmi/server/Unreferenced/leaseCheckInterval/LeaseCheckInterval.java generic-all
 java/rmi/server/Unreferenced/unreferencedContext/UnreferencedContext.java generic-all
 java/rmi/server/useCustomRef/UseCustomRef.java generic-all
