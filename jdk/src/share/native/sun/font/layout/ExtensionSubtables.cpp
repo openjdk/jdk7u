@@ -44,9 +44,11 @@ U_NAMESPACE_BEGIN
 #define READ_LONG(code) (le_uint32)((SWAPW(*(le_uint16*)&code) << 16) + SWAPW(*(((le_uint16*)&code) + 1)))
 
 // FIXME: should look at the format too... maybe have a sub-class for it?
-le_uint32 ExtensionSubtable::process(const LookupProcessor *lookupProcessor, le_uint16 lookupType,
+le_uint32 ExtensionSubtable::process(const LEReferenceTo<ExtensionSubtable> &thisRef,
+                                     const LookupProcessor *lookupProcessor, le_uint16 lookupType,
                                       GlyphIterator *glyphIterator, const LEFontInstance *fontInstance, LEErrorCode& success) const
 {
+
     if (LE_FAILURE(success)) {
         return 0;
     }
@@ -55,9 +57,11 @@ le_uint32 ExtensionSubtable::process(const LookupProcessor *lookupProcessor, le_
 
     if (elt != lookupType) {
         le_uint32 extOffset = READ_LONG(extensionOffset);
-        LookupSubtable *subtable = (LookupSubtable *) ((char *) this + extOffset);
+        LEReferenceTo<LookupSubtable> subtable(thisRef, success,  extOffset);
 
-        return lookupProcessor->applySubtable(subtable, elt, glyphIterator, fontInstance, success);
+        if(LE_SUCCESS(success)) {
+          return lookupProcessor->applySubtable(subtable, elt, glyphIterator, fontInstance, success);
+        }
     }
 
     return 0;
