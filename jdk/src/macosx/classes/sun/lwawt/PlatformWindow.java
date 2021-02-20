@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -131,7 +131,10 @@ public interface PlatformWindow {
 
     public void setResizable(boolean resizable);
 
-    public void setMinimumSize(int width, int height);
+    /**
+     * Applies the minimum and maximum size to the platform window.
+     */
+    public void setSizeConstraints(int minW, int minH, int maxW, int maxH);
 
     /**
      * Transforms the given Graphics object according to the native
@@ -152,9 +155,13 @@ public interface PlatformWindow {
 
     public void exitFullScreenMode();
 
+    public boolean isFullScreenMode();
+
     public void setWindowState(int windowState);
 
     public long getLayerPtr();
 
     public LWWindowPeer getPeer();
+
+    public boolean isUnderMouse();
 }
