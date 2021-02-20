@@ -233,6 +233,7 @@ class os: AllStatic {
   static int    vm_allocation_granularity();
   static char*  reserve_memory(size_t bytes, char* addr = 0,
                                size_t alignment_hint = 0);
+  static char*  reserve_memory_aligned(size_t size, size_t alignment);
   static char*  attempt_reserve_memory_at(size_t bytes, char* addr);
   static void   split_reserved_memory(char *base, size_t size,
                                       size_t split, bool realloc);
@@ -242,6 +243,8 @@ class os: AllStatic {
                               bool executable = false);
   static bool   uncommit_memory(char* addr, size_t bytes);
   static bool   release_memory(char* addr, size_t bytes);
+  static bool   can_release_partial_region();
+  static bool   release_or_uncommit_partial_region(char* addr, size_t bytes);
 
   enum ProtType { MEM_PROT_NONE, MEM_PROT_READ, MEM_PROT_RW, MEM_PROT_RWX };
   static bool   protect_memory(char* addr, size_t bytes, ProtType prot,
