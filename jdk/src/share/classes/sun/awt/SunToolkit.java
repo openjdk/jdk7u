@@ -51,14 +51,8 @@ import sun.awt.im.InputContext;
 import sun.awt.image.*;
 import sun.security.action.GetPropertyAction;
 import sun.security.action.GetBooleanAction;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 
 public abstract class SunToolkit extends Toolkit
     implements WindowClosingSupport, WindowClosingListener,
@@ -80,7 +74,6 @@ public abstract class SunToolkit extends Toolkit
      */
     public static final int GRAB_EVENT_MASK = 0x80000000;
 
-    private static Method  wakeupMethod;
     /* The key to put()/get() the PostEventQueue into/from the AppContext.
      */
     private static final String POST_EVENT_QUEUE_KEY = "PostEventQueue";
@@ -203,7 +196,7 @@ public abstract class SunToolkit extends Toolkit
     public abstract RobotPeer createRobot(Robot target, GraphicsDevice screen)
         throws AWTException;
 
-    public abstract KeyboardFocusManagerPeer createKeyboardFocusManagerPeer(KeyboardFocusManager manager)
+    public abstract KeyboardFocusManagerPeer getKeyboardFocusManagerPeer()
         throws HeadlessException;
 
     /**
@@ -294,52 +287,8 @@ public abstract class SunToolkit extends Toolkit
         return appContext;
     }
 
-    public static Field getField(final Class klass, final String fieldName) {
-        return AccessController.doPrivileged(new PrivilegedAction<Field>() {
-            public Field run() {
-                try {
-                    Field field = klass.getDeclaredField(fieldName);
-                    assert (field != null);
-                    field.setAccessible(true);
-                    return field;
-                } catch (SecurityException e) {
-                    assert false;
-                } catch (NoSuchFieldException e) {
-                    assert false;
-                }
-                return null;
-            }//run
-        });
-    }
-
     static void wakeupEventQueue(EventQueue q, boolean isShutdown){
-        if (wakeupMethod == null){
-            wakeupMethod = (Method)AccessController.doPrivileged(new PrivilegedAction(){
-                    public Object run(){
-                        try {
-                            Method method  = EventQueue.class.getDeclaredMethod("wakeup",new Class [] {Boolean.TYPE} );
-                            if (method != null) {
-                                method.setAccessible(true);
-                            }
-                            return method;
-                        } catch (NoSuchMethodException e) {
-                            assert false;
-                        } catch (SecurityException e) {
-                            assert false;
-                        }
-                        return null;
-                    }//run
-                });
-        }
-        try{
-            if (wakeupMethod != null){
-                wakeupMethod.invoke(q, new Object[]{Boolean.valueOf(isShutdown)});
-            }
-        } catch (InvocationTargetException e){
-            assert false;
-        } catch (IllegalAccessException e) {
-            assert false;
-        }
+        AWTAccessor.getEventQueueAccessor().wakeup(q, isShutdown);
     }
 
     /*
@@ -556,15 +505,19 @@ public abstract class SunToolkit extends Toolkit
             // Don't call flushPendingEvents() recursively
             if (!isFlushingPendingEvents) {
                 isFlushingPendingEvents = true;
-                AppContext appContext = AppContext.getAppContext();
-                PostEventQueue postEventQueue =
-                    (PostEventQueue)appContext.get(POST_EVENT_QUEUE_KEY);
-                if (postEventQueue != null) {
-                    postEventQueue.flush();
+                try {
+                    AppContext appContext = AppContext.getAppContext();
+                    PostEventQueue postEventQueue =
+                        (PostEventQueue)appContext.get(POST_EVENT_QUEUE_KEY);
+                    if (postEventQueue != null) {
+                        postEventQueue.flush();
+                    }
+                }
+                finally {
+                    isFlushingPendingEvents = false;
                 }
             }
         } finally {
-            isFlushingPendingEvents = false;
             flushLock.unlock();
         }
     }
@@ -1455,22 +1408,6 @@ public abstract class SunToolkit extends Toolkit
             || comp instanceof Window);
     }
 
-    public static Method getMethod(final Class clz, final String methodName, final Class[] params) {
-        Method res = null;
-        try {
-            res = AccessController.doPrivileged(new PrivilegedExceptionAction<Method>() {
-                    public Method run() throws Exception {
-                        Method m = clz.getDeclaredMethod(methodName, params);
-                        m.setAccessible(true);
-                        return m;
-                    }
-                });
-        } catch (PrivilegedActionException ex) {
-            ex.printStackTrace();
-        }
-        return res;
-    }
-
     public static class OperationTimedOut extends RuntimeException {
         public OperationTimedOut(String msg) {
             super(msg);
@@ -1613,21 +1550,9 @@ public abstract class SunToolkit extends Toolkit
     private boolean queueEmpty = false;
     private final Object waitLock = "Wait Lock";
 
-    static Method eqNoEvents;
-
     private boolean isEQEmpty() {
         EventQueue queue = getSystemEventQueueImpl();
-        synchronized(SunToolkit.class) {
-            if (eqNoEvents == null) {
-                eqNoEvents = getMethod(java.awt.EventQueue.class, "noEvents", null);
-            }
-        }
-        try {
-            return (Boolean)eqNoEvents.invoke(queue);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
+        return AWTAccessor.getEventQueueAccessor().noEvents(queue);
     }
 
     /**
@@ -1882,20 +1807,14 @@ public abstract class SunToolkit extends Toolkit
      * consumeNextKeyTyped() method is not currently used,
      * however Swing could use it in the future.
      */
-    private static Method consumeNextKeyTypedMethod = null;
     public static synchronized void consumeNextKeyTyped(KeyEvent keyEvent) {
-        if (consumeNextKeyTypedMethod == null) {
-            consumeNextKeyTypedMethod = getMethod(DefaultKeyboardFocusManager.class,
-                                                  "consumeNextKeyTyped",
-                                                  new Class[] {KeyEvent.class});
-        }
         try {
-            consumeNextKeyTypedMethod.invoke(KeyboardFocusManager.getCurrentKeyboardFocusManager(),
-                                             keyEvent);
-        } catch (IllegalAccessException iae) {
-            iae.printStackTrace();
-        } catch (InvocationTargetException ite) {
-            ite.printStackTrace();
+            AWTAccessor.getDefaultKeyboardFocusManagerAccessor().consumeNextKeyTyped(
+                (DefaultKeyboardFocusManager)KeyboardFocusManager.
+                    getCurrentKeyboardFocusManager(),
+                keyEvent);
+        } catch (ClassCastException cce) {
+             cce.printStackTrace();
         }
     }
 
@@ -1915,25 +1834,6 @@ public abstract class SunToolkit extends Toolkit
         return (Window)comp;
     }
 
-    /**
-     * Returns the value of the system property indicated by the specified key.
-     */
-    public static String getSystemProperty(final String key) {
-        return (String)AccessController.doPrivileged(new PrivilegedAction() {
-                public Object run() {
-                    return System.getProperty(key);
-                }
-            });
-    }
-
-    /**
-     * Returns the boolean value of the system property indicated by the specified key.
-     */
-    protected static Boolean getBooleanSystemProperty(String key) {
-        return Boolean.valueOf(AccessController.
-                   doPrivileged(new GetBooleanAction(key)));
-    }
-
     private static Boolean sunAwtDisableMixing = null;
 
     /**
@@ -1942,7 +1842,8 @@ public abstract class SunToolkit extends Toolkit
      */
     public synchronized static boolean getSunAwtDisableMixing() {
         if (sunAwtDisableMixing == null) {
-            sunAwtDisableMixing = getBooleanSystemProperty("sun.awt.disableMixing");
+            sunAwtDisableMixing = AccessController.doPrivileged(
+                                      new GetBooleanAction("sun.awt.disableMixing"));
         }
         return sunAwtDisableMixing.booleanValue();
     }
