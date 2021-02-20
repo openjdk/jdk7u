@@ -829,6 +829,9 @@ bool Arguments::process_argument(const char* arg,
     } else {
       jio_fprintf(defaultStream::error_stream(), "%s", locked_message_buf);
     }
+  } else {
+    jio_fprintf(defaultStream::error_stream(),
+                "Unrecognized VM option '%s'\n", argname);
   }
 
   // allow for commandline "commenting out" options like -XX:#+Verbose
@@ -857,7 +860,7 @@ bool Arguments::process_settings_file(const char* file_name, bool should_exist, 
   bool result         = true;
 
   int c = getc(stream);
-  while(c != EOF) {
+  while(c != EOF && pos < (int)(sizeof(token)-1)) {
     if (in_white_space) {
       if (in_comment) {
         if (c == '\n') in_comment = false;
