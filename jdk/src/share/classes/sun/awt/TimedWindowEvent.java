@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,44 +23,29 @@
  * questions.
  */
 
-/*
- */
-package com.sun.corba.se.impl.orbutil;
+package sun.awt;
 
-import java.io.*;
-import java.util.Hashtable;
+import java.awt.event.WindowEvent;
+import java.awt.Window;
 
-/**
- * Implements legacy behavior from Ladybird to maintain
- * backwards compatibility.
- */
-public class IIOPOutputStream_1_3_1 extends com.sun.corba.se.impl.io.IIOPOutputStream
-{
-    // We can't assume that the superclass's putFields
-    // member will be non-private.  We must allow
-    // the RI to run on JDK 1.3.1 FCS as well as
-    // the JDK 1.3.1_01 patch.
-    private ObjectOutputStream.PutField putFields_1_3_1;
+public class TimedWindowEvent extends WindowEvent {
 
-    public IIOPOutputStream_1_3_1()
-        throws java.io.IOException {
-        super();
+    private long time;
+
+    public long getWhen() {
+        return time;
     }
 
-    /**
-     * Before JDK 1.3.1_01, the PutField/GetField implementation
-     * actually sent a Hashtable.
-     */
-    public ObjectOutputStream.PutField putFields()
-        throws IOException {
-
-        putFields_1_3_1 = new LegacyHookPutFields();
-        return putFields_1_3_1;
+    public TimedWindowEvent(Window source, int id, Window opposite, long time) {
+        super(source, id, opposite);
+        this.time = time;
     }
 
-    public void writeFields()
-        throws IOException {
-
-        putFields_1_3_1.write(this);
+    public TimedWindowEvent(Window source, int id, Window opposite,
+                            int oldState, int newState, long time)
+    {
+        super(source, id, opposite, oldState, newState);
+        this.time = time;
     }
 }
+

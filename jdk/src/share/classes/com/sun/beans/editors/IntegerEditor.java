@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,36 +22,21 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package com.sun.corba.se.impl.orbutil;
 
-import java.io.*;
-import java.util.Hashtable;
+package com.sun.beans.editors;
 
 /**
- * Implements legacy behavior from before Ladybird to maintain
- * backwards compatibility.
+ * Property editor for a java builtin "int" type.
+ *
  */
-public class IIOPInputStream_1_3 extends com.sun.corba.se.impl.io.IIOPInputStream
-{
-    // The newer version in the io package correctly reads a wstring instead.
-    // This concerns bug 4379597.
-    protected String internalReadUTF(org.omg.CORBA.portable.InputStream stream)
-    {
-        return stream.read_string();
+
+import java.beans.*;
+
+public class IntegerEditor extends NumberEditor {
+
+
+    public void setAsText(String text) throws IllegalArgumentException {
+        setValue((text == null) ? null : Integer.decode(text));
     }
 
-    /**
-     * Before JDK 1.3.1_01, the PutField/GetField implementation
-     * actually sent a Hashtable.
-     */
-    public ObjectInputStream.GetField readFields()
-        throws IOException, ClassNotFoundException, NotActiveException {
-        Hashtable fields = (Hashtable)readObject();
-        return new LegacyHookGetFields(fields);
-    }
-
-    public IIOPInputStream_1_3()
-        throws java.io.IOException {
-        super();
-    }
 }
