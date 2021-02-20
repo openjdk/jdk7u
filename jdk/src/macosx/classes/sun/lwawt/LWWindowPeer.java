@@ -232,8 +232,7 @@ public class LWWindowPeer
         // TODO: update graphicsConfig, see 4868278
         platformWindow.setVisible(visible);
         if (isSimpleWindow()) {
-            LWKeyboardFocusManagerPeer manager = LWKeyboardFocusManagerPeer.
-                getInstance(getAppContext());
+            KeyboardFocusManagerPeer kfmPeer = LWKeyboardFocusManagerPeer.getInstance();
 
             if (visible) {
                 if (!getTarget().isAutoRequestFocus()) {
@@ -241,7 +240,7 @@ public class LWWindowPeer
                 } else {
                     requestWindowFocus(CausedFocusEvent.Cause.ACTIVATION);
                 }
-            } else if (manager.getCurrentFocusedWindow() == getTarget()) {
+            } else if (kfmPeer.getCurrentFocusedWindow() == getTarget()) {
                 // Transfer focus to the owner.
                 LWWindowPeer owner = getOwnerFrameDialog(LWWindowPeer.this);
                 if (owner != null) {
@@ -355,6 +354,18 @@ public class LWWindowPeer
             h = MINIMUM_HEIGHT;
         }
 
+        if (graphicsConfig instanceof TextureSizeConstraining) {
+            final int maxW = ((TextureSizeConstraining)graphicsConfig).getMaxTextureWidth();
+            final int maxH = ((TextureSizeConstraining)graphicsConfig).getMaxTextureHeight();
+
+            if (w > maxW) {
+                w = maxW;
+            }
+            if (h > maxH) {
+                h = maxH;
+            }
+        }
+
         // Don't post ComponentMoved/Resized and Paint events
         // until we've got a notification from the delegate
         setBounds(x, y, w, h, op, false, false);
@@ -426,14 +437,33 @@ public class LWWindowPeer
 
     @Override
     public void updateMinimumSize() {
-        Dimension d = null;
+        final Dimension min;
         if (getTarget().isMinimumSizeSet()) {
-            d = getTarget().getMinimumSize();
+            min = getTarget().getMinimumSize();
+            min.width = Math.max(min.width, MINIMUM_WIDTH);
+            min.height = Math.max(min.height, MINIMUM_HEIGHT);
+        } else {
+            min = new Dimension(MINIMUM_WIDTH, MINIMUM_HEIGHT);
         }
-        if (d == null) {
-            d = new Dimension(MINIMUM_WIDTH, MINIMUM_HEIGHT);
+
+        final int maxW, maxH;
+        if (graphicsConfig instanceof TextureSizeConstraining) {
+            maxW = ((TextureSizeConstraining)graphicsConfig).getMaxTextureWidth();
+            maxH = ((TextureSizeConstraining)graphicsConfig).getMaxTextureHeight();
+        } else {
+            maxW = maxH = Integer.MAX_VALUE;
         }
-        platformWindow.setMinimumSize(d.width, d.height);
+
+        final Dimension max;
+        if (getTarget().isMaximumSizeSet()) {
+            max = getTarget().getMaximumSize();
+            max.width = Math.min(max.width, maxW);
+            max.height = Math.min(max.height, maxH);
+        } else {
+            max = new Dimension(maxW, maxH);
+        }
+
+        platformWindow.setSizeConstraints(min.width, min.height, max.width, max.height);
     }
 
     @Override
@@ -720,42 +750,39 @@ public class LWWindowPeer
             }
         } else {
             if (targetPeer != lastMouseEventPeer) {
-
-                if (id != MouseEvent.MOUSE_DRAGGED || lastMouseEventPeer == null) {
-                    // lastMouseEventPeer may be null if mouse was out of Java windows
-                    if (lastMouseEventPeer != null && lastMouseEventPeer.isEnabled()) {
-                        // Sometimes, MOUSE_EXITED is not sent by delegate (or is sent a bit
-                        // later), in which case lastWindowPeer is another window
-                        if (lastWindowPeer != this) {
-                            Point oldp = lastMouseEventPeer.windowToLocal(x, y, lastWindowPeer);
-                            // Additionally translate from this to lastWindowPeer coordinates
-                            Rectangle lr = lastWindowPeer.getBounds();
-                            oldp.x += r.x - lr.x;
-                            oldp.y += r.y - lr.y;
-                            postEvent(new MouseEvent(lastMouseEventPeer.getTarget(),
-                                                     MouseEvent.MOUSE_EXITED,
-                                                     when, modifiers,
-                                                     oldp.x, oldp.y, screenX, screenY,
-                                                     clickCount, popupTrigger, button));
-                        } else {
-                            Point oldp = lastMouseEventPeer.windowToLocal(x, y, this);
-                            postEvent(new MouseEvent(lastMouseEventPeer.getTarget(),
-                                                     MouseEvent.MOUSE_EXITED,
-                                                     when, modifiers,
-                                                     oldp.x, oldp.y, screenX, screenY,
-                                                     clickCount, popupTrigger, button));
-                        }
-                    }
-                    if (targetPeer != null && targetPeer.isEnabled() && id != MouseEvent.MOUSE_ENTERED) {
-                        Point newp = targetPeer.windowToLocal(x, y, curWindowPeer);
-                        postEvent(new MouseEvent(targetPeer.getTarget(),
-                                                 MouseEvent.MOUSE_ENTERED,
+                // lastMouseEventPeer may be null if mouse was out of Java windows
+                if (lastMouseEventPeer != null && lastMouseEventPeer.isEnabled()) {
+                    // Sometimes, MOUSE_EXITED is not sent by delegate (or is sent a bit
+                    // later), in which case lastWindowPeer is another window
+                    if (lastWindowPeer != this) {
+                        Point oldp = lastMouseEventPeer.windowToLocal(x, y, lastWindowPeer);
+                        // Additionally translate from this to lastWindowPeer coordinates
+                        Rectangle lr = lastWindowPeer.getBounds();
+                        oldp.x += r.x - lr.x;
+                        oldp.y += r.y - lr.y;
+                        postEvent(new MouseEvent(lastMouseEventPeer.getTarget(),
+                                                 MouseEvent.MOUSE_EXITED,
                                                  when, modifiers,
-                                                 newp.x, newp.y, screenX, screenY,
+                                                 oldp.x, oldp.y, screenX, screenY,
+                                                 clickCount, popupTrigger, button));
+                    } else {
+                        Point oldp = lastMouseEventPeer.windowToLocal(x, y, this);
+                        postEvent(new MouseEvent(lastMouseEventPeer.getTarget(),
+                                                 MouseEvent.MOUSE_EXITED,
+                                                 when, modifiers,
+                                                 oldp.x, oldp.y, screenX, screenY,
                                                  clickCount, popupTrigger, button));
                     }
                 }
                 lastMouseEventPeer = targetPeer;
+                if (targetPeer != null && targetPeer.isEnabled() && id != MouseEvent.MOUSE_ENTERED) {
+                    Point newp = targetPeer.windowToLocal(x, y, curWindowPeer);
+                    postEvent(new MouseEvent(targetPeer.getTarget(),
+                                             MouseEvent.MOUSE_ENTERED,
+                                             when, modifiers,
+                                             newp.x, newp.y, screenX, screenY,
+                                             clickCount, popupTrigger, button));
+                }
             }
             // TODO: fill "bdata" member of AWTEvent
 
@@ -874,9 +901,8 @@ public class LWWindowPeer
     public void dispatchKeyEvent(int id, long when, int modifiers,
                                  int keyCode, char keyChar, int keyLocation)
     {
-        LWComponentPeer focusOwner =
-            LWKeyboardFocusManagerPeer.getInstance(getAppContext()).
-                getFocusOwner();
+        KeyboardFocusManagerPeer kfmPeer = LWKeyboardFocusManagerPeer.getInstance();
+        Component focusOwner = kfmPeer.getCurrentFocusOwner();
 
         // Null focus owner may receive key event when
         // application hides the focused window upon ESC press
@@ -884,9 +910,10 @@ public class LWWindowPeer
         // may come to already hidden window. This check eliminates NPE.
         if (focusOwner != null) {
             KeyEvent event =
-                new KeyEvent(focusOwner.getTarget(), id, when, modifiers,
+                new KeyEvent(focusOwner, id, when, modifiers,
                              keyCode, keyChar, keyLocation);
-            focusOwner.postEvent(event);
+            LWComponentPeer peer = (LWComponentPeer)focusOwner.getPeer();
+            peer.postEvent(event);
         }
     }
 
@@ -1203,10 +1230,8 @@ public class LWWindowPeer
             }
         }
 
-        LWKeyboardFocusManagerPeer manager = LWKeyboardFocusManagerPeer.
-            getInstance(getAppContext());
-
-        Window oppositeWindow = becomesFocused ? manager.getCurrentFocusedWindow() : null;
+        KeyboardFocusManagerPeer kfmPeer = LWKeyboardFocusManagerPeer.getInstance();
+        Window oppositeWindow = becomesFocused ? kfmPeer.getCurrentFocusedWindow() : null;
 
         // Note, the method is not called:
         // - when the opposite (gaining focus) window is an owned/owner window.
@@ -1219,7 +1244,7 @@ public class LWWindowPeer
             grabbingWindow.ungrab();
         }
 
-        manager.setFocusedWindow(becomesFocused ? LWWindowPeer.this : null);
+        kfmPeer.setCurrentFocusedWindow(becomesFocused ? getTarget() : null);
 
         int eventID = becomesFocused ? WindowEvent.WINDOW_GAINED_FOCUS : WindowEvent.WINDOW_LOST_FOCUS;
         WindowEvent windowEvent = new WindowEvent(getTarget(), eventID, oppositeWindow);
