@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2003, 2007, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,27 +20,63 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-package sun.awt.X11;
+/*
+ *
+ * (C) Copyright IBM Corp.  and others 1998-2013 - All Rights Reserved
+ *
+ */
 
-import java.lang.reflect.Field;
-import sun.awt.SunToolkit;
+#ifndef __SEGMENTSINGLEPROCESSOR_H
+#define __SEGMENTSINGLEPROCESSOR_H
 
-class XTextTransferHelper {
-    private static Object transferHandlerKey = null;
-    static Object getTransferHandlerKey() {
-        if (transferHandlerKey == null) {
-            try {
-                Class clazz = Class.forName("javax.swing.ClientPropertyKey");
-                Field field = SunToolkit.getField(clazz, "JComponent_TRANSFER_HANDLER");
-                transferHandlerKey = field.get(null);
-            } catch (IllegalAccessException ex) {
-                return null;
-            } catch (ClassNotFoundException cnfe) {
-                cnfe.printStackTrace();
-            }
-        }
-        return transferHandlerKey;
-    }
-}
+/**
+ * \file
+ * \internal
+ */
+
+#include "LETypes.h"
+#include "MorphTables.h"
+#include "SubtableProcessor2.h"
+#include "NonContextualGlyphSubst.h"
+#include "NonContextualGlyphSubstProc2.h"
+
+U_NAMESPACE_BEGIN
+
+class LEGlyphStorage;
+
+class SegmentSingleProcessor2 : public NonContextualGlyphSubstitutionProcessor2
+{
+public:
+    virtual void process(LEGlyphStorage &glyphStorage);
+
+    SegmentSingleProcessor2(const MorphSubtableHeader2 *morphSubtableHeader);
+
+    virtual ~SegmentSingleProcessor2();
+
+    /**
+     * ICU "poor man's RTTI", returns a UClassID for the actual class.
+     *
+     * @stable ICU 2.8
+     */
+    virtual UClassID getDynamicClassID() const;
+
+    /**
+     * ICU "poor man's RTTI", returns a UClassID for this class.
+     *
+     * @stable ICU 2.8
+     */
+    static UClassID getStaticClassID();
+
+private:
+    SegmentSingleProcessor2();
+
+protected:
+    const SegmentSingleLookupTable *segmentSingleLookupTable;
+
+};
+
+U_NAMESPACE_END
+#endif
