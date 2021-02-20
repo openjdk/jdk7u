@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,25 +23,12 @@
  * questions.
  */
 
-package sun.awt.X11;
+package sun.misc;
 
-import java.lang.reflect.Field;
-import sun.awt.SunToolkit;
-
-class XTextTransferHelper {
-    private static Object transferHandlerKey = null;
-    static Object getTransferHandlerKey() {
-        if (transferHandlerKey == null) {
-            try {
-                Class clazz = Class.forName("javax.swing.ClientPropertyKey");
-                Field field = SunToolkit.getField(clazz, "JComponent_TRANSFER_HANDLER");
-                transferHandlerKey = field.get(null);
-            } catch (IllegalAccessException ex) {
-                return null;
-            } catch (ClassNotFoundException cnfe) {
-                cnfe.printStackTrace();
-            }
-        }
-        return transferHandlerKey;
-    }
+public interface JavaAWTAccess {
+    public Object get(Object key);
+    public void put(Object key, Object value);
+    public void remove(Object key);
+    public boolean isDisposed();
+    public boolean isMainAppContext();
 }
