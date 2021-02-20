@@ -41,6 +41,7 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -1445,7 +1446,7 @@ public class XMLCipher {
                 // The de-serialiser returns a fragment whose children we need to
                 // take on.
 
-                if (sourceParent instanceof Document) {
+                if (sourceParent != null && sourceParent.getNodeType() == Node.DOCUMENT_NODE) {
 
                     // If this is a content decryption, this may have problems
 
@@ -1981,22 +1982,23 @@ public class XMLCipher {
             try {
                 DocumentBuilderFactory dbf =
                     DocumentBuilderFactory.newInstance();
-                                dbf.setNamespaceAware(true);
-                                dbf.setAttribute("http://xml.org/sax/features/namespaces", Boolean.TRUE);
-                                DocumentBuilder db = dbf.newDocumentBuilder();
-                                Document d = db.parse(
-                                    new InputSource(new StringReader(fragment)));
+                dbf.setNamespaceAware(true);
+                dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, Boolean.TRUE);
+                dbf.setAttribute("http://xml.org/sax/features/namespaces", Boolean.TRUE);
+                DocumentBuilder db = dbf.newDocumentBuilder();
+                Document d = db.parse(
+                    new InputSource(new StringReader(fragment)));
 
-                                Element fragElt = (Element) _contextDocument.importNode(
+                Element fragElt = (Element) _contextDocument.importNode(
                                                  d.getDocumentElement(), true);
-                                result = _contextDocument.createDocumentFragment();
-                                Node child = fragElt.getFirstChild();
-                                while (child != null) {
-                                        fragElt.removeChild(child);
-                                        result.appendChild(child);
-                                        child = fragElt.getFirstChild();
-                                }
-                                // String outp = serialize(d);
+                result = _contextDocument.createDocumentFragment();
+                Node child = fragElt.getFirstChild();
+                while (child != null) {
+                    fragElt.removeChild(child);
+                    result.appendChild(child);
+                    child = fragElt.getFirstChild();
+                }
+                // String outp = serialize(d);
 
             } catch (SAXException se) {
                 throw new XMLEncryptionException("empty", se);
