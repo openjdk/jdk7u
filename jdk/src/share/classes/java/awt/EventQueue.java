@@ -52,7 +52,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import java.security.AccessControlContext;
-import java.security.ProtectionDomain;
 
 import sun.misc.SharedSecrets;
 import sun.misc.JavaSecurityAccess;
@@ -175,6 +174,11 @@ public class EventQueue {
      */
     private volatile int waitForID;
 
+    /*
+     * AppContext corresponding to the queue.
+     */
+    private final AppContext appContext;
+
     private final String name = "AWT-EventQueue-" + threadInitNumber.getAndIncrement();
 
     private static final PlatformLogger eventLog = PlatformLogger.getLogger("java.awt.event.EventQueue");
@@ -187,6 +191,23 @@ public class EventQueue {
                 }
                 public boolean isDispatchThreadImpl(EventQueue eventQueue) {
                     return eventQueue.isDispatchThreadImpl();
+                }
+                public void removeSourceEvents(EventQueue eventQueue,
+                                               Object source,
+                                               boolean removeAllEvents)
+                {
+                    eventQueue.removeSourceEvents(source, removeAllEvents);
+                }
+                public boolean noEvents(EventQueue eventQueue) {
+                    return eventQueue.noEvents();
+                }
+                public void wakeup(EventQueue eventQueue, boolean isShutdown) {
+                    eventQueue.wakeup(isShutdown);
+                }
+                public void invokeAndWait(Object source, Runnable r)
+                    throws InterruptedException, InvocationTargetException
+                {
+                    EventQueue.invokeAndWait(source, r);
                 }
             });
     }
@@ -204,8 +225,9 @@ public class EventQueue {
          * completes thus causing mess in thread group to appcontext mapping.
          */
 
-        pushPopLock = (Lock)AppContext.getAppContext().get(AppContext.EVENT_QUEUE_LOCK_KEY);
-        pushPopCond = (Condition)AppContext.getAppContext().get(AppContext.EVENT_QUEUE_COND_KEY);
+        appContext = AppContext.getAppContext();
+        pushPopLock = (Lock)appContext.get(AppContext.EVENT_QUEUE_LOCK_KEY);
+        pushPopCond = (Condition)appContext.get(AppContext.EVENT_QUEUE_COND_KEY);
     }
 
     /**
@@ -219,7 +241,7 @@ public class EventQueue {
      * @throws NullPointerException if <code>theEvent</code> is <code>null</code>
      */
     public void postEvent(AWTEvent theEvent) {
-        SunToolkit.flushPendingEvents();
+        SunToolkit.flushPendingEvents(appContext);
         postEventPrivate(theEvent);
     }
 
@@ -510,7 +532,7 @@ public class EventQueue {
              * of the synchronized block to avoid deadlock when
              * event queues are nested with push()/pop().
              */
-            SunToolkit.flushPendingEvents();
+            SunToolkit.flushPendingEvents(appContext);
             pushPopLock.lock();
             try {
                 AWTEvent event = getNextEventPrivate();
@@ -550,7 +572,7 @@ public class EventQueue {
              * of the synchronized block to avoid deadlock when
              * event queues are nested with push()/pop().
              */
-            SunToolkit.flushPendingEvents();
+            SunToolkit.flushPendingEvents(appContext);
             pushPopLock.lock();
             try {
                 for (int i = 0; i < NUM_PRIORITIES; i++) {
@@ -858,7 +880,6 @@ public class EventQueue {
             newEventQueue.previousQueue = topQueue;
             topQueue.nextQueue = newEventQueue;
 
-            AppContext appContext = AppContext.getAppContext();
             if (appContext.get(AppContext.EVENT_QUEUE_KEY) == topQueue) {
                 appContext.put(AppContext.EVENT_QUEUE_KEY, newEventQueue);
             }
@@ -919,7 +940,6 @@ public class EventQueue {
                 topQueue.dispatchThread.setEventQueue(prevQueue);
             }
 
-            AppContext appContext = AppContext.getAppContext();
             if (appContext.get(AppContext.EVENT_QUEUE_KEY) == this) {
                 appContext.put(AppContext.EVENT_QUEUE_KEY, prevQueue);
             }
@@ -1012,7 +1032,6 @@ public class EventQueue {
     final void initDispatchThread() {
         pushPopLock.lock();
         try {
-            AppContext appContext = AppContext.getAppContext();
             if (dispatchThread == null && !threadGroup.isDestroyed() && !appContext.isDisposed()) {
                 dispatchThread = AccessController.doPrivileged(
                     new PrivilegedAction<EventDispatchThread>() {
@@ -1098,7 +1117,7 @@ public class EventQueue {
      * <code>removeNotify</code> method.
      */
     final void removeSourceEvents(Object source, boolean removeAllEvents) {
-        SunToolkit.flushPendingEvents();
+        SunToolkit.flushPendingEvents(appContext);
         pushPopLock.lock();
         try {
             for (int i = 0; i < NUM_PRIORITIES; i++) {
@@ -1223,8 +1242,14 @@ public class EventQueue {
      * @since           1.2
      */
     public static void invokeAndWait(Runnable runnable)
-             throws InterruptedException, InvocationTargetException {
+        throws InterruptedException, InvocationTargetException
+    {
+        invokeAndWait(Toolkit.getDefaultToolkit(), runnable);
+    }
 
+    static void invokeAndWait(Object source, Runnable runnable)
+        throws InterruptedException, InvocationTargetException
+    {
         if (EventQueue.isDispatchThread()) {
             throw new Error("Cannot call invokeAndWait from the event dispatcher thread");
         }
@@ -1233,8 +1258,7 @@ public class EventQueue {
         Object lock = new AWTInvocationLock();
 
         InvocationEvent event =
-            new InvocationEvent(Toolkit.getDefaultToolkit(), runnable, lock,
-                                true);
+            new InvocationEvent(source, runnable, lock, true);
 
         synchronized (lock) {
             Toolkit.getEventQueue().postEvent(event);
