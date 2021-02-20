@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
 
 /**
  * The JVM interface for the method handles package is all here.
- * This is an interface internal and private to an implemetantion of JSR 292.
+ * This is an interface internal and private to an implementation of JSR 292.
  * <em>This class is not part of the JSR 292 standard.</em>
  * @author jrose
  */
@@ -131,6 +131,7 @@ class MethodHandleNatives {
         OP_ROT_ARGS_DOWN_LIMIT_BIAS = (k != 0) ? (byte)k : -1;
         HAVE_RICOCHET_FRAMES        = (CONV_OP_IMPLEMENTED_MASK & (1<<OP_COLLECT_ARGS)) != 0;
         COUNT_GWT                   = getConstant(Constants.GC_COUNT_GWT) != 0;
+
         //sun.reflect.Reflection.registerMethodsToFilter(MethodHandleImpl.class, "init");
     }
 
@@ -162,6 +163,7 @@ class MethodHandleNatives {
                 MN_IS_CONSTRUCTOR      = 0x00020000, // constructor
                 MN_IS_FIELD            = 0x00040000, // field
                 MN_IS_TYPE             = 0x00080000, // nested type
+                MN_CALLER_SENSITIVE    = 0x00100000, // @CallerSensitive annotation detected
                 MN_SEARCH_SUPERCLASSES = 0x00100000, // for MHN.getMembers
                 MN_SEARCH_INTERFACES   = 0x00200000, // for MHN.getMembers
                 VM_INDEX_UNINITIALIZED = -99;
@@ -400,5 +402,151 @@ class MethodHandleNatives {
     static boolean workaroundWithoutRicochetFrames() {
         assert(!HAVE_RICOCHET_FRAMES) : "this code should not be executed if `-XX:+UseRicochetFrames is enabled";
         return true;
+    }
+
+
+    /**
+     * Is this method a caller-sensitive method?
+     * I.e., does it call Reflection.getCallerClass or a similer method
+     * to ask about the identity of its caller?
+     */
+    static boolean isCallerSensitive(MemberName mem) {
+        if (!mem.isMethod())  return false;  // only methods are caller sensitive
+
+        // when the VM support is available, call mem.isCallerSensitive() instead
+        return isCallerSensitiveMethod(mem.getDeclaringClass(), mem.getName()) ||
+                  canBeCalledVirtual(mem);
+    }
+
+    // this method is also called by test/sun/reflect/CallerSensitiveFinder
+    // to validate the hand-maintained list
+    private static boolean isCallerSensitiveMethod(Class<?> defc, String method) {
+        switch (method) {
+        case "doPrivileged":
+        case "doPrivilegedWithCombiner":
+            return defc == java.security.AccessController.class;
+        case "checkMemberAccess":
+            return defc == java.lang.SecurityManager.class;
+        case "getUnsafe":
+            return defc == sun.misc.Unsafe.class;
+        case "lookup":
+            return defc == java.lang.invoke.MethodHandles.class;
+        case "invoke":
+            return defc == java.lang.reflect.Method.class;
+        case "get":
+        case "getBoolean":
+        case "getByte":
+        case "getChar":
+        case "getShort":
+        case "getInt":
+        case "getLong":
+        case "getFloat":
+        case "getDouble":
+        case "set":
+        case "setBoolean":
+        case "setByte":
+        case "setChar":
+        case "setShort":
+        case "setInt":
+        case "setLong":
+        case "setFloat":
+        case "setDouble":
+            return defc == java.lang.reflect.Field.class;
+        case "newInstance":
+            if (defc == java.lang.reflect.Constructor.class)  return true;
+            if (defc == java.lang.Class.class)  return true;
+            break;
+        case "getFields":
+            return defc == java.lang.Class.class ||
+                   defc == javax.sql.rowset.serial.SerialJavaObject.class;
+        case "forName":
+        case "getClassLoader":
+        case "getClasses":
+        case "getMethods":
+        case "getConstructors":
+        case "getDeclaredClasses":
+        case "getDeclaredFields":
+        case "getDeclaredMethods":
+        case "getDeclaredConstructors":
+        case "getField":
+        case "getMethod":
+        case "getConstructor":
+        case "getDeclaredField":
+        case "getDeclaredMethod":
+        case "getDeclaredConstructor":
+        case "getEnclosingClass":
+        case "getEnclosingMethod":
+        case "getEnclosingConstructor":
+            return defc == java.lang.Class.class;
+        case "getConnection":
+        case "getDriver":
+        case "getDrivers":
+        case "deregisterDriver":
+            return defc == java.sql.DriverManager.class;
+
+        case "newUpdater":
+            if (defc == java.util.concurrent.atomic.AtomicIntegerFieldUpdater.class)  return true;
+            if (defc == java.util.concurrent.atomic.AtomicLongFieldUpdater.class)  return true;
+            if (defc == java.util.concurrent.atomic.AtomicReferenceFieldUpdater.class)  return true;
+            break;
+        case "getContextClassLoader":
+            return defc == java.lang.Thread.class;
+        case "getPackage":
+        case "getPackages":
+            return defc == java.lang.Package.class;
+        case "getParent":
+        case "getSystemClassLoader":
+            return defc == java.lang.ClassLoader.class;
+        case "load":
+        case "loadLibrary":
+            if (defc == java.lang.Runtime.class)  return true;
+            if (defc == java.lang.System.class)  return true;
+            break;
+        case "getCallerClass":
+            if (defc == sun.reflect.Reflection.class)  return true;
+            if (defc == java.lang.System.class)  return true;
+            break;
+        case "getCallerClassLoader":
+            return defc == java.lang.ClassLoader.class;
+        case "registerAsParallelCapable":
+            return defc == java.lang.ClassLoader.class;
+        case "getProxyClass":
+        case "newProxyInstance":
+            return defc == java.lang.reflect.Proxy.class;
+        case "asInterfaceInstance":
+            return defc == java.lang.invoke.MethodHandleProxies.class;
+        case "getBundle":
+        case "clearCache":
+            return defc == java.util.ResourceBundle.class;
+        case "getType":
+            return defc == java.io.ObjectStreamField.class;
+        case "forClass":
+            return defc == java.io.ObjectStreamClass.class;
+        case "getLogger":
+            return defc == java.util.logging.Logger.class;
+        case "getAnonymousLogger":
+            return defc == java.util.logging.Logger.class;
+        }
+        return false;
+    }
+
+    private static boolean canBeCalledVirtual(MemberName mem) {
+        assert(mem.isInvocable());
+        Class<?> defc = mem.getDeclaringClass();
+        switch (mem.getName()) {
+        case "checkMemberAccess":
+            return canBeCalledVirtual(mem, java.lang.SecurityManager.class);
+        case "getContextClassLoader":
+            return canBeCalledVirtual(mem, java.lang.Thread.class);
+        }
+        return false;
+    }
+
+    static boolean canBeCalledVirtual(MemberName symbolicRef, Class<?> definingClass) {
+        Class<?> symbolicRefClass = symbolicRef.getDeclaringClass();
+        if (symbolicRefClass == definingClass)  return true;
+        if (symbolicRef.isStatic() || symbolicRef.isPrivate())  return false;
+        return (definingClass.isAssignableFrom(symbolicRefClass) ||  // Msym overrides Mdef
+                symbolicRefClass.isInterface());                     // Mdef implements Msym
     }
 }
