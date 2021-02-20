@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,17 @@
 
 package java.util.logging;
 
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.security.*;
 import java.lang.ref.WeakReference;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
+import java.util.concurrent.CopyOnWriteArrayList;
+import sun.reflect.CallerSensitive;
+import sun.reflect.Reflection;
 
 /**
  * A Logger object is used to log messages for a specific
@@ -273,14 +280,45 @@ public class Logger {
         this.manager = manager;
     }
 
-    private void checkAccess() throws SecurityException {
+    private void checkPermission() throws SecurityException {
         if (!anonymous) {
             if (manager == null) {
                 // Complete initialization of the global Logger.
                 manager = LogManager.getLogManager();
             }
-            manager.checkAccess();
+            manager.checkPermission();
         }
+    }
+
+    // Until all JDK code converted to call sun.util.logging.PlatformLogger
+    // (see 7054233), we need to determine if Logger.getLogger is to add
+    // a system logger or user logger.
+    //
+    // As an interim solution, if the immediate caller whose caller loader is
+    // null, we assume it's a system logger and add it to the system context.
+    // These system loggers only set the resource bundle to the given
+    // resource bundle name (rather than the default system resource bundle).
+    private static class SystemLoggerHelper {
+        static boolean disableCallerCheck = getBooleanProperty("sun.util.logging.disableCallerCheck");
+        private static boolean getBooleanProperty(final String key) {
+            String s = AccessController.doPrivileged(new PrivilegedAction<String>() {
+                public String run() {
+                    return System.getProperty(key);
+                }
+            });
+            return Boolean.valueOf(s);
+        }
+    }
+
+    private static Logger demandLogger(String name, String resourceBundleName, Class<?> caller) {
+        LogManager manager = LogManager.getLogManager();
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null && !SystemLoggerHelper.disableCallerCheck) {
+            if (caller.getClassLoader() == null) {
+                return manager.demandSystemLogger(name, resourceBundleName);
+            }
+        }
+        return manager.demandLogger(name, resourceBundleName);
     }
 
     /**
@@ -313,6 +351,7 @@ public class Logger {
 
     // Synchronization is not required here. All synchronization for
     // adding a new Logger object is handled by LogManager.addLogger().
+    @CallerSensitive
     public static Logger getLogger(String name) {
         // This method is intentionally not a wrapper around a call
         // to getLogger(name, resourceBundleName). If it were then
@@ -324,8 +363,7 @@ public class Logger {
         // would throw an IllegalArgumentException in the second call
         // because the wrapper would result in an attempt to replace
         // the existing "resourceBundleForFoo" with null.
-        LogManager manager = LogManager.getLogManager();
-        return manager.demandLogger(name);
+        return demandLogger(name, null, Reflection.getCallerClass());
     }
 
     /**
@@ -371,9 +409,9 @@ public class Logger {
 
     // Synchronization is not required here. All synchronization for
     // adding a new Logger object is handled by LogManager.addLogger().
+    @CallerSensitive
     public static Logger getLogger(String name, String resourceBundleName) {
-        LogManager manager = LogManager.getLogManager();
-        Logger result = manager.demandLogger(name);
+        Logger result = demandLogger(name, resourceBundleName, Reflection.getCallerClass());
         if (result.resourceBundleName == null) {
             // Note: we may get a MissingResourceException here.
             result.setupResourceInfo(resourceBundleName);
@@ -384,6 +422,17 @@ public class Logger {
         return result;
     }
 
+    // package-private
+    // Add a platform logger to the system context.
+    // i.e. caller of sun.util.logging.PlatformLogger.getLogger
+    static Logger getPlatformLogger(String name) {
+        LogManager manager = LogManager.getLogManager();
+
+        // all loggers in the system context will default to
+        // the system logger's resource bundle
+        Logger result = manager.demandSystemLogger(name, SYSTEM_LOGGER_RB_NAME);
+        return result;
+    }
 
     /**
      * Create an anonymous Logger.  The newly created Logger is not
@@ -482,7 +531,7 @@ public class Logger {
      *             the caller does not have LoggingPermission("control").
      */
     public void setFilter(Filter newFilter) throws SecurityException {
-        checkAccess();
+        checkPermission();
         filter = newFilter;
     }
 
@@ -536,7 +585,7 @@ public class Logger {
     private void doLog(LogRecord lr) {
         lr.setLoggerName(name);
         String ebname = getEffectiveResourceBundleName();
-        if (ebname != null) {
+        if (ebname != null && !ebname.equals(SYSTEM_LOGGER_RB_NAME)) {
             lr.setResourceBundleName(ebname);
             lr.setResourceBundle(findResourceBundle(ebname));
         }
@@ -1168,7 +1217,7 @@ public class Logger {
      *             the caller does not have LoggingPermission("control").
      */
     public void setLevel(Level newLevel) throws SecurityException {
-        checkAccess();
+        checkPermission();
         synchronized (treeLock) {
             levelObject = newLevel;
             updateEffectiveLevel();
@@ -1223,7 +1272,7 @@ public class Logger {
     public void addHandler(Handler handler) throws SecurityException {
         // Check for null handler
         handler.getClass();
-        checkAccess();
+        checkPermission();
         handlers.add(handler);
     }
 
@@ -1237,7 +1286,7 @@ public class Logger {
      *             the caller does not have LoggingPermission("control").
      */
     public void removeHandler(Handler handler) throws SecurityException {
-        checkAccess();
+        checkPermission();
         if (handler == null) {
             return;
         }
@@ -1265,7 +1314,7 @@ public class Logger {
      *             the caller does not have LoggingPermission("control").
      */
     public void setUseParentHandlers(boolean useParentHandlers) {
-        checkAccess();
+        checkPermission();
         this.useParentHandlers = useParentHandlers;
     }
 
@@ -1279,12 +1328,33 @@ public class Logger {
         return useParentHandlers;
     }
 
-    // Private utility method to map a resource bundle name to an
-    // actual resource bundle, using a simple one-entry cache.
-    // Returns null for a null name.
-    // May also return null if we can't find the resource bundle and
-    // there is no suitable previous cached value.
+    static final String SYSTEM_LOGGER_RB_NAME = "sun.util.logging.resources.logging";
 
+    private static ResourceBundle findSystemResourceBundle(final Locale locale) {
+        // the resource bundle is in a restricted package
+        return AccessController.doPrivileged(new PrivilegedAction<ResourceBundle>() {
+            public ResourceBundle run() {
+                try {
+                    return ResourceBundle.getBundle(SYSTEM_LOGGER_RB_NAME,
+                                                    locale,
+                                                    ClassLoader.getSystemClassLoader());
+                } catch (MissingResourceException e) {
+                    throw new InternalError(e.toString());
+                }
+            }
+        });
+    }
+
+    /**
+     * Private utility method to map a resource bundle name to an
+     * actual resource bundle, using a simple one-entry cache.
+     * Returns null for a null name.
+     * May also return null if we can't find the resource bundle and
+     * there is no suitable previous cached value.
+     *
+     * @param name the ResourceBundle to locate
+     * @return ResourceBundle specified by name or null if not found
+     */
     private synchronized ResourceBundle findResourceBundle(String name) {
         // Return a null bundle for a null name.
         if (name == null) {
@@ -1294,13 +1364,20 @@ public class Logger {
         Locale currentLocale = Locale.getDefault();
 
         // Normally we should hit on our simple one entry cache.
-        if (catalog != null && currentLocale == catalogLocale
-                                        && name == catalogName) {
+        if (catalog != null && currentLocale.equals(catalogLocale)
+                && name.equals(catalogName)) {
             return catalog;
         }
 
-        // Use the thread's context ClassLoader.  If there isn't one,
-        // use the SystemClassloader.
+        if (name.equals(SYSTEM_LOGGER_RB_NAME)) {
+            catalog = findSystemResourceBundle(currentLocale);
+            catalogName = name;
+            catalogLocale = currentLocale;
+            return catalog;
+        }
+
+        // Use the thread's context ClassLoader.  If there isn't one, use the
+        // {@linkplain java.lang.ClassLoader#getSystemClassLoader() system ClassLoader}.
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         if (cl == null) {
             cl = ClassLoader.getSystemClassLoader();
@@ -1311,45 +1388,8 @@ public class Logger {
             catalogLocale = currentLocale;
             return catalog;
         } catch (MissingResourceException ex) {
-            // Woops.  We can't find the ResourceBundle in the default
-            // ClassLoader.  Drop through.
+            return null;
         }
-
-
-        // Fall back to searching up the call stack and trying each
-        // calling ClassLoader.
-        for (int ix = 0; ; ix++) {
-            Class clz = sun.reflect.Reflection.getCallerClass(ix);
-            if (clz == null) {
-                break;
-            }
-            ClassLoader cl2 = clz.getClassLoader();
-            if (cl2 == null) {
-                cl2 = ClassLoader.getSystemClassLoader();
-            }
-            if (cl == cl2) {
-                // We've already checked this classloader.
-                continue;
-            }
-            cl = cl2;
-            try {
-                catalog = ResourceBundle.getBundle(name, currentLocale, cl);
-                catalogName = name;
-                catalogLocale = currentLocale;
-                return catalog;
-            } catch (MissingResourceException ex) {
-                // Ok, this one didn't work either.
-                // Drop through, and try the next one.
-            }
-        }
-
-        if (name.equals(catalogName)) {
-            // Return the previous cached value for that name.
-            // This may be null.
-            return catalog;
-        }
-        // Sorry, we're out of luck.
-        return null;
     }
 
     // Private utility method to initialize our one entry
@@ -1361,9 +1401,8 @@ public class Logger {
         if (name == null) {
             return;
         }
-        ResourceBundle rb = findResourceBundle(name);
-        if (rb == null) {
             // We've failed to find an expected ResourceBundle.
+        if (findResourceBundle(name) == null) {
             throw new MissingResourceException("Can't find " + name + " bundle", name, "");
         }
         resourceBundleName = name;
@@ -1405,7 +1444,7 @@ public class Logger {
         if (parent == null) {
             throw new NullPointerException();
         }
-        manager.checkAccess();
+        manager.checkPermission();
         doSetParent(parent);
     }
 
