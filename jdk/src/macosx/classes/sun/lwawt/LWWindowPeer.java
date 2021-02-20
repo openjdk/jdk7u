@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -166,7 +166,7 @@ public class LWWindowPeer
             setTitle(((Dialog) getTarget()).getTitle());
         }
 
-        setAlwaysOnTop(getTarget().isAlwaysOnTop());
+        updateAlwaysOnTopState();
         updateMinimumSize();
 
         final float opacity = getTarget().getOpacity();
@@ -345,6 +345,18 @@ public class LWWindowPeer
             h = MINIMUM_HEIGHT;
         }
 
+        if (graphicsConfig instanceof TextureSizeConstraining) {
+            final int maxW = ((TextureSizeConstraining)graphicsConfig).getMaxTextureWidth();
+            final int maxH = ((TextureSizeConstraining)graphicsConfig).getMaxTextureHeight();
+
+            if (w > maxW) {
+                w = maxW;
+            }
+            if (h > maxH) {
+                h = maxH;
+            }
+        }
+
         // Don't post ComponentMoved/Resized and Paint events
         // until we've got a notification from the delegate
         setBounds(x, y, w, h, op, false, false);
@@ -392,8 +404,8 @@ public class LWWindowPeer
     }
 
     @Override
-    public void setAlwaysOnTop(boolean value) {
-        platformWindow.setAlwaysOnTop(value);
+    public void updateAlwaysOnTopState() {
+        platformWindow.setAlwaysOnTop(getTarget().isAlwaysOnTop());
     }
 
     @Override
@@ -416,14 +428,33 @@ public class LWWindowPeer
 
     @Override
     public void updateMinimumSize() {
-        Dimension d = null;
+        final Dimension min;
         if (getTarget().isMinimumSizeSet()) {
-            d = getTarget().getMinimumSize();
+            min = getTarget().getMinimumSize();
+            min.width = Math.max(min.width, MINIMUM_WIDTH);
+            min.height = Math.max(min.height, MINIMUM_HEIGHT);
+        } else {
+            min = new Dimension(MINIMUM_WIDTH, MINIMUM_HEIGHT);
         }
-        if (d == null) {
-            d = new Dimension(MINIMUM_WIDTH, MINIMUM_HEIGHT);
+
+        final int maxW, maxH;
+        if (graphicsConfig instanceof TextureSizeConstraining) {
+            maxW = ((TextureSizeConstraining)graphicsConfig).getMaxTextureWidth();
+            maxH = ((TextureSizeConstraining)graphicsConfig).getMaxTextureHeight();
+        } else {
+            maxW = maxH = Integer.MAX_VALUE;
         }
-        platformWindow.setMinimumSize(d.width, d.height);
+
+        final Dimension max;
+        if (getTarget().isMaximumSizeSet()) {
+            max = getTarget().getMaximumSize();
+            max.width = Math.min(max.width, maxW);
+            max.height = Math.min(max.height, maxH);
+        } else {
+            max = new Dimension(maxW, maxH);
+        }
+
+        platformWindow.setSizeConstraints(min.width, min.height, max.width, max.height);
     }
 
     @Override
@@ -1237,11 +1268,17 @@ public class LWWindowPeer
         grabbingWindow = this;
     }
 
-    void ungrab() {
+    final void ungrab(boolean doPost) {
         if (isGrabbing()) {
             grabbingWindow = null;
-            postEvent(new UngrabEvent(getTarget()));
+            if (doPost) {
+                postEvent(new UngrabEvent(getTarget()));
+            }
         }
+    }
+
+    void ungrab() {
+        ungrab(true);
     }
 
     private boolean isGrabbing() {
