@@ -82,6 +82,24 @@ public class FormatData_fi extends ListResourceBundle {
                     "" // abb month 13 if applicable
                 }
             },
+            { "long.Eras",
+                new String[] {
+                    "ennen Kristuksen syntym\u00e4\u00e4",
+                    "j\u00e4lkeen Kristuksen syntym\u00e4n",
+                }
+            },
+            { "Eras",
+                new String[] {
+                    "eKr.",
+                    "jKr.",
+                }
+            },
+            { "narrow.Eras",
+                new String[] {
+                    "eK",
+                    "jK",
+                }
+            },
             { "DayNames",
                 new String[] {
                     "sunnuntai", // Sunday

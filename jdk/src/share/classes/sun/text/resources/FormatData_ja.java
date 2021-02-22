@@ -46,7 +46,17 @@ public class FormatData_ja extends ListResourceBundle {
     /**
      * Overrides ListResourceBundle
      */
+    @Override
     protected final Object[][] getContents() {
+        // era strings for Japanese imperial calendar
+        final String[] japaneseEras = {
+            "\u897f\u66a6", // Seireki (Gregorian)
+            "\u660e\u6cbb", // Meiji
+            "\u5927\u6b63", // Taisho
+            "\u662d\u548c", // Showa
+            "\u5e73\u6210", // Heisei
+            "\u4ee4\u548c", // Reiwa
+        };
         return new Object[][] {
             { "MonthNames",
                 new String[] {
@@ -122,16 +132,7 @@ public class FormatData_ja extends ListResourceBundle {
                     "\u4ecf\u66a6",       // Butsureki
                 }
             },
-            { "java.util.JapaneseImperialCalendar.Eras",
-                new String[] { // era strings for Japanese imperial calendar
-                    "\u897f\u66a6",     // Seireki (Gregorian)
-                    "\u660e\u6cbb",     // Meiji
-                    "\u5927\u6b63",     // Taisho
-                    "\u662d\u548c",     // Showa
-                    "\u5e73\u6210",     // Heisei
-                    "\u4ee4\u548c",     // Reiwa
-                }
-            },
+            { "java.util.JapaneseImperialCalendar.Eras", japaneseEras },
             { "java.util.JapaneseImperialCalendar.FirstYear",
                 new String[] {  // first year name
                     "\u5143",   // "Gan"-nen

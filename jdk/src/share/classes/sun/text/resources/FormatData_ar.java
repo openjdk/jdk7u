@@ -49,6 +49,7 @@ public class FormatData_ar extends ListResourceBundle {
     /**
      * Overrides ListResourceBundle
      */
+    @Override
     protected final Object[][] getContents() {
         return new Object[][] {
             { "MonthNames",
@@ -117,6 +118,44 @@ public class FormatData_ar extends ListResourceBundle {
                 new String[] { // era strings
                     "\u0642.\u0645",
                     "\u0645"
+                }
+            },
+            { "short.Eras",
+                new String[] {
+                    "\u0642.\u0645",
+                    "\u0645",
+                }
+            },
+            { "java.util.JapaneseImperialCalendar.Eras",
+                new String[] {
+                    "\u0645",
+                    "\u0645\u064a\u062c\u064a",
+                    "\u062a\u064a\u0634\u0648",
+                    "\u0634\u0648\u0648\u0627",
+                    "\u0647\u064a\u0633\u064a",
+                    "\u0631\u064a\u0648\u0627",
+                }
+            },
+            { "java.util.JapaneseImperialCalendar.short.Eras",
+                new String[] {
+                    "\u0645",
+                    "\u0645\u064a\u062c\u064a",
+                    "\u062a\u064a\u0634\u0648",
+                    "\u0634\u0648\u0648\u0627",
+                    "\u0647\u064a\u0633\u064a",
+                    "\u0631\u064a\u0648\u0627",
+                }
+            },
+            { "sun.util.BuddhistCalendar.Eras",
+                new String[] {
+                    "BC",
+                    "\u0627\u0644\u062a\u0642\u0648\u064a\u0645 \u0627\u0644\u0628\u0648\u0630\u064a",
+                }
+            },
+            { "sun.util.BuddhistCalendar.short.Eras",
+                new String[] {
+                    "BC",
+                    "\u0627\u0644\u062a\u0642\u0648\u064a\u0645 \u0627\u0644\u0628\u0648\u0630\u064a",
                 }
             },
             { "NumberPatterns",
