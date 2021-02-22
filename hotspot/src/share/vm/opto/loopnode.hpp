@@ -877,13 +877,6 @@ public:
   // Return true if exp is a scaled induction var plus (or minus) constant
   bool is_scaled_iv_plus_offset(Node* exp, Node* iv, int* p_scale, Node** p_offset, int depth = 0);
 
-  // Return true if proj is for "proj->[region->..]call_uct"
-  static bool is_uncommon_trap_proj(ProjNode* proj, Deoptimization::DeoptReason reason);
-  // Return true for    "if(test)-> proj -> ...
-  //                          |
-  //                          V
-  //                      other_proj->[region->..]call_uct"
-  static bool is_uncommon_trap_if_pattern(ProjNode* proj, Deoptimization::DeoptReason reason);
   // Create a new if above the uncommon_trap_if_pattern for the predicate to be promoted
   ProjNode* create_new_if_for_predicate(ProjNode* cont_proj, Node* new_entry,
                                         Deoptimization::DeoptReason reason);
@@ -910,8 +903,8 @@ public:
   // Construct a range check for a predicate if
   BoolNode* rc_predicate(IdealLoopTree *loop, Node* ctrl,
                          int scale, Node* offset,
-                         Node* init, Node* limit, Node* stride,
-                         Node* range, bool upper);
+                         Node* init, Node* limit, jint stride,
+                         Node* range, bool upper, bool &overflow);
 
   // Implementation of the loop predication to promote checks outside the loop
   bool loop_predication_impl(IdealLoopTree *loop);

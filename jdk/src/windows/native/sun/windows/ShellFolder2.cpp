@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -192,14 +192,19 @@ static BOOL initShellProcs()
 static jstring jstringFromSTRRET(JNIEnv* env, LPITEMIDLIST pidl, STRRET* pStrret) {
     switch (pStrret->uType) {
         case STRRET_CSTR :
-            return JNU_NewStringPlatform(env, reinterpret_cast<const char*>(pStrret->cStr));
+            if (pStrret->cStr != NULL) {
+                return JNU_NewStringPlatform(env, reinterpret_cast<const char*>(pStrret->cStr));
+            }
+            break;
         case STRRET_OFFSET :
             // Note : this may need to be WCHAR instead
             return JNU_NewStringPlatform(env,
                                          (CHAR*)pidl + pStrret->uOffset);
         case STRRET_WSTR :
-            return env->NewString(reinterpret_cast<const jchar*>(pStrret->pOleStr),
-                static_cast<jsize>(wcslen(pStrret->pOleStr)));
+            if (pStrret->pOleStr != NULL) {
+                return env->NewString(reinterpret_cast<const jchar*>(pStrret->pOleStr),
+                    static_cast<jsize>(wcslen(pStrret->pOleStr)));
+            }
     }
     return NULL;
 }
@@ -219,10 +224,15 @@ JNIEXPORT void JNICALL Java_sun_awt_shell_Win32ShellFolder2_initIDs
         return;
     }
     MID_pIShellFolder = env->GetMethodID(cls, "setIShellFolder", "(J)V");
+    CHECK_NULL(MID_pIShellFolder);
     FID_pIShellIcon = env->GetFieldID(cls, "pIShellIcon", "J");
+    CHECK_NULL(FID_pIShellIcon);
     MID_relativePIDL = env->GetMethodID(cls, "setRelativePIDL", "(J)V");
+    CHECK_NULL(MID_relativePIDL);
     FID_displayName = env->GetFieldID(cls, "displayName", "Ljava/lang/String;");
+    CHECK_NULL(FID_displayName);
     FID_folderType = env->GetFieldID(cls, "folderType", "Ljava/lang/String;");
+    CHECK_NULL(FID_folderType);
 }
 
 
@@ -668,6 +678,9 @@ JNIEXPORT jlong JNICALL Java_sun_awt_shell_Win32ShellFolder2_getLinkLocation
       case STRRET_WSTR :
         wstr = strret.pOleStr;
         break;
+
+      default:
+        return NULL;
     }
 
     IShellLinkW* psl;
@@ -719,8 +732,9 @@ JNIEXPORT jlong JNICALL Java_sun_awt_shell_Win32ShellFolder2_parseDisplayName0
     // Get relative PIDL for name
     LPITEMIDLIST pIDL;
     int nLength = env->GetStringLength(jname);
-    jchar* wszPath = new jchar[nLength + 1];
     const jchar* strPath = env->GetStringChars(jname, NULL);
+    JNU_CHECK_EXCEPTION_RETURN(env, 0);
+    jchar* wszPath = new jchar[nLength + 1];
     wcsncpy(reinterpret_cast<LPWSTR>(wszPath), reinterpret_cast<LPCWSTR>(strPath), nLength);
     wszPath[nLength] = 0;
     HRESULT res = pIShellFolder->ParseDisplayName(NULL, NULL,
@@ -811,6 +825,7 @@ JNIEXPORT jlong JNICALL Java_sun_awt_shell_Win32ShellFolder2_getIcon
     HICON hIcon = NULL;
     SHFILEINFO fileInfo;
     LPCTSTR pathStr = JNU_GetStringPlatformChars(env, absolutePath, NULL);
+    JNU_CHECK_EXCEPTION_RETURN(env, 0);
     if (fn_SHGetFileInfo(pathStr, 0L, &fileInfo, sizeof(fileInfo),
                          SHGFI_ICON | (getLargeIcon ? 0 : SHGFI_SMALLICON)) != 0) {
         hIcon = fileInfo.hIcon;
@@ -954,8 +969,10 @@ JNIEXPORT jintArray JNICALL Java_sun_awt_shell_Win32ShellFolder2_getIconBits
             ReleaseDC(NULL, dc);
             // Create java array
             iconBits = env->NewIntArray(nBits);
+            if (!(env->ExceptionCheck())) {
             // Copy values to java array
             env->SetIntArrayRegion(iconBits, 0, nBits, colorBits);
+        }
         }
         // Fix 4745575 GDI Resource Leak
         // MSDN
@@ -1028,6 +1045,7 @@ JNIEXPORT jlong JNICALL Java_sun_awt_shell_Win32ShellFolder2_getIconResource
      jint cxDesired, jint cyDesired, jboolean useVGAColors)
 {
     const char *pLibName = env->GetStringUTFChars(libName, NULL);
+    JNU_CHECK_EXCEPTION_RETURN(env, 0);
     HINSTANCE libHandle = (HINSTANCE)JDK_LoadSystemLibrary(pLibName);
     if (libHandle != NULL) {
         UINT fuLoad = (useVGAColors && !IS_WINXP) ? LR_VGACOLOR : 0;
@@ -1046,8 +1064,11 @@ static jobject CreateColumnInfo(JNIEnv *pEnv,
                                 jclass *pClass, jmethodID *pConstructor,
                                 SHELLDETAILS *psd, ULONG visible)
 {
+    jstring str = jstringFromSTRRET(pEnv, NULL, &(psd->str));
+    JNU_CHECK_EXCEPTION_RETURN(pEnv, NULL);
+
     return pEnv->NewObject(*pClass, *pConstructor,
-                    jstringFromSTRRET(pEnv, NULL, &(psd->str)),
+                    str,
                     (jint)(psd->cxChar * 6), // TODO: is 6 OK for converting chars to pixels?
                     (jint)psd->fmt, (jboolean) visible);
 }
@@ -1115,6 +1136,10 @@ JNIEXPORT jobjectArray JNICALL
                         jobject column = CreateColumnInfo(env,
                                             &columnClass, &columnConstructor,
                                             &sd, csFlags & SHCOLSTATE_ONBYDEFAULT);
+                        if(!column){
+                            pIShellFolder2->Release();
+                            return NULL;
+                        }
                         env->SetObjectArrayElement(columns, (jsize) colNum, column);
                     }
                 }
@@ -1155,6 +1180,10 @@ JNIEXPORT jobjectArray JNICALL
                 jobject column = CreateColumnInfo(env,
                                     &columnClass, &columnConstructor,
                                     &sd, 1);
+                if(!column){
+                    pIShellDetails->Release();
+                    return NULL;
+                }
                 env->SetObjectArrayElement(columns, (jsize) colNum++, column);
             }
         }
