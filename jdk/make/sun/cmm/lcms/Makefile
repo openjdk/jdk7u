@@ -106,3 +106,11 @@ CPPFLAGS += -I$(SHARE_SRC)/native/sun/java2d \
             -I$(SHARE_SRC)/native/sun/awt/debug
 endif
 
+ifeq ($(CC_VERSION), llvm)
+ ifeq ("$(CC_VER_MAJOR)", "10")
+  ifeq ("$(CC_VER_MINOR)", "1")
+   CFLAGS += $(CFLAGS_$(@F))
+   CFLAGS_cmsopt.o = -O0
+  endif
+ endif
+endif

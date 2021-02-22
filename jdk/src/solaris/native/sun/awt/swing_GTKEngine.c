@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,10 @@
  * questions.
  */
 
-#include <stdlib.h>
 #include "gtk2_interface.h"
 #include "com_sun_java_swing_plaf_gtk_GTKEngine.h"
+#include <jni_util.h>
+#include <stdlib.h>
 
 /*
  * Class:     com_sun_java_swing_plaf_gtk_GTKEngine
@@ -292,6 +293,11 @@ JNIEXPORT void JNICALL
 Java_com_sun_java_swing_plaf_gtk_GTKEngine_nativeStartPainting(
         JNIEnv *env, jobject this, jint w, jint h)
 {
+    if (w > 0x7FFF || h > 0x7FFF || (uintptr_t)4 * w * h > 0x7FFFFFFFL) {
+        // Same limitation as in X11SurfaceData.c
+        JNU_ThrowOutOfMemoryError(env, "Can't create offscreen surface");
+        return;
+    }
     fp_gdk_threads_enter();
     gtk2_init_painting(env, w, h);
     fp_gdk_threads_leave();
