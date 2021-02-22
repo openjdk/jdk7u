@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.util;
 import java.io.*;
+import sun.misc.SharedSecrets;
 
 /**
  * Hash table based implementation of the <tt>Map</tt> interface.  This
@@ -298,7 +299,7 @@ public class HashMap<K,V>
         putAllForCreate(m);
     }
 
-    private static int roundUpToPowerOf2(int number) {
+    static int roundUpToPowerOf2(int number) {
         // assert number >= 0 : "number must be non-negative";
         return number >= MAXIMUM_CAPACITY
                 ? MAXIMUM_CAPACITY
@@ -1173,6 +1174,11 @@ public class HashMap<K,V>
         }
 
         init();  // Give subclass a chance to do its thing.
+
+
+        // Check Map.Entry[].class since it's the nearest public type to
+        // what we're actually creating.
+        SharedSecrets.getJavaOISAccess().checkArray(s, Map.Entry[].class, capacity);
 
         // Read the keys and values, and put the mappings in the HashMap
         for (int i = 0; i < mappings; i++) {

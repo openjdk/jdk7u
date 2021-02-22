@@ -242,6 +242,7 @@ class URICertStore extends CertStoreSpi {
      *         match the specified selector
      * @throws CertStoreException if an exception occurs
      */
+    @Override
     @SuppressWarnings("unchecked")
     public synchronized Collection<X509Certificate> engineGetCertificates
         (CertSelector selector) throws CertStoreException {
@@ -351,6 +352,7 @@ class URICertStore extends CertStoreSpi {
      *         match the specified selector
      * @throws CertStoreException if an exception occurs
      */
+    @Override
     @SuppressWarnings("unchecked")
     public synchronized Collection<X509CRL> engineGetCRLs(CRLSelector selector)
         throws CertStoreException {
@@ -367,7 +369,11 @@ class URICertStore extends CertStoreSpi {
             // Fetch the CRLs via LDAP. LDAPCertStore has its own
             // caching mechanism, see the class description for more info.
             // Safe cast since xsel is an X509 certificate selector.
-            return (Collection<X509CRL>) ldapCertStore.getCRLs(xsel);
+            try {
+                return (Collection<X509CRL>) ldapCertStore.getCRLs(xsel);
+            } catch (CertStoreException cse) {
+                throw new PKIX.CertStoreTypeException("LDAP", cse);
+            }
         }
 
         // Return the CRLs for this entry. It returns the cached value
@@ -419,11 +425,12 @@ class URICertStore extends CertStoreSpi {
                 debug.println("Exception fetching CRL:");
                 e.printStackTrace();
             }
+            // exception, forget previous values
+            lastModified = 0;
+            crl = null;
+            throw new PKIX.CertStoreTypeException("URI",
+                                                  new CertStoreException(e));
         }
-        // exception, forget previous values
-        lastModified = 0;
-        crl = null;
-        return Collections.<X509CRL>emptyList();
     }
 
     /**
@@ -448,14 +455,14 @@ class URICertStore extends CertStoreSpi {
         URICertStoreParameters(URI uri) {
             this.uri = uri;
         }
-        public boolean equals(Object obj) {
+        @Override public boolean equals(Object obj) {
             if (!(obj instanceof URICertStoreParameters)) {
                 return false;
             }
             URICertStoreParameters params = (URICertStoreParameters) obj;
             return uri.equals(params.uri);
         }
-        public int hashCode() {
+        @Override public int hashCode() {
             if (hashCode == 0) {
                 int result = 17;
                 result = 37*result + uri.hashCode();
@@ -463,7 +470,7 @@ class URICertStore extends CertStoreSpi {
             }
             return hashCode;
         }
-        public Object clone() {
+        @Override public Object clone() {
             try {
                 return super.clone();
             } catch (CloneNotSupportedException e) {

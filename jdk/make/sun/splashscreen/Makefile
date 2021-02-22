@@ -105,7 +105,7 @@ vpath %.c   $(SHARE_SRC)/native/$(PKGDIR)/splashscreen
 vpath %.c   $(SHARE_SRC)/native/$(PKGDIR)
 vpath %.c   $(SHARE_SRC)/native/$(PKGDIR)/giflib
 ifneq ($(SYSTEM_ZLIB),true)
-  vpath %.c   $(SHARE_SRC)/native/java/util/zip/zlib-$(ZLIB_VERSION)
+  vpath %.c   $(SHARE_SRC)/native/java/util/zip/zlib
 endif
 vpath %.c   $(SHARE_SRC)/native/$(PKGDIR)/libpng
 vpath %.c   $(SHARE_SRC)/native/$(PKGDIR)/image/jpeg
@@ -124,7 +124,7 @@ endif
 CPPFLAGS += -I$(SHARE_SRC)/native/$(PKGDIR)/splashscreen
 CPPFLAGS += -I$(SHARE_SRC)/native/$(PKGDIR)/image/jpeg
 ifneq ($(SYSTEM_ZLIB),true)
-  CPPFLAGS += -I$(SHARE_SRC)/native/java/util/zip/zlib-$(ZLIB_VERSION)
+  CPPFLAGS += -I$(SHARE_SRC)/native/java/util/zip/zlib
 else
   OTHER_CFLAGS += $(ZLIB_CFLAGS)
   OTHER_LDLIBS += $(ZLIB_LIBS)

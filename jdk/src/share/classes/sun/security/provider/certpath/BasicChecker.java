@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,7 @@ import sun.security.util.Debug;
 
 /**
  * BasicChecker is a PKIXCertPathChecker that checks the basic information
- * on a PKIX certificate, namely the signature, timestamp, and subject/issuer
+ * on a PKIX certificate, namely the signature, validity, and subject/issuer
  * name chaining.
  *
  * @since       1.4
@@ -62,7 +62,7 @@ class BasicChecker extends PKIXCertPathChecker {
     private static final Debug debug = Debug.getInstance("certpath");
     private final PublicKey trustedPubKey;
     private final X500Principal caName;
-    private final Date testDate;
+    private final Date date;
     private final String sigProvider;
     private final boolean sigOnly;
     private X500Principal prevSubject;
@@ -73,14 +73,13 @@ class BasicChecker extends PKIXCertPathChecker {
      *
      * @param anchor the anchor selected to validate the target certificate
      * @param testDate the time for which the validity of the certificate
-     * should be determined
+     *        should be determined
      * @param sigProvider the name of the signature provider
      * @param sigOnly true if only signature checking is to be done;
      *        if false, all checks are done
      */
-    BasicChecker(TrustAnchor anchor, Date testDate, String sigProvider,
-        boolean sigOnly) throws CertPathValidatorException
-    {
+    BasicChecker(TrustAnchor anchor, Date date, String sigProvider,
+                 boolean sigOnly) {
         if (anchor.getTrustedCert() != null) {
             this.trustedPubKey = anchor.getTrustedCert().getPublicKey();
             this.caName = anchor.getTrustedCert().getSubjectX500Principal();
@@ -88,10 +87,9 @@ class BasicChecker extends PKIXCertPathChecker {
             this.trustedPubKey = anchor.getCAPublicKey();
             this.caName = anchor.getCA();
         }
-        this.testDate = testDate;
+        this.date = date;
         this.sigProvider = sigProvider;
         this.sigOnly = sigOnly;
-        init(false);
     }
 
     /**
@@ -117,40 +115,37 @@ class BasicChecker extends PKIXCertPathChecker {
     }
 
     /**
-     * Performs the signature, timestamp, and subject/issuer name chaining
+     * Performs the signature, validity, and subject/issuer name chaining
      * checks on the certificate using its internal state. This method does
      * not remove any critical extensions from the Collection.
      *
      * @param cert the Certificate
      * @param unresolvedCritExts a Collection of the unresolved critical
      * extensions
-     * @exception CertPathValidatorException Exception thrown if certificate
-     * does not verify.
+     * @throws CertPathValidatorException if certificate does not verify
      */
     public void check(Certificate cert, Collection<String> unresolvedCritExts)
         throws CertPathValidatorException
     {
-        X509Certificate currCert = (X509Certificate) cert;
+        X509Certificate currCert = (X509Certificate)cert;
 
         if (!sigOnly) {
-            verifyTimestamp(currCert, testDate);
-            verifyNameChaining(currCert, prevSubject);
+            verifyValidity(currCert);
+            verifyNameChaining(currCert);
         }
-        verifySignature(currCert, prevPubKey, sigProvider);
+        verifySignature(currCert);
 
         updateState(currCert);
     }
 
     /**
-     * Verifies the signature on the certificate using the previous public key
-     * @param cert the Certificate
-     * @param prevPubKey the previous PublicKey
-     * @param sigProvider a String containing the signature provider
-     * @exception CertPathValidatorException Exception thrown if certificate
-     * does not verify.
+     * Verifies the signature on the certificate using the previous public key.
+     *
+     * @param cert the X509Certificate
+     * @throws CertPathValidatorException if certificate does not verify
      */
-    private void verifySignature(X509Certificate cert, PublicKey prevPubKey,
-        String sigProvider) throws CertPathValidatorException
+    private void verifySignature(X509Certificate cert)
+        throws CertPathValidatorException
     {
         String msg = "signature";
         if (debug != null)
@@ -162,7 +157,7 @@ class BasicChecker extends PKIXCertPathChecker {
             throw new CertPathValidatorException
                 (msg + " check failed", e, null, -1,
                  BasicReason.INVALID_SIGNATURE);
-        } catch (Exception e) {
+        } catch (GeneralSecurityException e) {
             throw new CertPathValidatorException(msg + " check failed", e);
         }
 
@@ -171,12 +166,12 @@ class BasicChecker extends PKIXCertPathChecker {
     }
 
     /**
-     * Internal method to verify the timestamp on a certificate
+     * Internal method to verify the validity on a certificate
      */
-    private void verifyTimestamp(X509Certificate cert, Date date)
+    private void verifyValidity(X509Certificate cert)
         throws CertPathValidatorException
     {
-        String msg = "timestamp";
+        String msg = "validity";
         if (debug != null)
             debug.println("---checking " + msg + ":" + date.toString() + "...");
 
@@ -197,8 +192,8 @@ class BasicChecker extends PKIXCertPathChecker {
     /**
      * Internal method to check that cert has a valid DN to be next in a chain
      */
-    private void verifyNameChaining(X509Certificate cert,
-        X500Principal prevSubject) throws CertPathValidatorException
+    private void verifyNameChaining(X509Certificate cert)
+        throws CertPathValidatorException
     {
         if (prevSubject != null) {
 
@@ -207,8 +202,8 @@ class BasicChecker extends PKIXCertPathChecker {
                 debug.println("---checking " + msg + "...");
 
             X500Principal currIssuer = cert.getIssuerX500Principal();
-            // reject null or empty issuer DNs
 
+            // reject null or empty issuer DNs
             if (X500Name.asX500Name(currIssuer).isEmpty()) {
                 throw new CertPathValidatorException
                     (msg + " check failed: " +
@@ -240,8 +235,7 @@ class BasicChecker extends PKIXCertPathChecker {
                 currCert.getSubjectX500Principal() + "; serial#: " +
                 currCert.getSerialNumber().toString());
         }
-        if (cKey instanceof DSAPublicKey &&
-            ((DSAPublicKey)cKey).getParams() == null) {
+        if (PKIX.isDSAPublicKeyWithoutParams(cKey)) {
             //cKey needs to inherit DSA parameters from prev key
             cKey = makeInheritedParamsKey(cKey, prevPubKey);
             if (debug != null) debug.println("BasicChecker.updateState Made " +

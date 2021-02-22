@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1043,6 +1043,32 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * Returns the subject's key identifier, or null
+     */
+    public KeyIdentifier getSubjectKeyId() {
+        SubjectKeyIdentifierExtension ski = getSubjectKeyIdentifierExtension();
+        if (ski != null) {
+            try {
+                return (KeyIdentifier)ski.get(
+                    SubjectKeyIdentifierExtension.KEY_ID);
+            } catch (IOException ioe) {} // not possible
+        }
+        return null;
+    }
+
+    public KeyIdentifier getAuthKeyId() {
+        AuthorityKeyIdentifierExtension aki
+            = getAuthorityKeyIdentifierExtension();
+        if (aki != null) {
+            try {
+                return (KeyIdentifier)aki.get(
+                    AuthorityKeyIdentifierExtension.KEY_ID);
+            } catch (IOException ioe) {} // not possible
+        }
+        return null;
     }
 
     /**

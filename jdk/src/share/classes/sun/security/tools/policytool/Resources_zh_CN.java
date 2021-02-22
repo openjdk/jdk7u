@@ -134,11 +134,14 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
         {"policy.type", "\u7B56\u7565\u7C7B\u578B"},
         {"property.name", "\u5C5E\u6027\u540D\u79F0"},
         {"provider.name", "\u63D0\u4F9B\u65B9\u540D\u79F0"},
+        {"url", "URL"},
+        {"method.list", "\u65B9\u6CD5\u5217\u8868"},
+        {"request.headers.list", "\u8BF7\u6C42\u6807\u5934\u5217\u8868"},
         {"Principal.List", "\u4E3B\u7528\u6237\u5217\u8868"},
         {"Permission.List", "\u6743\u9650\u5217\u8868"},
         {"Code.Base", "\u4EE3\u7801\u5E93"},
         {"KeyStore.U.R.L.", "\u5BC6\u94A5\u5E93 URL:"},
-        {"KeyStore.Password.U.R.L.", "\u5BC6\u94A5\u5E93\u53E3\u4EE4 URL:"},
+        {"KeyStore.Password.U.R.L.", "\u5BC6\u94A5\u5E93\u53E3\u4EE4 URL:"}
     };
 
 
