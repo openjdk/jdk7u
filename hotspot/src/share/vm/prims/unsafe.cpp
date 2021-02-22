@@ -170,9 +170,11 @@ jint Unsafe_invocation_key_to_method_slot(jint key) {
   oop p = JNIHandles::resolve(obj); \
   *(type_name*)index_oop_from_field_offset_long(p, offset) = truncate_##type_name(x)
 
+// Support ordering of "Independent Reads of Independent Writes" (see Parse::do_get_xxx).
+// Solution: implement volatile read as fence-load-acquire.
 #define GET_FIELD_VOLATILE(obj, offset, type_name, v) \
   oop p = JNIHandles::resolve(obj); \
-  volatile type_name v = OrderAccess::load_acquire((volatile type_name*)index_oop_from_field_offset_long(p, offset));
+  PPC64_ONLY(OrderAccess::fence();) volatile type_name v = OrderAccess::load_acquire((volatile type_name*)index_oop_from_field_offset_long(p, offset));
 
 #define SET_FIELD_VOLATILE(obj, offset, type_name, x) \
   oop p = JNIHandles::resolve(obj); \

@@ -930,22 +930,11 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool quer
   if (istate->msg() == BytecodeInterpreter::call_method) {
     f->do_oop((oop*)&istate->_result._to_call._callee);
   }
-
 #endif /* CC_INTERP */
 
-#if !defined(PPC) || defined(ZERO)
-  if (m->is_native()) {
-#ifdef CC_INTERP
-    f->do_oop((oop*)&istate->_oop_temp);
-#else
-    f->do_oop((oop*)( fp() + interpreter_frame_oop_temp_offset ));
-#endif /* CC_INTERP */
+  if (m->is_native() PPC32_ONLY(&& m->is_static())) {
+    f->do_oop(interpreter_frame_temp_oop_addr());
   }
-#else // PPC
-  if (m->is_native() && m->is_static()) {
-    f->do_oop(interpreter_frame_mirror_addr());
-  }
-#endif // PPC
 
   int max_locals = m->is_native() ? m->size_of_parameters() : m->max_locals();
 

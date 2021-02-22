@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,8 +53,11 @@
 #ifdef TARGET_ARCH_MODEL_arm
 # include "adfiles/ad_arm.hpp"
 #endif
-#ifdef TARGET_ARCH_MODEL_ppc
-# include "adfiles/ad_ppc.hpp"
+#ifdef TARGET_ARCH_MODEL_ppc_32
+# include "adfiles/ad_ppc_32.hpp"
+#endif
+#ifdef TARGET_ARCH_MODEL_ppc_64
+# include "adfiles/ad_ppc_64.hpp"
 #endif
 
 OptoReg::Name OptoReg::c_frame_pointer;
@@ -2385,6 +2388,69 @@ bool Matcher::post_store_load_barrier(const Node* vmb) {
       return false;
     }
   }
+  return false;
+}
+
+// Check whether node n is a branch to an uncommon trap that we could
+// optimize as test with very high branch costs in case of going to
+// the uncommon trap. The code must be able to be recompiled to use
+// a cheaper test.
+bool Matcher::branches_to_uncommon_trap(const Node *n) {
+  // Don't do it for natives, adapters, or runtime stubs
+  Compile *Co = Compile::current();
+  if (!Co->is_method_compilation()) return false;
+
+  assert(n->is_If(), "You should only call this on if nodes.");
+  IfNode *ifn = n->as_If();
+
+  Node *ifFalse = NULL;
+  for (DUIterator_Fast imax, i = ifn->fast_outs(imax); i < imax; i++) {
+    if (ifn->fast_out(i)->is_IfFalse()) {
+      ifFalse = ifn->fast_out(i);
+      break;
+    }
+  }
+  assert(ifFalse, "An If should have an ifFalse. Graph is broken.");
+
+  Node *reg = ifFalse;
+  int cnt = 4; // We must protect against cycles.  Limit to 4 iterations.
+               // Alternatively use visited set?  Seems too expensive.
+  while (reg != NULL && cnt > 0) {
+    CallNode *call = NULL;
+    RegionNode *nxt_reg = NULL;
+    for (DUIterator_Fast imax, i = reg->fast_outs(imax); i < imax; i++) {
+      Node *o = reg->fast_out(i);
+      if (o->is_Call()) {
+        call = o->as_Call();
+      }
+      if (o->is_Region()) {
+        nxt_reg = o->as_Region();
+      }
+    }
+
+    if (call &&
+        call->entry_point() == SharedRuntime::uncommon_trap_blob()->entry_point()) {
+      const Type* trtype = call->in(TypeFunc::Parms)->bottom_type();
+      if (trtype->isa_int() && trtype->is_int()->is_con()) {
+        jint tr_con = trtype->is_int()->get_con();
+        Deoptimization::DeoptReason reason = Deoptimization::trap_request_reason(tr_con);
+        Deoptimization::DeoptAction action = Deoptimization::trap_request_action(tr_con);
+        assert((int)reason < (int)BitsPerInt, "recode bit map");
+
+        if (is_set_nth_bit(Co->allowed_deopt_reasons(), (int)reason)
+            && action != Deoptimization::Action_none) {
+          // This uncommon trap is sure to recompile, eventually.
+          // When that happens, C->too_many_traps will prevent
+          // this transformation from happening again.
+          return true;
+        }
+      }
+    }
+
+    reg = nxt_reg;
+    cnt--;
+  }
+
   return false;
 }
 

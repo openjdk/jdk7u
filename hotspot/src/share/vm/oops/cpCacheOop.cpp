@@ -383,7 +383,9 @@ methodOop ConstantPoolCacheEntry::method_if_resolved(constantPoolHandle cpool) {
   // Decode the action of set_method and set_interface_call
   Bytecodes::Code invoke_code = bytecode_1();
   if (invoke_code != (Bytecodes::Code)0) {
-    oop f1 = _f1;
+    // Use accessor f1() to order this load relative to the load
+    // performed by f2().
+    oop f1 = f1_ord();
     if (f1 != NULL) {
       switch (invoke_code) {
       case Bytecodes::_invokeinterface:

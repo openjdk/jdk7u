@@ -56,7 +56,7 @@ enum {
 // Native interfaces for use by Forte tools.
 
 
-#ifndef IA64
+#if !defined(IA64) && !defined(PPC64)
 
 class vframeStreamForte : public vframeStreamCommon {
  public:
@@ -640,19 +640,19 @@ void    collector_func_load(char* name,
                             void* null_argument_3);
 #pragma weak collector_func_load
 #define collector_func_load(x0,x1,x2,x3,x4,x5,x6) \
-        ( collector_func_load ? collector_func_load(x0,x1,x2,x3,x4,x5,x6),0 : 0 )
+        ( collector_func_load ? collector_func_load(x0,x1,x2,x3,x4,x5,x6),(void)0 : (void)0 )
 #endif // __APPLE__
 #endif // !_WINDOWS
 
 } // end extern "C"
-#endif // !IA64
+#endif // !IA64 && !PPC64
 
 void Forte::register_stub(const char* name, address start, address end) {
-#if !defined(_WINDOWS) && !defined(IA64)
+#if !defined(_WINDOWS) && !defined(IA64) && !defined(PPC64)
   assert(pointer_delta(end, start, sizeof(jbyte)) < INT_MAX,
          "Code size exceeds maximum range");
 
   collector_func_load((char*)name, NULL, NULL, start,
     pointer_delta(end, start, sizeof(jbyte)), 0, NULL);
-#endif // !_WINDOWS && !IA64
+#endif // !_WINDOWS && !IA64 && !PPC64
 }

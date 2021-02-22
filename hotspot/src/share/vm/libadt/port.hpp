@@ -91,8 +91,6 @@ inline int max( int a, int b) { return a > b ? a : b; }
 #define IMPLEMENTATION
 #include <stdlib.h>
 #include <memory.h>
-inline int min( int a, int b) { return a < b ? a : b; }
-inline int max( int a, int b) { return a > b ? a : b; }
 
 #elif defined(_MSC_VER)
 // Microsoft Visual C++
@@ -192,8 +190,11 @@ typedef float float32;          // 32-bit float
 typedef double float64;         // 64-bit float
 #endif // __TANDEM
 
+#ifndef _AIX
+// These conflict with /usr/include/sys/inttypes.h on aix.
 typedef jlong int64;            // Java long for my 64-bit type
 typedef julong uint64;          // Java long for my 64-bit type
+#endif
 
 //-----------------------------------------------------------------------------
 // Nice constants

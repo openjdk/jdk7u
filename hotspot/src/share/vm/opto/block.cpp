@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -151,6 +151,14 @@ uint Block::find_node( const Node *n ) const {
 // Find and remove n from block list
 void Block::find_remove( const Node *n ) {
   _nodes.remove(find_node(n));
+}
+
+bool Block::contains( const Node *n ) const {
+  for( uint i = 0; i < _nodes.size(); i++ ) {
+    if( _nodes[i] == n )
+      return true;
+  }
+  return false;
 }
 
 //------------------------------is_Empty---------------------------------------
@@ -539,18 +547,27 @@ void PhaseCFG::insert_goto_at(uint block_no, uint succ_no) {
 //------------------------------no_flip_branch---------------------------------
 // Does this block end in a multiway branch that cannot have the default case
 // flipped for another case?
-static bool no_flip_branch( Block *b ) {
+static bool no_flip_branch(Block *b) {
   int branch_idx = b->_nodes.size() - b->_num_succs-1;
-  if( branch_idx < 1 ) return false;
-  Node *bra = b->_nodes[branch_idx];
-  if( bra->is_Catch() )
+  if (branch_idx < 1) {
+    return false;
+  }
+  Node *branch = b->_nodes[branch_idx];
+  if (branch->is_Catch()) {
     return true;
-  if( bra->is_Mach() ) {
-    if( bra->is_MachNullCheck() )
+  }
+  if (branch->is_Mach()) {
+    if (branch->is_MachNullCheck()) {
       return true;
-    int iop = bra->as_Mach()->ideal_Opcode();
-    if( iop == Op_FastLock || iop == Op_FastUnlock )
+    }
+    int iop = branch->as_Mach()->ideal_Opcode();
+    if (iop == Op_FastLock || iop == Op_FastUnlock) {
       return true;
+    }
+    // Don't flip if branch has an implicit check.
+    if (branch->as_Mach()->is_TrapBasedCheckNode()) {
+      return true;
+    }
   }
   return false;
 }
@@ -707,11 +724,67 @@ void PhaseCFG::remove_empty() {
   } // End of for all blocks
 }
 
+Block *PhaseCFG::fixup_trap_based_check(Node *branch, Block *block, int block_pos, Block *bnext) {
+  // Trap based checks must fall through to the successor with
+  // PROB_ALWAYS.
+  // They should be an If with 2 successors.
+  assert(branch->is_MachIf(),   "must be If");
+  assert(block->_num_succs == 2, "must have 2 successors");
+
+  // Get the If node and the projection for the first successor.
+  MachIfNode *iff   = block->_nodes[block->_nodes.size()-3]->as_MachIf();
+  ProjNode   *proj0 = block->_nodes[block->_nodes.size()-2]->as_Proj();
+  ProjNode   *proj1 = block->_nodes[block->_nodes.size()-1]->as_Proj();
+  ProjNode   *projt = (proj0->Opcode() == Op_IfTrue)  ? proj0 : proj1;
+  ProjNode   *projf = (proj0->Opcode() == Op_IfFalse) ? proj0 : proj1;
+
+  // Assert that proj0 and succs[0] match up. Similarly for proj1 and succs[1].
+  assert(proj0->raw_out(0) == block->_succs[0]->head(), "Mismatch successor 0");
+  assert(proj1->raw_out(0) == block->_succs[1]->head(), "Mismatch successor 1");
+
+  ProjNode *proj_always;
+  ProjNode *proj_never;
+  // We must negate the branch if the implicit check doesn't follow
+  // the branch's TRUE path. Then, the new TRUE branch target will
+  // be the old FALSE branch target.
+  if (iff->_prob <= 2*PROB_NEVER) {   // There are small rounding errors.
+    proj_never  = projt;
+    proj_always = projf;
+  } else {
+    // We must negate the branch if the trap doesn't follow the
+    // branch's TRUE path. Then, the new TRUE branch target will
+    // be the old FALSE branch target.
+    proj_never  = projf;
+    proj_always = projt;
+    iff->negate();
+  }
+  assert(iff->_prob <= 2*PROB_NEVER, "Trap based checks are expected to trap never!");
+  // Map the successors properly
+  block->_succs.map(0, _bbs[proj_never ->raw_out(0)->_idx]);   // The target of the trap.
+  block->_succs.map(1, _bbs[proj_always->raw_out(0)->_idx]);   // The fall through target.
+
+  if (block->_nodes[block->_nodes.size() - block->_num_succs + 1] != proj_always) {
+    block->_nodes.map(block->_nodes.size() - block->_num_succs + 0, proj_never);
+    block->_nodes.map(block->_nodes.size() - block->_num_succs + 1, proj_always);
+  }
+
+  // Place the fall through block after this block.
+  Block *bs1 = block->non_connector_successor(1);
+  if (bs1 != bnext && move_to_next(bs1, block_pos)) {
+    bnext = bs1;
+  }
+  // If the fall through block still is not the next block, insert a goto.
+  if (bs1 != bnext) {
+    insert_goto_at(block_pos, 1);
+  }
+  return bnext;
+}
+
 //-----------------------------fixup_flow--------------------------------------
 // Fix up the final control flow for basic blocks.
 void PhaseCFG::fixup_flow() {
   // Fixup final control flow for the blocks.  Remove jump-to-next
-  // block.  If neither arm of a IF follows the conditional branch, we
+  // block. If neither arm of an IF follows the conditional branch, we
   // have to add a second jump after the conditional.  We place the
   // TRUE branch target in succs[0] for both GOTOs and IFs.
   for (uint i=0; i < _num_blocks; i++) {
@@ -732,26 +805,40 @@ void PhaseCFG::fixup_flow() {
 
     // Check for multi-way branches where I cannot negate the test to
     // exchange the true and false targets.
-    if( no_flip_branch( b ) ) {
+    if (no_flip_branch(b)) {
       // Find fall through case - if must fall into its target
+      // Get the index of the branch's first successor.
       int branch_idx = b->_nodes.size() - b->_num_succs;
-      for (uint j2 = 0; j2 < b->_num_succs; j2++) {
-        const ProjNode* p = b->_nodes[branch_idx + j2]->as_Proj();
-        if (p->_con == 0) {
-          // successor j2 is fall through case
-          if (b->non_connector_successor(j2) != bnext) {
-            // but it is not the next block => insert a goto
-            insert_goto_at(i, j2);
+
+      // The branch is 1 before the branch's first successor.
+      Node *bra = b->_nodes[branch_idx-1];
+
+      // Handle no-flip branches which have implicit checks and which require
+      // special block ordering and individual semantics of the 'fall through
+      // case'.
+      if ((TrapBasedNullChecks || TrapBasedRangeChecks) &&
+          bra->is_Mach() && bra->as_Mach()->is_TrapBasedCheckNode()) {
+        bnext = fixup_trap_based_check(bra, b, i, bnext);
+      } else {
+        // Else, default handling for no-flip branches
+        for (uint j2 = 0; j2 < b->_num_succs; j2++) {
+          const ProjNode* p = b->_nodes[branch_idx + j2]->as_Proj();
+          if (p->_con == 0) {
+            // successor j2 is fall through case
+            if (b->non_connector_successor(j2) != bnext) {
+              // but it is not the next block => insert a goto
+              insert_goto_at(i, j2);
+            }
+            // Put taken branch in slot 0
+            if (j2 == 0 && b->_num_succs == 2) {
+              // Flip targets in succs map
+              Block *tbs0 = b->_succs[0];
+              Block *tbs1 = b->_succs[1];
+              b->_succs.map(0, tbs1);
+              b->_succs.map(1, tbs0);
+            }
+            break;
           }
-          // Put taken branch in slot 0
-          if( j2 == 0 && b->_num_succs == 2) {
-            // Flip targets in succs map
-            Block *tbs0 = b->_succs[0];
-            Block *tbs1 = b->_succs[1];
-            b->_succs.map( 0, tbs1 );
-            b->_succs.map( 1, tbs0 );
-          }
-          break;
         }
       }
       // Remove all CatchProjs
@@ -850,6 +937,224 @@ void PhaseCFG::fixup_flow() {
       // But we don't need to do anything here
     }
   } // End of for all blocks
+}
+
+
+// LateExpand: Expand nodes after register allocation.
+//
+// LateExpand has to be called after register allocation, just before
+// output (i.e. scheduling). It only gets called if
+// Matcher::require_late_expand is true, which it is only on ia64 and
+// ppc64.
+//
+// Background:
+//
+// Nodes that are expandend (one compound node requiring several
+// assembler instructions to be implemented split into two or more
+// non-compound nodes) after register allocation are not as nice as
+// the ones expanded before register allocation - they don't
+// participate in optimizations as global code motion. But after
+// register allocation we can expand nodes that use registers which
+// are not spillable or registers that are not allocated, because the
+// old compound node is simply replaced (in its location in the basic
+// block) by a new subgraph which does not contain compound nodes any
+// more. The scheduler called during output can later on process these
+// non-compound nodes.
+//
+// Implementation:
+//
+// Nodes requiring late expand are specified in the ad file by using
+// an lateExpand statement instead of ins_encode. An
+// lateExpand contains a single call to an encoding, as does an
+// ins_encode statement. Instead of an emit() emit function a
+// lateExpand() function is generated that doesn't emit assembler but
+// creates a new subgraph. The code below calls this lateExpand
+// function for each node with the appropriate attribute. This
+// function returns the new nodes generated in an array passed in the
+// call. The old node, potential MachTemps before and potential Projs
+// after it then get disconnected and replaced by the new nodes. The
+// instruction generating the result has to be the last one in the
+// array. In general it is assumed that Projs after the node expanded
+// are kills. These kills are not required any more after expanding as
+// there are now explicitly visible def-use chains and the Projs are
+// removed. This does not hold for calls: They do not only have
+// kill-Projs but also Projs defining values. Therefore Projs after
+// the node expanded are removed for all but for calls. If a node is
+// to be reused, it must be added to the nodes list returned, and it
+// will be added again.
+//
+// Implementing the lateExpand function for a node in an enc_class is rather
+// tedious. It requires knowledge about many node details, as the nodes and the
+// subgraph must be hand crafted. To simplify this, adlc generates some
+// utility variables into the lateExpand function, e.g., holding the
+// operands as specified by the lateExpand encoding specification, e.g.:
+//  * unsigned idx_<par_name>  holding the index of the node in the ins
+//  * Node *n_<par_name>       holding the node loaded from the ins
+//  * MachOpnd *op_<par_name>  holding the corresponding operand
+//
+// The ordering of operands can not be determined by looking at a
+// rule. Especially if a match rule matches several different trees,
+// several nodes are generated from one instruct specification with
+// different operand orderings (see ia64.ad,
+// cmpLTMask_AndI_AddI_reg_zero_reg_reg). In this case the adlc generated
+// variables are the only way to access the ins and operands deterministically.
+//
+// If assigning a register to a node that contains an oop, don't
+// forget to call ra_->set_oop() for the node.
+void PhaseCFG::LateExpand(PhaseRegAlloc* _ra) {
+  GrowableArray <Node *> new_nodes(32); // Array with new nodes filled by lateExpand function of node.
+  GrowableArray <Node *> remove(32);
+  GrowableArray <Node *> succs(32);
+  unsigned int max_idx = C->unique();   // Remember to distinguish new from old nodes.
+  NOT_PRODUCT(bool foundNode = false;)
+
+  // for all blocks
+  for (uint i = 0; i < _num_blocks; i++) {
+    Block *b = _blocks[i];
+    // For all instructions in the current block.
+    for (uint j = 0; j < b->_nodes.size(); j++) {
+      Node *n = b->_nodes[j];
+      if (n->is_Mach() && n->as_Mach()->requires_late_expand()) {
+#ifndef PRODUCT
+        if (TraceLateExpand) {
+          if (!foundNode) {
+            foundNode = true;
+            // TODO: PPC port tty->print("COMPILING %s\n", C->method()->name_and_sig_as_C_string());
+          }
+          tty->print("  late expanding ");
+          n->dump(1);
+        }
+#endif
+        new_nodes.clear();
+        // Collect nodes that have to be removed from the block later on.
+        uint req = n->req();
+        remove.clear();
+        for (uint k = 0; k < req; ++k) {
+          if (n->in(k) && n->in(k)->is_MachTemp()) {
+            remove.push(n->in(k)); // MachTemps which are inputs to the old node have to be removed.
+            n->in(k)->del_req(0);
+            j--;
+          }
+        }
+
+        // Check whether we can allocate enough nodes. We set a fix limit for
+        // the size of late expands with this.
+        uint unique_limit = C->unique() + 40;
+        if (unique_limit >= _ra->node_regs_max_index()) {
+          Compile::current()->record_failure("out of nodes in late expand");
+          return;
+        }
+
+        // Emit (i.e. generate new nodes).
+        n->lateExpand(&new_nodes, _ra);
+
+        assert(C->unique() < unique_limit, "You allocated too many nodes in your late expand.");
+
+        // Disconnect the inputs of the old node.
+        //
+        // We reuse MachSpillCopy nodes. If we need to expand them, there
+        // are many, so reusing pays off. If reused, the node already
+        // has the new ins. n must be the last node on new_nodes list.
+        if (!n->is_MachSpillCopy()) {
+          for (int k = req - 1; k >= 0; --k) {
+            n->del_req(k);
+          }
+        }
+
+        // Add a comment to all new nodes that shows from which node they are derived.
+        // TODO: PPC port add_comments(C, &new_nodes, n, max_idx);
+
+#ifndef PRODUCT
+        // Check that all nodes have proper operands.
+        for (int k = 0; k < new_nodes.length(); ++k) {
+          if (new_nodes.at(k)->_idx < max_idx || !new_nodes.at(k)->is_Mach()) continue; // old node, Proj ...
+          MachNode *m = new_nodes.at(k)->as_Mach();
+          for (unsigned int l = 0; l < m->num_opnds(); ++l) {
+            if (MachOper::notAnOper(m->_opnds[l])) {
+              outputStream *os = tty; // TODO: PPC port Compile::current()->get_inline_trace();
+              os->print("Node %s ", m->Name());
+              // TODO: PPC port Node_Notes *nn = Compile::current()->node_notes_at(m->_idx);
+              // TODO: PPC port if (nn && nn->comment()) os->print("(%s) ", nn->comment());
+              os->print("has invalid opnd %d: %p\n", l, m->_opnds[l]);
+              assert(0, "Invalid operands, see inline trace in hs_err_pid file.");
+            }
+          }
+        }
+#endif
+
+        // Collect succs of old node in remove (for projections) and in succs (for
+        // all other nodes) do _not_ collect projections in remove (but in succs)
+        // in case the node is a call. We need the projections for calls as they are
+        // associated with registes (i.e. they are defs).
+        succs.clear();
+        for (DUIterator k = n->outs(); n->has_out(k); k++) {
+          if (n->out(k)->is_Proj() && !n->is_MachCall() && !n->is_MachBranch()) {
+            remove.push(n->out(k));
+          } else {
+            succs.push(n->out(k));
+          }
+        }
+        // Replace old node n as input of its succs by last of the new nodes.
+        for (int k = 0; k < succs.length(); ++k) {
+          Node *succ = succs.at(k);
+          for (uint l = 0; l < succ->req(); ++l) {
+            if (succ->in(l) == n) {
+              succ->set_req(l, new_nodes.at(new_nodes.length() - 1));
+            }
+          }
+          for (uint l = succ->req(); l < succ->len(); ++l) {
+            if (succ->in(l) == n) {
+              succ->set_prec(l, new_nodes.at(new_nodes.length() - 1));
+            }
+          }
+        }
+
+        // Index of old node in block.
+        uint index = b->find_node(n);
+        // Insert new nodes into block and map them in nodes->blocks array
+        // and remember last node in n2.
+        Node *n2 = NULL;
+        for (int k = 0; k < new_nodes.length(); ++k) {
+          n2 = new_nodes.at(k);
+          b->_nodes.insert(++index, n2);
+          _bbs.map(n2->_idx, b);
+        }
+
+        // Add old node n to remove and remove them all from block.
+        remove.push(n);
+        j--;
+#ifndef PRODUCT
+        if (TraceLateExpand && WizardMode) {
+          tty->print("    removing:\n");
+          for (int k = 0; k < remove.length(); ++k) {
+            tty->print("        "); remove.at(k)->dump();
+          }
+          tty->print("    inserting:\n");
+          for (int k = 0; k < new_nodes.length(); ++k) {
+            tty->print("        "); new_nodes.at(k)->dump();
+          }
+        }
+#endif
+        for (int k = 0; k < remove.length(); ++k) {
+          if (b->contains(remove.at(k))) {
+            b->find_remove(remove.at(k));
+          } else {
+            assert(remove.at(k)->is_Proj() && (remove.at(k)->in(0)->is_MachBranch()), "");
+          }
+        }
+        // If anything has been inserted (n2 != NULL), continue after last node inserted.
+        // This does not always work. Some late expands don't insert any nodes, if they
+        // do optimizations (e.g., max(x,x)). In this case we decrement j accordingly.
+        j = n2 ? b->find_node(n2) : j;
+      }
+    }
+  }
+
+#if 0 // TODO: PPC port ifndef PRODUCT
+  if (foundNode) {
+    tty->print("FINISHED %s\n", Compile::current()->method()->name_and_sig_as_C_string());
+  }
+#endif
 }
 
 

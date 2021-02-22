@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,8 +45,8 @@ public abstract class Negotiator {
         // Makes NegotiatorImpl, and the security classes it references, a
         // runtime dependency rather than a static one.
 
-        Class clazz;
-        Constructor c;
+        Class<?> clazz;
+        Constructor<?> c;
         try {
             clazz = Class.forName("sun.net.www.protocol.http.spnego.NegotiatorImpl", true, null);
             c = clazz.getConstructor(HttpCallerInfo.class);
@@ -76,7 +76,9 @@ public abstract class Negotiator {
 
     private static void finest(Exception e) {
         PlatformLogger logger = HttpURLConnection.getHttpLogger();
-        logger.finest("NegotiateAuthentication: " + e);
+        if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
+            logger.finest("NegotiateAuthentication: " + e);
+        }
     }
 }
 
