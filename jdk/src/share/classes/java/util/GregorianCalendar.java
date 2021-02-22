@@ -508,6 +508,18 @@ public class GregorianCalendar extends Calendar {
     // The default value of gregorianCutover.
     static final long DEFAULT_GREGORIAN_CUTOVER = -12219292800000L;
 
+    // Set up JavaUtilCalendarAccess in SharedSecrets
+    static {
+       sun.misc.SharedSecrets.setJavaUtilCalendarAccess(new sun.misc.JavaUtilCalendarAccess() {
+               public GregorianCalendar createCalendar(TimeZone zone, Locale locale) {
+                   return new GregorianCalendar(zone, locale, true);
+               }
+               public void complete(Calendar cal) {
+                   cal.complete();
+               }
+        });
+    }
+
 /////////////////////
 // Instance Variables
 /////////////////////
@@ -720,6 +732,18 @@ public class GregorianCalendar extends Calendar {
         // should be changed to set() when this constructor is made
         // public.
         this.internalSet(MILLISECOND, millis);
+    }
+
+    /**
+     * Constructs an empty GregorianCalendar.
+     *
+     * @param zone    the given time zone
+     * @param aLocale the given locale
+     * @param flag    the flag requesting an empty instance
+     */
+    GregorianCalendar(TimeZone zone, Locale locale, boolean flag) {
+        super(zone, locale);
+        gdate = (BaseCalendar.Date) gcal.newCalendarDate(getZone());
     }
 
 /////////////////

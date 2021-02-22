@@ -1,5 +1,6 @@
 #
 # Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright 2017 Red Hat, Inc.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -157,11 +158,7 @@ include $(BUILDDIR)/common/Classes.gmk
 #
 
 ifdef OPENJDK
-ifdef UNLIMITED_CRYPTO
-POLICY = install-unlimited
-else
-POLICY = install-limited
-endif
+POLICY = install-unlimited install-limited
 all: build-jar install-jar build-policy $(POLICY)
 else  # OPENJDK
 ifeq ($(strip $(FILES_java)),)
@@ -258,6 +255,8 @@ prebuild:
 #
 
 POLICY_DESTDIR			= $(LIBDIR)/security
+UNLIMITED_POLICY_DESTDIR	= $(POLICY_DESTDIR)/policy/unlimited
+LIMITED_POLICY_DESTDIR		= $(POLICY_DESTDIR)/policy/limited
 UNSIGNED_POLICY_BUILDDIR	= $(UNSIGNED_DIR)/policy
 
 build-policy: unlimited limited
@@ -432,11 +431,11 @@ endif
 install-limited-jars: \
 	    $(INSTALL_POLICYDIR)/limited/US_export_policy.jar	\
 	    $(INSTALL_POLICYDIR)/limited/local_policy.jar
-	$(MKDIR) -p $(POLICY_DESTDIR)
+	$(MKDIR) -p $(LIMITED_POLICY_DESTDIR)
 	$(RM) \
-	    $(POLICY_DESTDIR)/US_export_policy.jar		\
-	    $(POLICY_DESTDIR)/local_policy.jar
-	$(CP) $^ $(POLICY_DESTDIR)
+	    $(LIMITED_POLICY_DESTDIR)/US_export_policy.jar		\
+	    $(LIMITED_POLICY_DESTDIR)/local_policy.jar
+	$(CP) $^ $(LIMITED_POLICY_DESTDIR)
 
 install-limited: install-limited-jars
 ifndef OPENJDK
@@ -446,11 +445,11 @@ endif
 install-unlimited-jars: \
 	    $(INSTALL_POLICYDIR)/unlimited/US_export_policy.jar	\
 	    $(INSTALL_POLICYDIR)/unlimited/local_policy.jar 
-	$(MKDIR) -p $(POLICY_DESTDIR)
+	$(MKDIR) -p $(UNLIMITED_POLICY_DESTDIR)
 	$(RM) \
-	    $(POLICY_DESTDIR)/US_export_policy.jar		\
-	    $(POLICY_DESTDIR)/local_policy.jar
-	$(CP) $^ $(POLICY_DESTDIR)
+	    $(UNLIMITED_POLICY_DESTDIR)/US_export_policy.jar		\
+	    $(UNLIMITED_POLICY_DESTDIR)/local_policy.jar
+	$(CP) $^ $(UNLIMITED_POLICY_DESTDIR)
 
 install-unlimited: install-unlimited-jars
 ifndef OPENJDK
@@ -477,8 +476,11 @@ endif
 #
 
 clobber clean::
-	$(RM) -r $(JAR_DESTFILE) $(POLICY_DESTDIR)/US_export_policy.jar \
-	    $(POLICY_DESTDIR)/local_policy.jar $(DELETE_DIRS) $(TEMPDIR) \
+	$(RM) -r $(JAR_DESTFILE) $(LIMITED_POLICY_DESTDIR)/US_export_policy.jar \
+	    $(LIMITED_POLICY_DESTDIR)/local_policy.jar \
+	    $(UNLIMITED_POLICY_DESTDIR)/US_export_policy.jar \
+	    $(UNLIMITED_POLICY_DESTDIR)/local_policy.jar \
+	    $(DELETE_DIRS) $(TEMPDIR) \
 	    $(JCE_BUILD_DIR)
 
 .PHONY: build-jar jar build-policy unlimited limited install-jar \

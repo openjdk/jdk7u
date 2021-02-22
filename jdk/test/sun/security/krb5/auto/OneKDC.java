@@ -76,8 +76,6 @@ public class OneKDC extends KDC {
         Config.refresh();
 
         writeKtab(KTAB);
-        new File(KRB5_CONF).deleteOnExit();
-        new File(KTAB).deleteOnExit();
     }
 
     /**
@@ -86,7 +84,7 @@ public class OneKDC extends KDC {
      * entries with names using existing OneKDC principals.
      * @throws java.lang.Exception if anything goes wrong
      */
-    public void writeJAASConf() throws IOException {
+    public OneKDC writeJAASConf() throws IOException {
         System.setProperty("java.security.auth.login.config", JAAS_CONF);
         File f = new File(JAAS_CONF);
         FileOutputStream fos = new FileOutputStream(f);
@@ -114,8 +112,8 @@ public class OneKDC extends KDC {
                 "    isInitiator=false;\n};\n"
                 ).getBytes());
         fos.close();
-        f.deleteOnExit();
         Security.setProperty("auth.login.defaultCallbackHandler", "OneKDC$CallbackForClient");
+        return this;
     }
 
     /**
