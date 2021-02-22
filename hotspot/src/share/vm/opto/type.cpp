@@ -1546,10 +1546,10 @@ bool TypeLong::is_finite() const {
 static const char* longnamenear(jlong x, const char* xname, char* buf, jlong n) {
   if (n > x) {
     if (n >= x + 10000)  return NULL;
-    sprintf(buf, "%s+" INT64_FORMAT, xname, n - x);
+    sprintf(buf, "%s+" JLONG_FORMAT, xname, n - x);
   } else if (n < x) {
     if (n <= x - 10000)  return NULL;
-    sprintf(buf, "%s-" INT64_FORMAT, xname, x - n);
+    sprintf(buf, "%s-" JLONG_FORMAT, xname, x - n);
   } else {
     return xname;
   }
@@ -1561,11 +1561,11 @@ static const char* longname(char* buf, jlong n) {
   if (n == min_jlong)
     return "min";
   else if (n < min_jlong + 10000)
-    sprintf(buf, "min+" INT64_FORMAT, n - min_jlong);
+    sprintf(buf, "min+" JLONG_FORMAT, n - min_jlong);
   else if (n == max_jlong)
     return "max";
   else if (n > max_jlong - 10000)
-    sprintf(buf, "max-" INT64_FORMAT, max_jlong - n);
+    sprintf(buf, "max-" JLONG_FORMAT, max_jlong - n);
   else if ((str = longnamenear(max_juint, "maxuint", buf, n)) != NULL)
     return str;
   else if ((str = longnamenear(max_jint, "maxint", buf, n)) != NULL)
@@ -1573,7 +1573,7 @@ static const char* longname(char* buf, jlong n) {
   else if ((str = longnamenear(min_jint, "minint", buf, n)) != NULL)
     return str;
   else
-    sprintf(buf, INT64_FORMAT, n);
+    sprintf(buf, JLONG_FORMAT, n);
   return buf;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/oop.inline2.hpp"
 #include "runtime/aprofiler.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/fprofiler.hpp"
 #include "runtime/handles.hpp"
@@ -210,6 +211,9 @@ char* GenCollectedHeap::allocate(size_t alignment,
       os::large_page_size() : os::vm_page_size();
 
   assert(alignment % pageSize == 0, "Must be");
+  assert(alignment <= Arguments::conservative_max_heap_alignment(),
+      err_msg("actual alignment "SIZE_FORMAT" must be within maximum heap alignment "SIZE_FORMAT,
+          alignment, Arguments::conservative_max_heap_alignment()));
 
   for (int i = 0; i < _n_gens; i++) {
     total_reserved = add_and_check_overflow(total_reserved, _gen_specs[i]->max_size());

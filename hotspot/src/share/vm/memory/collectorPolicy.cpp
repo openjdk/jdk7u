@@ -68,6 +68,10 @@ void CollectorPolicy::initialize_flags() {
       err_msg("max_alignment: " SIZE_FORMAT " not aligned by min_alignment: " SIZE_FORMAT,
           max_alignment(), min_alignment()));
 
+  if (MaxHeapSize < InitialHeapSize) {
+    vm_exit_during_initialization("Incompatible initial and maximum heap sizes specified");
+  }
+
   if (PermSize > MaxPermSize) {
     MaxPermSize = PermSize;
   }
@@ -98,21 +102,9 @@ void CollectorPolicy::initialize_flags() {
 }
 
 void CollectorPolicy::initialize_size_info() {
-  // User inputs from -mx and ms are aligned
-  set_initial_heap_byte_size(InitialHeapSize);
-  if (initial_heap_byte_size() == 0) {
-    set_initial_heap_byte_size(NewSize + OldSize);
-  }
-  set_initial_heap_byte_size(align_size_up(_initial_heap_byte_size,
-                                           min_alignment()));
-
-  set_min_heap_byte_size(Arguments::min_heap_size());
-  if (min_heap_byte_size() == 0) {
-    set_min_heap_byte_size(NewSize + OldSize);
-  }
-  set_min_heap_byte_size(align_size_up(_min_heap_byte_size,
-                                       min_alignment()));
-
+  // User inputs from -mx and ms must be aligned
+  set_min_heap_byte_size(align_size_up(Arguments::min_heap_size(), min_alignment()));
+  set_initial_heap_byte_size(align_size_up(InitialHeapSize, min_alignment()));
   set_max_heap_byte_size(align_size_up(MaxHeapSize, max_alignment()));
 
   // Check heap parameter properties
@@ -185,6 +177,30 @@ void CollectorPolicy::cleared_all_soft_refs() {
   _all_soft_refs_clear = true;
 }
 
+size_t CollectorPolicy::compute_max_alignment() {
+  // The card marking array and the offset arrays for old generations are
+  // committed in os pages as well. Make sure they are entirely full (to
+  // avoid partial page problems), e.g. if 512 bytes heap corresponds to 1
+  // byte entry and the os page size is 4096, the maximum heap size should
+  // be 512*4096 = 2MB aligned.
+
+  // There is only the GenRemSet in Hotspot and only the GenRemSet::CardTable
+  // is supported.
+  // Requirements of any new remembered set implementations must be added here.
+  size_t alignment = GenRemSet::max_alignment_constraint(GenRemSet::CardTable);
+
+  // Parallel GC does its own alignment of the generations to avoid requiring a
+  // large page (256M on some platforms) for the permanent generation.  The
+  // other collectors should also be updated to do their own alignment and then
+  // this use of lcm() should be removed.
+  if (UseLargePages && !UseParallelGC) {
+      // in presence of large pages we have to make sure that our
+      // alignment is large page aware
+      alignment = lcm(os::large_page_size(), alignment);
+  }
+
+  return alignment;
+}
 
 // GenCollectorPolicy methods.
 
@@ -213,29 +229,6 @@ void GenCollectorPolicy::initialize_size_policy(size_t init_eden_size,
                                         init_survivor_size,
                                         max_gc_minor_pause_sec,
                                         GCTimeRatio);
-}
-
-size_t GenCollectorPolicy::compute_max_alignment() {
-  // The card marking array and the offset arrays for old generations are
-  // committed in os pages as well. Make sure they are entirely full (to
-  // avoid partial page problems), e.g. if 512 bytes heap corresponds to 1
-  // byte entry and the os page size is 4096, the maximum heap size should
-  // be 512*4096 = 2MB aligned.
-  size_t alignment = GenRemSet::max_alignment_constraint(rem_set_name());
-
-  // Parallel GC does its own alignment of the generations to avoid requiring a
-  // large page (256M on some platforms) for the permanent generation.  The
-  // other collectors should also be updated to do their own alignment and then
-  // this use of lcm() should be removed.
-  if (UseLargePages && !UseParallelGC) {
-      // in presence of large pages we have to make sure that our
-      // alignment is large page aware
-      alignment = lcm(os::large_page_size(), alignment);
-  }
-
-  assert(alignment >= min_alignment(), "Must be");
-
-  return alignment;
 }
 
 void GenCollectorPolicy::initialize_flags() {
@@ -271,9 +264,48 @@ void TwoGenerationCollectorPolicy::initialize_flags() {
   GenCollectorPolicy::initialize_flags();
 
   OldSize = align_size_down(OldSize, min_alignment());
+  MaxHeapSize = align_size_up(MaxHeapSize, max_alignment());
+
+  // adjust max heap size if necessary
   if (NewSize + OldSize > MaxHeapSize) {
-    MaxHeapSize = NewSize + OldSize;
+    if (FLAG_IS_CMDLINE(MaxHeapSize)) {
+      // somebody set a maximum heap size with the intention that we should not
+      // exceed it. Adjust New/OldSize as necessary.
+      uintx calculated_size = NewSize + OldSize;
+      double shrink_factor = (double) MaxHeapSize / calculated_size;
+      // align
+      NewSize = align_size_down((uintx) (NewSize * shrink_factor), min_alignment());
+      // OldSize is already aligned because above we aligned MaxHeapSize to
+      // max_alignment(), and we just made sure that NewSize is aligned to
+      // min_alignment(). In initialize_flags() we verified that max_alignment()
+      // is a multiple of min_alignment().
+      OldSize = MaxHeapSize - NewSize;
+    } else {
+      MaxHeapSize = NewSize + OldSize;
+    }
   }
+  // need to do this again
+  MaxHeapSize = align_size_up(MaxHeapSize, max_alignment());
+
+  // adjust max heap size if necessary
+  if (NewSize + OldSize > MaxHeapSize) {
+    if (FLAG_IS_CMDLINE(MaxHeapSize)) {
+      // somebody set a maximum heap size with the intention that we should not
+      // exceed it. Adjust New/OldSize as necessary.
+      uintx calculated_size = NewSize + OldSize;
+      double shrink_factor = (double) MaxHeapSize / calculated_size;
+      // align
+      NewSize = align_size_down((uintx) (NewSize * shrink_factor), min_alignment());
+      // OldSize is already aligned because above we aligned MaxHeapSize to
+      // max_alignment(), and we just made sure that NewSize is aligned to
+      // min_alignment(). In initialize_flags() we verified that max_alignment()
+      // is a multiple of min_alignment().
+      OldSize = MaxHeapSize - NewSize;
+    } else {
+      MaxHeapSize = NewSize + OldSize;
+    }
+  }
+  // need to do this again
   MaxHeapSize = align_size_up(MaxHeapSize, max_alignment());
 
   always_do_update_barrier = UseConcMarkSweepGC;
