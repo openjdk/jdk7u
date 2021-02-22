@@ -210,6 +210,9 @@ ifneq ($(_HAS_HASH_STYLE_GNU),)
 endif
 LFLAGS += $(LDFLAGS_HASH_STYLE)
 
+# Create a RELRO section for memory segments that should be read-only after relocation
+LFLAGS += -Xlinker -z -Xlinker relro
+
 # Use $(MAPFLAG:FILENAME=real_file_name) to specify a map file.
 MAPFLAG = -Xlinker --version-script=FILENAME
 

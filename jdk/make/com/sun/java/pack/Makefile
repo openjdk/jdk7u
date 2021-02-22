@@ -79,6 +79,14 @@ ifeq ($(STANDALONE),true)
   LDDFLAGS += $(ZLIB_LIBS)
   OTHER_CXXFLAGS += $(ZLIB_CFLAGS) -DSYSTEM_ZLIB
  endif
+# Add -fPIE in place of -fPIC for building executables
+ ifeq ($(CC_VERSION), gcc)
+   ifneq ($(ARCH_DATA_MODEL), 32)
+     LDDFLAGS += -pie
+     CFLAGS := $(subst -fPIC,-fPIE,$(CFLAGS))
+     CXXFLAGS := $(subst -fPIC,-fPIE,$(CXXFLAGS))
+   endif # ARCH_DATA_MODEL != 32
+ endif # CC_VERSION gcc
 else
   OTHER_CXXFLAGS += -DNO_ZLIB -DUNPACK_JNI
   OTHER_LDLIBS += $(JVMLIB)
