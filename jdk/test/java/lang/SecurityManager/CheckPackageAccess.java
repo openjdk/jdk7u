@@ -24,6 +24,7 @@
 /*
  *  @test
  *  @bug 6741606 7146431 8000450 8022945 8179423
+ *       8186080
  *  @summary Make sure all restricted packages listed in the package.access
  *           property in the java.security file are blocked
  *  @run main/othervm CheckPackageAccess
@@ -79,6 +80,7 @@ public class CheckPackageAccess {
         "com.sun.org.apache.xml.internal.utils.",
         "com.sun.org.glassfish.",
         "com.sun.script.",
+        "jdk.xml.internal.",
         "oracle.jrockit.jfr.",
         "org.jcp.xml.dsig.internal.",
     };

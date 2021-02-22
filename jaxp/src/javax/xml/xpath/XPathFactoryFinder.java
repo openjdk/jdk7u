@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package javax.xml.xpath;
 
+import com.sun.org.apache.xpath.internal.jaxp.XPathFactoryImpl;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -165,7 +166,7 @@ class XPathFactoryFinder  {
             String r = ss.getSystemProperty(propertyName);
             if(r!=null) {
                 debugPrintln("The value is '"+r+"'");
-                xpathFactory = createInstance(r, true);
+                xpathFactory = createInstance(r);
                 if(xpathFactory != null)    return xpathFactory;
             } else
                 debugPrintln("The property is undefined.");
@@ -200,7 +201,7 @@ class XPathFactoryFinder  {
             debugPrintln("found " + factoryClassName + " in $java.home/jaxp.properties");
 
             if (factoryClassName != null) {
-                xpathFactory = createInstance(factoryClassName, true);
+                xpathFactory = createInstance(factoryClassName);
                 if(xpathFactory != null){
                     return xpathFactory;
                 }
@@ -233,7 +234,7 @@ class XPathFactoryFinder  {
         // platform default
         if(uri.equals(XPathFactory.DEFAULT_OBJECT_MODEL_URI)) {
             debugPrintln("attempting to use the platform default W3C DOM XPath lib");
-            return createInstance("com.sun.org.apache.xpath.internal.jaxp.XPathFactoryImpl", true);
+            return new XPathFactoryImpl();
         }
 
         debugPrintln("all things were tried, but none was found. bailing out.");
@@ -279,10 +280,7 @@ class XPathFactoryFinder  {
      * @return null
      *      if it fails. Error messages will be printed by this method.
      */
-    XPathFactory createInstance( String className ) {
-        return createInstance( className, false );
-    }
-    XPathFactory createInstance( String className, boolean useServicesMechanism  ) {
+    XPathFactory createInstance(String className) {
         XPathFactory xPathFactory = null;
 
         debugPrintln("createInstance(" + className + ")");
@@ -297,12 +295,7 @@ class XPathFactoryFinder  {
 
         // instantiate Class as a XPathFactory
         try {
-            if (!useServicesMechanism) {
-                xPathFactory = (XPathFactory) newInstanceNoServiceLoader(clazz);
-            }
-            if (xPathFactory == null) {
                 xPathFactory = (XPathFactory) clazz.newInstance();
-            }
         } catch (ClassCastException classCastException) {
                 debugPrintln("could not instantiate " + clazz.getName());
                 if (debug) {
@@ -324,29 +317,6 @@ class XPathFactoryFinder  {
         }
 
         return xPathFactory;
-    }
-    /**
-     * Try to construct using newXPathFactoryNoServiceLoader
-     *   method if available.
-     */
-    private static Object newInstanceNoServiceLoader(
-         Class<?> providerClass
-    ) {
-        // Retain maximum compatibility if no security manager.
-        if (System.getSecurityManager() == null) {
-            return null;
-        }
-        try {
-            Method creationMethod =
-                providerClass.getDeclaredMethod(
-                    "newXPathFactoryNoServiceLoader"
-                );
-                return creationMethod.invoke(null, (Object[])null);
-            } catch (NoSuchMethodException exc) {
-                return null;
-            } catch (Exception exc) {
-                return null;
-        }
     }
 
     /**
@@ -472,7 +442,7 @@ class XPathFactoryFinder  {
         String factoryClassName = props.getProperty(keyName);
         if(factoryClassName != null){
             debugPrintln("found "+keyName+" = " + factoryClassName);
-            return createInstance(factoryClassName, true);
+            return createInstance(factoryClassName);
         } else {
             debugPrintln(keyName+" is not in the property file");
             return null;

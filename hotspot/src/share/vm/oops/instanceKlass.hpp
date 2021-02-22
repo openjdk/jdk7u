@@ -517,8 +517,10 @@ class instanceKlass: public Klass {
   oop host_klass() const                   {
     oop* hk = adr_host_klass();
     if (hk == NULL) {
+      assert(!is_anonymous(), "Anonymous classes have host klasses");
       return NULL;
     } else {
+      assert(is_anonymous(), "Only anonymous classes have host klasses");
       return *hk;
     }
   }

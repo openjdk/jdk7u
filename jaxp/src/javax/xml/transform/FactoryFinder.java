@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -146,7 +146,7 @@ class FactoryFinder {
     static Object newInstance(String className, ClassLoader cl, boolean doFallback)
         throws ConfigurationError
     {
-        return newInstance(className, cl, doFallback, false, false);
+        return newInstance(className, cl, doFallback, false);
     }
 
     /**
@@ -165,9 +165,8 @@ class FactoryFinder {
      * @param useBSClsLoader True if cl=null actually meant bootstrap classLoader. This parameter
      * is needed since DocumentBuilderFactory/SAXParserFactory defined null as context classLoader.
      *
-     * @param useServicesMechanism True use services mechanism
      */
-    static Object newInstance(String className, ClassLoader cl, boolean doFallback, boolean useBSClsLoader, boolean useServicesMechanism)
+    static Object newInstance(String className, ClassLoader cl, boolean doFallback, boolean useBSClsLoader)
         throws ConfigurationError
     {
         // make sure we have access to restricted packages
@@ -180,13 +179,8 @@ class FactoryFinder {
 
         try {
             Class providerClass = getProviderClass(className, cl, doFallback, useBSClsLoader);
-            Object instance = null;
-            if (!useServicesMechanism) {
-                instance = newInstanceNoServiceLoader(providerClass);
-            }
-            if (instance == null) {
-                instance = providerClass.newInstance();
-            }
+            Object instance = providerClass.newInstance();
+
             if (debug) {    // Extra check to avoid computing cl strings
                 dPrint("created new instance of " + providerClass +
                        " using ClassLoader: " + cl);
@@ -201,29 +195,6 @@ class FactoryFinder {
             throw new ConfigurationError(
                 "Provider " + className + " could not be instantiated: " + x,
                 x);
-        }
-    }
-    /**
-     * Try to construct using newTransformerFactoryNoServiceLoader
-     *   method if available.
-     */
-    private static Object newInstanceNoServiceLoader(
-         Class<?> providerClass
-    ) {
-        // Retain maximum compatibility if no security manager.
-        if (System.getSecurityManager() == null) {
-            return null;
-        }
-        try {
-            Method creationMethod =
-                providerClass.getDeclaredMethod(
-                    "newTransformerFactoryNoServiceLoader"
-                );
-                return creationMethod.invoke(null, (Object[])null);
-            } catch (NoSuchMethodException exc) {
-                return null;
-            } catch (Exception exc) {
-                return null;
         }
     }
     /**
@@ -247,7 +218,7 @@ class FactoryFinder {
             String systemProp = ss.getSystemProperty(factoryId);
             if (systemProp != null) {
                 dPrint("found system property, value=" + systemProp);
-                return newInstance(systemProp, null, true, false, true);
+                return newInstance(systemProp, null, true, false);
             }
         }
         catch (SecurityException se) {
@@ -275,7 +246,7 @@ class FactoryFinder {
 
             if (factoryClassName != null) {
                 dPrint("found in $java.home/jaxp.properties, value=" + factoryClassName);
-                return newInstance(factoryClassName, null, true, false, true);
+                return newInstance(factoryClassName, null, true, false);
             }
         }
         catch (Exception ex) {
@@ -293,7 +264,7 @@ class FactoryFinder {
         }
 
         dPrint("loaded from fallback value: " + fallbackClassName);
-        return newInstance(fallbackClassName, null, true, false, true);
+        return newInstance(fallbackClassName, null, true, false);
     }
 
     /*
@@ -361,7 +332,7 @@ class FactoryFinder {
             // ClassLoader because we want to avoid the case where the
             // resource file was found using one ClassLoader and the
             // provider class was instantiated using a different one.
-            return newInstance(factoryClassName, cl, false, useBSClsLoader, true);
+            return newInstance(factoryClassName, cl, false, useBSClsLoader);
         }
 
         // No provider found
