@@ -50,9 +50,6 @@ class SocketChannelImpl
 
     // Our file descriptor object
     private final FileDescriptor fd;
-
-    // fd value needed for dev/poll. This value will remain valid
-    // even after the value in the file descriptor object has been set to -1
     private final int fdVal;
 
     // IDs of native threads doing reads and writes, for signalling
@@ -920,15 +917,14 @@ class SocketChannelImpl
         int oldOps = sk.nioReadyOps();
         int newOps = initialOps;
 
-        if ((ops & PollArrayWrapper.POLLNVAL) != 0) {
+        if ((ops & Net.POLLNVAL) != 0) {
             // This should only happen if this channel is pre-closed while a
             // selection operation is in progress
             // ## Throw an error if this channel has not been pre-closed
             return false;
         }
 
-        if ((ops & (PollArrayWrapper.POLLERR
-                    | PollArrayWrapper.POLLHUP)) != 0) {
+        if ((ops & (Net.POLLERR | Net.POLLHUP)) != 0) {
             newOps = intOps;
             sk.nioReadyOps(newOps);
             // No need to poll again in checkConnect,
@@ -937,19 +933,19 @@ class SocketChannelImpl
             return (newOps & ~oldOps) != 0;
         }
 
-        if (((ops & PollArrayWrapper.POLLIN) != 0) &&
+        if (((ops & Net.POLLIN) != 0) &&
             ((intOps & SelectionKey.OP_READ) != 0) &&
             (state == ST_CONNECTED))
             newOps |= SelectionKey.OP_READ;
 
-        if (((ops & PollArrayWrapper.POLLCONN) != 0) &&
+        if (((ops & Net.POLLCONN) != 0) &&
             ((intOps & SelectionKey.OP_CONNECT) != 0) &&
             ((state == ST_UNCONNECTED) || (state == ST_PENDING))) {
             newOps |= SelectionKey.OP_CONNECT;
             readyToConnect = true;
         }
 
-        if (((ops & PollArrayWrapper.POLLOUT) != 0) &&
+        if (((ops & Net.POLLOUT) != 0) &&
             ((intOps & SelectionKey.OP_WRITE) != 0) &&
             (state == ST_CONNECTED))
             newOps |= SelectionKey.OP_WRITE;
@@ -966,17 +962,39 @@ class SocketChannelImpl
         return translateReadyOps(ops, 0, sk);
     }
 
+    // package-private
+    int poll(int events, long timeout) throws IOException {
+        assert Thread.holdsLock(blockingLock()) && !isBlocking();
+
+        synchronized (readLock) {
+            int n = 0;
+            try {
+                begin();
+                synchronized (stateLock) {
+                    if (!isOpen())
+                        return 0;
+                    readerThread = NativeThread.current();
+                }
+                n = Net.poll(fd, events, timeout);
+            } finally {
+                readerCleanup();
+                end(n > 0);
+            }
+            return n;
+        }
+    }
+
     /**
      * Translates an interest operation set into a native poll event set
      */
     public void translateAndSetInterestOps(int ops, SelectionKeyImpl sk) {
         int newOps = 0;
         if ((ops & SelectionKey.OP_READ) != 0)
-            newOps |= PollArrayWrapper.POLLIN;
+            newOps |= Net.POLLIN;
         if ((ops & SelectionKey.OP_WRITE) != 0)
-            newOps |= PollArrayWrapper.POLLOUT;
+            newOps |= Net.POLLOUT;
         if ((ops & SelectionKey.OP_CONNECT) != 0)
-            newOps |= PollArrayWrapper.POLLCONN;
+            newOps |= Net.POLLCONN;
         sk.selector.putEventOps(sk, newOps);
     }
 

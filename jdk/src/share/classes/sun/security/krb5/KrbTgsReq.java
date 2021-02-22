@@ -33,8 +33,10 @@ package sun.security.krb5;
 
 import sun.security.krb5.internal.*;
 import sun.security.krb5.internal.crypto.*;
+
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.util.Calendar;
 
 /**
  * This class encapsulates a Kerberos TGS-REQ that is sent from the
@@ -88,8 +90,7 @@ public class KrbTgsReq {
 
         princName = asCreds.client;
         servName = sname;
-        ctime = new KerberosTime(KerberosTime.NOW);
-
+        ctime = KerberosTime.now();
 
         // check if they are valid arguments. The optional fields
         // should be  consistent with settings in KDCOptions.
@@ -222,11 +223,17 @@ public class KrbTgsReq {
                          AuthorizationData authorizationData,
                          Ticket[] additionalTickets,
                          EncryptionKey subKey)
-        throws Asn1Exception, IOException, KdcErrException, KrbApErrException,
-               UnknownHostException, KrbCryptoException {
+        throws IOException, KrbException, UnknownHostException {
         KerberosTime req_till = null;
         if (till == null) {
-            req_till = new KerberosTime(0);
+            String d = Config.getInstance().get("libdefaults", "ticket_lifetime");
+            if (d != null) {
+                Calendar cal = Calendar.getInstance();
+                cal.add(Calendar.SECOND, Config.duration(d));
+                req_till = new KerberosTime(cal.getTime());
+            } else {
+                req_till = new KerberosTime(0); // Choose KDC maximum allowed
+            }
         } else {
             req_till = till;
         }
@@ -245,10 +252,6 @@ public class KrbTgsReq {
         int[] req_eTypes = null;
         if (eTypes == null) {
             req_eTypes = EType.getDefaults("default_tgs_enctypes");
-            if (req_eTypes == null) {
-                throw new KrbCryptoException(
-            "No supported encryption types listed in default_tgs_enctypes");
-            }
         } else {
             req_eTypes = eTypes;
         }
@@ -284,26 +287,8 @@ public class KrbTgsReq {
         byte[] temp = reqBody.asn1Encode(Krb5.KRB_TGS_REQ);
         // if the checksum type is one of the keyed checksum types,
         // use session key.
-        Checksum cksum;
-        switch (Checksum.CKSUMTYPE_DEFAULT) {
-        case Checksum.CKSUMTYPE_RSA_MD4_DES:
-        case Checksum.CKSUMTYPE_DES_MAC:
-        case Checksum.CKSUMTYPE_DES_MAC_K:
-        case Checksum.CKSUMTYPE_RSA_MD4_DES_K:
-        case Checksum.CKSUMTYPE_RSA_MD5_DES:
-        case Checksum.CKSUMTYPE_HMAC_SHA1_DES3_KD:
-        case Checksum.CKSUMTYPE_HMAC_MD5_ARCFOUR:
-        case Checksum.CKSUMTYPE_HMAC_SHA1_96_AES128:
-        case Checksum.CKSUMTYPE_HMAC_SHA1_96_AES256:
-            cksum = new Checksum(Checksum.CKSUMTYPE_DEFAULT, temp, key,
+        Checksum cksum  = new Checksum(Checksum.CKSUMTYPE_DEFAULT, temp, key,
                 KeyUsage.KU_PA_TGS_REQ_CKSUM);
-            break;
-        case Checksum.CKSUMTYPE_CRC32:
-        case Checksum.CKSUMTYPE_RSA_MD4:
-        case Checksum.CKSUMTYPE_RSA_MD5:
-        default:
-            cksum = new Checksum(Checksum.CKSUMTYPE_DEFAULT, temp);
-        }
 
         // Usage will be KeyUsage.KU_PA_TGS_REQ_AUTHENTICATOR
 

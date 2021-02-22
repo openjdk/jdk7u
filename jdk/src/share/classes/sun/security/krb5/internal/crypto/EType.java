@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,14 +48,18 @@ import java.util.ArrayList;
 public abstract class EType {
 
     private static final boolean DEBUG = Krb5.DEBUG;
-    private static final boolean ALLOW_WEAK_CRYPTO;
+    private static boolean allowWeakCrypto;
 
     static {
-        boolean allowed = true;
+        initStatic();
+    }
+
+    public static void initStatic() {
+        boolean allowed = false;
         try {
             Config cfg = Config.getInstance();
-            String temp = cfg.getDefault("allow_weak_crypto", "libdefaults");
-            if (temp != null && temp.equals("false")) allowed = false;
+            String temp = cfg.get("libdefaults", "allow_weak_crypto");
+            if (temp != null && temp.equals("true")) allowed = true;
         } catch (Exception exc) {
             if (DEBUG) {
                 System.out.println ("Exception in getting allow_weak_crypto, " +
@@ -63,7 +67,7 @@ public abstract class EType {
                                     exc.getMessage());
             }
         }
-        ALLOW_WEAK_CRYPTO = allowed;
+        allowWeakCrypto = allowed;
     }
 
     public static EType getInstance  (int eTypeConst)
@@ -216,7 +220,7 @@ public abstract class EType {
         } else {
             result = BUILTIN_ETYPES;
         }
-        if (!ALLOW_WEAK_CRYPTO) {
+        if (!allowWeakCrypto) {
             // The last 2 etypes are now weak ones
             return Arrays.copyOfRange(result, 0, result.length - 2);
         }
@@ -226,11 +230,14 @@ public abstract class EType {
     /**
      * Retrieves the default etypes from the configuration file, or
      * if that's not available, return the built-in list of default etypes.
+     * This result is always non-empty. If no etypes are found,
+     * an exception is thrown.
      */
-    // used in KrbAsReq, KeyTab
-    public static int[] getDefaults(String configName) {
+    public static int[] getDefaults(String configName)
+            throws KrbException {
+        Config config = null;
         try {
-            return Config.getInstance().defaultEtype(configName);
+            config = Config.getInstance();
         } catch (KrbException exc) {
             if (DEBUG) {
                 System.out.println("Exception while getting " +
@@ -239,6 +246,7 @@ public abstract class EType {
             }
             return getBuiltInDefaults();
         }
+        return config.defaultEtype(configName);
     }
 
     /**
@@ -250,12 +258,8 @@ public abstract class EType {
      * we have keys.
      */
     public static int[] getDefaults(String configName, EncryptionKey[] keys)
-        throws KrbException {
+            throws KrbException {
         int[] answer = getDefaults(configName);
-        if (answer == null) {
-            throw new KrbException("No supported encryption types listed in "
-                + configName);
-        }
 
         List<Integer> list = new ArrayList<>(answer.length);
         for (int i = 0; i < answer.length; i++) {
@@ -295,6 +299,26 @@ public abstract class EType {
     public static boolean isSupported(int eTypeConst) {
         int[] enabledETypes = getBuiltInDefaults();
         return isSupported(eTypeConst, enabledETypes);
+    }
+
+    /**
+     * https://tools.ietf.org/html/rfc4120#section-3.1.3:
+     *
+     *                 A "newer" enctype is any enctype first officially
+     * specified concurrently with or subsequent to the issue of this RFC.
+     * The enctypes DES, 3DES, or RC4 and any defined in [RFC1510] are not
+     * "newer" enctypes.
+     *
+     * @param eTypeConst the encryption type
+     * @return true if "newer"
+     */
+    public static boolean isNewer(int eTypeConst) {
+        return eTypeConst != EncryptedData.ETYPE_DES_CBC_CRC &&
+                eTypeConst != EncryptedData.ETYPE_DES_CBC_MD4 &&
+                eTypeConst != EncryptedData.ETYPE_DES_CBC_MD5 &&
+                eTypeConst != EncryptedData.ETYPE_DES3_CBC_HMAC_SHA1_KD &&
+                eTypeConst != EncryptedData.ETYPE_ARCFOUR_HMAC &&
+                eTypeConst != EncryptedData.ETYPE_ARCFOUR_HMAC_EXP;
     }
 
     public static String toString(int type) {

@@ -26,9 +26,10 @@
  * @bug 6239117
  * @summary test logical channels work
  * @author Andreas Sterbenz
- * @ignore requires special hardware
- * @run main/manual TestExclusive
+ * @run main/manual TestChannel
  */
+
+// This test requires special hardware.
 
 import javax.smartcardio.Card;
 import javax.smartcardio.CardChannel;

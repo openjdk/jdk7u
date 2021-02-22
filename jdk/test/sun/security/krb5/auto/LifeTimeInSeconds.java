@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6857802
- * @run main/othervm LifeTimeInSeconds
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock LifeTimeInSeconds
  * @summary GSS getRemainingInitLifetime method returns milliseconds not seconds
  */
 import org.ietf.jgss.GSSCredential;
@@ -40,7 +40,7 @@ public class LifeTimeInSeconds {
         int time = cred.getRemainingLifetime();
         int time2 = cred.getRemainingInitLifetime(null);
         // The test KDC issues a TGT with a default lifetime of 11 hours
-        int elevenhrs = 11*3600;
+        int elevenhrs = KDC.DEFAULT_LIFETIME;
         if (time > elevenhrs+60 || time < elevenhrs-60) {
             throw new Exception("getRemainingLifetime returns wrong value.");
         }

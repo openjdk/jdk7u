@@ -48,10 +48,7 @@ class ServerSocketChannelImpl
 
     // Our file descriptor
     private final FileDescriptor fd;
-
-    // fd value needed for dev/poll. This value will remain valid
-    // even after the value in the file descriptor object has been set to -1
-    private int fdVal;
+    private final int fdVal;
 
     // ID of native thread currently blocked in this channel, for signalling
     private volatile long thread = 0;
@@ -318,21 +315,20 @@ class ServerSocketChannelImpl
         int oldOps = sk.nioReadyOps();
         int newOps = initialOps;
 
-        if ((ops & PollArrayWrapper.POLLNVAL) != 0) {
+        if ((ops & Net.POLLNVAL) != 0) {
             // This should only happen if this channel is pre-closed while a
             // selection operation is in progress
             // ## Throw an error if this channel has not been pre-closed
             return false;
         }
 
-        if ((ops & (PollArrayWrapper.POLLERR
-                    | PollArrayWrapper.POLLHUP)) != 0) {
+        if ((ops & (Net.POLLERR | Net.POLLHUP)) != 0) {
             newOps = intOps;
             sk.nioReadyOps(newOps);
             return (newOps & ~oldOps) != 0;
         }
 
-        if (((ops & PollArrayWrapper.POLLIN) != 0) &&
+        if (((ops & Net.POLLIN) != 0) &&
             ((intOps & SelectionKey.OP_ACCEPT) != 0))
                 newOps |= SelectionKey.OP_ACCEPT;
 
@@ -348,6 +344,28 @@ class ServerSocketChannelImpl
         return translateReadyOps(ops, 0, sk);
     }
 
+    // package-private
+    int poll(int events, long timeout) throws IOException {
+        assert Thread.holdsLock(blockingLock()) && !isBlocking();
+
+        synchronized (lock) {
+            int n = 0;
+            try {
+                begin();
+                synchronized (stateLock) {
+                    if (!isOpen())
+                        return 0;
+                    thread = NativeThread.current();
+                }
+                n = Net.poll(fd, events, timeout);
+            } finally {
+                thread = 0;
+                end(n > 0);
+            }
+            return n;
+        }
+    }
+
     /**
      * Translates an interest operation set into a native poll event set
      */
@@ -356,7 +374,7 @@ class ServerSocketChannelImpl
 
         // Translate ops
         if ((ops & SelectionKey.OP_ACCEPT) != 0)
-            newOps |= PollArrayWrapper.POLLIN;
+            newOps |= Net.POLLIN;
         // Place ops into pollfd array
         sk.selector.putEventOps(sk, newOps);
     }

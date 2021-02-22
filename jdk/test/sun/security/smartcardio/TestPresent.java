@@ -26,9 +26,10 @@
  * @bug 6293769 6294527
  * @summary test that the isCardPresent()/waitForX() APIs work correctly
  * @author Andreas Sterbenz
- * @ignore requires special hardware
  * @run main/manual TestPresent
  */
+
+// This test requires special hardware.
 
 import java.util.List;
 import javax.smartcardio.CardTerminal;
