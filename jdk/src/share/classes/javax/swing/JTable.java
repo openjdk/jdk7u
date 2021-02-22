@@ -63,7 +63,7 @@ import sun.swing.SwingLazyValue;
 /**
  * The <code>JTable</code> is used to display and edit regular two-dimensional tables
  * of cells.
- * See <a href="http://java.sun.com/docs/books/tutorial/uiswing/components/table.html">How to Use Tables</a>
+ * See <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/table.html">How to Use Tables</a>
  * in <em>The Java Tutorial</em>
  * for task-oriented documentation and examples of using <code>JTable</code>.
  *
@@ -2488,7 +2488,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * The default value of this property is defined by the look
      * and feel implementation.
      * <p>
-     * This is a <a href="http://java.sun.com/docs/books/tutorial/javabeans/properties/bound.html">JavaBeans</a> bound property.
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
      * @param selectionForeground  the <code>Color</code> to use in the foreground
      *                             for selected list items
@@ -2526,7 +2526,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * The default value of this property is defined by the look
      * and feel implementation.
      * <p>
-     * This is a <a href="http://java.sun.com/docs/books/tutorial/javabeans/properties/bound.html">JavaBeans</a> bound property.
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
      * @param selectionBackground  the <code>Color</code> to use for the background
      *                             of selected cells
@@ -2989,7 +2989,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
 
     /**
      * Causes this table to lay out its rows and columns.  Overridden so
-     * that columns can be resized to accomodate a change in the size of
+     * that columns can be resized to accommodate a change in the size of
      * a containing parent.
      * Resizes one or more of the columns in the table
      * so that the total width of all of this <code>JTable</code>'s
@@ -3012,7 +3012,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * The modes are:
      * <ul>
      * <li>  AUTO_RESIZE_OFF: Don't automatically adjust the column's
-     * widths at all. Use a horizontal scrollbar to accomodate the
+     * widths at all. Use a horizontal scrollbar to accommodate the
      * columns when their sum exceeds the width of the
      * <code>Viewport</code>.  If the <code>JTable</code> is not
      * enclosed in a <code>JScrollPane</code> this may
@@ -3102,7 +3102,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * <P>
      * The overall effect is that the total size moves that same percentage,
      * k, towards the total minimum or maximum and that percentage guarantees
-     * accomodation of the required space, DELTA.
+     * accommodation of the required space, DELTA.
      *
      * <H4>Details</H4>
      * <P>

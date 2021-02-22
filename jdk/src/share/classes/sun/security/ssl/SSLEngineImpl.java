@@ -747,7 +747,7 @@ final public class SSLEngineImpl extends SSLEngine {
 
     /**
      * Unwraps a buffer.  Does a variety of checks before grabbing
-     * the unwrapLock, which blocks multiple unwraps from occuring.
+     * the unwrapLock, which blocks multiple unwraps from occurring.
      */
     public SSLEngineResult unwrap(ByteBuffer netData, ByteBuffer [] appData,
             int offset, int length) throws SSLException {
@@ -1140,7 +1140,7 @@ final public class SSLEngineImpl extends SSLEngine {
 
     /**
      * Wraps a buffer.  Does a variety of checks before grabbing
-     * the wrapLock, which blocks multiple wraps from occuring.
+     * the wrapLock, which blocks multiple wraps from occurring.
      */
     public SSLEngineResult wrap(ByteBuffer [] appData,
             int offset, int length, ByteBuffer netData) throws SSLException {

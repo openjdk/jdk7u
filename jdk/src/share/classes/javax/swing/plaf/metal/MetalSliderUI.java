@@ -37,7 +37,7 @@ import javax.swing.*;
 import javax.swing.plaf.*;
 
 /**
- * A Java L&F implementation of SliderUI.
+ * A Java L&amp;F implementation of SliderUI.
  * <p>
  * <strong>Warning:</strong>
  * Serialized objects of this class will not be compatible with
@@ -64,14 +64,14 @@ public class MetalSliderUI extends BasicSliderUI {
 
    /**
     * A default horizontal thumb <code>Icon</code>. This field might not be
-    * used. To change the <code>Icon</code> used by this delgate directly set it
+    * used. To change the <code>Icon</code> used by this delegate directly set it
     * using the <code>Slider.horizontalThumbIcon</code> UIManager property.
     */
     protected static Icon horizThumbIcon;
 
    /**
     * A default vertical thumb <code>Icon</code>. This field might not be
-    * used. To change the <code>Icon</code> used by this delgate directly set it
+    * used. To change the <code>Icon</code> used by this delegate directly set it
     * using the <code>Slider.verticalThumbIcon</code> UIManager property.
     */
     protected static Icon vertThumbIcon;

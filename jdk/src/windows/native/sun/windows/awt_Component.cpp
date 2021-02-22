@@ -98,7 +98,6 @@ BOOL AwtComponent::sm_restoreFocusAndActivation = FALSE;
 HWND AwtComponent::sm_focusOwner = NULL;
 HWND AwtComponent::sm_focusedWindow = NULL;
 BOOL AwtComponent::sm_bMenuLoop = FALSE;
-AwtComponent* AwtComponent::sm_getComponentCache = NULL;
 BOOL AwtComponent::sm_inSynthesizeFocus = FALSE;
 
 /************************************************************************/
@@ -272,16 +271,12 @@ AwtComponent::~AwtComponent()
      * handle.
      */
     DestroyHWnd();
-
-    if (sm_getComponentCache == this) {
-        sm_getComponentCache = NULL;
-    }
 }
 
 void AwtComponent::Dispose()
 {
     // NOTE: in case the component/toplevel was focused, Java should
-    // have already taken care of proper transfering it or clearing.
+    // have already taken care of proper transferring it or clearing.
 
     if (m_hdwp != NULL) {
     // end any deferred window positioning, regardless
@@ -348,9 +343,6 @@ AwtComponent* AwtComponent::GetComponent(HWND hWnd) {
     if (hWnd == AwtToolkit::GetInstance().GetHWnd()) {
         return NULL;
     }
-    if (sm_getComponentCache && sm_getComponentCache->GetHWnd() == hWnd) {
-        return sm_getComponentCache;
-    }
 
     // check that it's an AWT component from the same toolkit as the caller
     if (::IsWindow(hWnd) &&
@@ -358,7 +350,7 @@ AwtComponent* AwtComponent::GetComponent(HWND hWnd) {
     {
         DASSERT(WmAwtIsComponent != 0);
         if (::SendMessage(hWnd, WmAwtIsComponent, 0, 0L)) {
-            return sm_getComponentCache = GetComponentImpl(hWnd);
+            return GetComponentImpl(hWnd);
         }
     }
     return NULL;
@@ -2159,7 +2151,7 @@ void AwtComponent::PaintUpdateRgn(const RECT *insets)
     // Fix 4530093: Don't Validate if can't actually paint
     if (m_peerObject == NULL || !m_callbacksEnabled) {
 
-        // Fix 4745222: If we dont ValidateRgn,  windows will keep sending
+        // Fix 4745222: If we don't ValidateRgn,  windows will keep sending
         // WM_PAINT messages until we do. This causes java to go into
         // a tight loop that increases CPU to 100% and starves main
         // thread which needs to complete initialization, but cant.

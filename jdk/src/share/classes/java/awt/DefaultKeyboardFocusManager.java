@@ -48,7 +48,7 @@ import sun.awt.CausedFocusEvent;
  * Container's FocusTraversalPolicy.
  * <p>
  * Please see
- * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
  * How to Use the Focus Subsystem</a>,
  * a section in <em>The Java Tutorial</em>, and the
  * <a href="../../java/awt/doc-files/FocusSpec.html">Focus Specification</a>
@@ -1209,7 +1209,7 @@ public class DefaultKeyboardFocusManager extends KeyboardFocusManager {
      * any) should be cancelled.
      *
      * @param after the timestamp specified in the call to
-     *        <code>enqueueKeyEvents</code>, or any value < 0
+     *        <code>enqueueKeyEvents</code>, or any value &lt; 0
      * @param untilFocused the Component specified in the call to
      *        <code>enqueueKeyEvents</code>
      * @see #enqueueKeyEvents

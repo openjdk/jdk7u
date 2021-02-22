@@ -193,7 +193,7 @@ import java.sql.SQLException;
  * code fragment, the value in <i>crs</i> is the one set as the resolved value, which means
  * that it will be used to overwrite the conflict value in the data source.
  *
- * <PRE>
+ * <PRE>{@code
  *     try {
  *
  *         crs.acceptChanges(con);
@@ -202,8 +202,8 @@ import java.sql.SQLException;
  *
  *         SyncResolver resolver = spe.getSyncResolver();
  *
- *         Object crsValue;  // value in the <code>RowSet</code> object
- *         Object resolverValue:  // value in the <code>SyncResolver</code> object
+ *         Object crsValue;  // value in the RowSet object
+ *         Object resolverValue:  // value in the SyncResolver object
  *         Object resolvedValue:  // value to be persisted
  *
  *         while(resolver.nextConflict())  {
@@ -227,7 +227,7 @@ import java.sql.SQLException;
  *              }
  *          }
  *      }
- * </PRE>
+ * }</PRE>
  * @author  Jonathan Bruce
  */
 
@@ -261,10 +261,10 @@ public interface SyncResolver extends RowSet {
     public static int INSERT_ROW_CONFLICT = 2;
 
     /**
-     * Indicates that <b>no</b> conflict occured while the <code>RowSet</code> object
+     * Indicates that <b>no</b> conflict occurred while the <code>RowSet</code> object
      * was attempting to update, delete or insert a row in the data source. The values in
      * the <code>SyncResolver</code> will contain <code>null</code> values only as an indication
-     * that no information in pertitent to the conflict resolution in this row.
+     * that no information in pertinent to the conflict resolution in this row.
      */
     public static int NO_ROW_CONFLICT = 3;
 

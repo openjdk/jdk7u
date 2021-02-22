@@ -115,14 +115,8 @@ import sun.security.util.Debug;
  *    // get user password and file input stream
  *    char[] password = getPassword();
  *
- *    java.io.FileInputStream fis = null;
- *    try {
- *        fis = new java.io.FileInputStream("keyStoreName");
+ *    try (FileInputStream fis = new FileInputStream("keyStoreName")) {
  *        ks.load(fis, password);
- *    } finally {
- *        if (fis != null) {
- *            fis.close();
- *        }
  *    }
  * </pre>
  *
@@ -148,14 +142,8 @@ import sun.security.util.Debug;
  *    ks.setEntry("secretKeyAlias", skEntry, protParam);
  *
  *    // store away the keystore
- *    java.io.FileOutputStream fos = null;
- *    try {
- *        fos = new java.io.FileOutputStream("newKeyStoreName");
+ *    try (FileOutputStream fos = new FileOutputStream("newKeyStoreName")) {
  *        ks.store(fos, password);
- *    } finally {
- *        if (fos != null) {
- *            fos.close();
- *        }
  *    }
  * </pre>
  *
@@ -1403,7 +1391,7 @@ public class KeyStore {
         /**
          * Returns the KeyStore described by this object.
          *
-         * @exception KeyStoreException if an error occured during the
+         * @exception KeyStoreException if an error occurred during the
          *   operation, for example if the KeyStore could not be
          *   instantiated or loaded
          */
@@ -1419,7 +1407,7 @@ public class KeyStore {
          *   the {@link KeyStore.Entry Entry} with the given alias.
          * @param alias the alias of the KeyStore entry
          * @throws NullPointerException if alias is null
-         * @throws KeyStoreException if an error occured during the
+         * @throws KeyStoreException if an error occurred during the
          *   operation
          * @throws IllegalStateException if the getKeyStore method has
          *   not been invoked prior to calling this method

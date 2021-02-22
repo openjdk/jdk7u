@@ -38,7 +38,8 @@ import javax.naming.ldap.LdapName;
 
 import com.sun.jndi.toolkit.ctx.Continuation;
 
-final class LdapSearchEnumeration extends LdapNamingEnumeration {
+final class LdapSearchEnumeration
+        extends AbstractLdapNamingEnumeration<SearchResult> {
 
     private Name startName;             // prefix of names of search results
     private LdapCtx.SearchArgs searchArgs = null;
@@ -58,9 +59,10 @@ final class LdapSearchEnumeration extends LdapNamingEnumeration {
         searchArgs = args;
     }
 
-    protected NameClassPair
-    createItem(String dn, final Attributes attrs, Vector respCtls)
-        throws NamingException {
+    @Override
+    protected SearchResult createItem(String dn, final Attributes attrs,
+                                      Vector<Control> respCtls)
+            throws NamingException {
 
         Object obj = null;
 
@@ -188,6 +190,7 @@ final class LdapSearchEnumeration extends LdapNamingEnumeration {
         return sr;
     }
 
+    @Override
     public void appendUnprocessedReferrals(LdapReferralException ex) {
 
         // a referral has been followed so do not create relative names
@@ -195,14 +198,16 @@ final class LdapSearchEnumeration extends LdapNamingEnumeration {
         super.appendUnprocessedReferrals(ex);
     }
 
-    protected LdapNamingEnumeration
-    getReferredResults(LdapReferralContext refCtx) throws NamingException {
+    @Override
+    protected LdapSearchEnumeration getReferredResults(
+            LdapReferralContext refCtx) throws NamingException {
         // repeat the original operation at the new context
-        return (LdapSearchEnumeration)
-            refCtx.search(searchArgs.name, searchArgs.filter, searchArgs.cons);
+        return (LdapSearchEnumeration)refCtx.search(
+                searchArgs.name, searchArgs.filter, searchArgs.cons);
     }
 
-    protected void update(LdapNamingEnumeration ne) {
+    @Override
+    protected void update(AbstractLdapNamingEnumeration<SearchResult> ne) {
         super.update(ne);
 
         // Update search-specific variables

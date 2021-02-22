@@ -35,7 +35,7 @@ import javax.accessibility.*;
  * For information about creating dialogs, see
  * <em>The Java Tutorial</em> section
  * <a
- href="http://java.sun.com/docs/books/tutorial/uiswing/components/dialog.html">How
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/dialog.html">How
  * to Make Dialogs</a>.
  *
  * <p>
@@ -786,7 +786,7 @@ public class JDialog extends Dialog implements WindowConstants,
      * are currently typed to {@code JComponent}.
      * <p>
      * Please see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/dnd.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
      * How to Use Drag and Drop and Data Transfer</a>, a section in
      * <em>The Java Tutorial</em>, for more information.
      *
@@ -862,7 +862,7 @@ public class JDialog extends Dialog implements WindowConstants,
      * {@code setLayout} are forwarded to the {@code contentPane}.
      *
      * @return true if {@code add} and {@code setLayout}
-     *         are fowarded; false otherwise
+     *         are forwarded; false otherwise
      *
      * @see #addImpl
      * @see #setLayout
@@ -1024,7 +1024,7 @@ public class JDialog extends Dialog implements WindowConstants,
      * This method is called by the constructor.
      * <p>
      * Swing's painting architecture requires an opaque {@code JComponent}
-     * in the containment hiearchy. This is typically provided by the
+     * in the containment hierarchy. This is typically provided by the
      * content pane. If you replace the content pane it is recommended you
      * replace it with an opaque {@code JComponent}.
      * @see JRootPane

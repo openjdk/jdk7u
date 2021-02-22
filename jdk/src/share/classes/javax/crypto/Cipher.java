@@ -1142,7 +1142,7 @@ public class Cipher {
      *
      * <p>If this cipher (including its underlying feedback or padding scheme)
      * requires any random bytes (e.g., for parameter generation), it will get
-     * them using the {@link SecureRandom <code>SecureRandom</code>}
+     * them using the {@link java.security.SecureRandom}
      * implementation of the highest-priority
      * installed provider as the source of randomness.
      * (If none of the installed providers supply an implementation of
@@ -1270,7 +1270,7 @@ public class Cipher {
      *
      * <p>If this cipher (including its underlying feedback or padding scheme)
      * requires any random bytes (e.g., for parameter generation), it will get
-     * them using the {@link SecureRandom <code>SecureRandom</code>}
+     * them using the {@link java.security.SecureRandom}
      * implementation of the highest-priority
      * installed provider as the source of randomness.
      * (If none of the installed providers supply an implementation of
@@ -1407,7 +1407,7 @@ public class Cipher {
      *
      * <p>If this cipher (including its underlying feedback or padding scheme)
      * requires any random bytes (e.g., for parameter generation), it will get
-     * them using the {@link SecureRandom <code>SecureRandom</code>}
+     * them using the {@link java.security.SecureRandom}
      * implementation of the highest-priority
      * installed provider as the source of randomness.
      * (If none of the installed providers supply an implementation of
