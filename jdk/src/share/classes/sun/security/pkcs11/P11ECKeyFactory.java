@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 import sun.security.util.DerValue;
 
 /**
- * EC KeyFactory implemenation.
+ * EC KeyFactory implementation.
  *
  * @author  Andreas Sterbenz
  * @since   1.6
@@ -304,7 +304,7 @@ final class P11ECKeyFactory extends P11KeyFactory {
     }
 
     KeyFactory implGetSoftwareFactory() throws GeneralSecurityException {
-        return sun.security.ec.ECKeyFactory.INSTANCE;
+        return KeyFactory.getInstance("EC", "SunEC");
     }
 
 }

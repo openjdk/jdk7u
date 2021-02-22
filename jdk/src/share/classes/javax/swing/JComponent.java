@@ -79,7 +79,7 @@ import sun.swing.UIClientPropertyKey;
  * that provide a place for other Swing components to paint themselves.
  * For an explanation of containment hierarchies, see
  * <a
- href="http://java.sun.com/docs/books/tutorial/uiswing/overview/hierarchy.html">Swing Components and the Containment Hierarchy</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/toplevel.html">Swing Components and the Containment Hierarchy</a>,
  * a section in <em>The Java Tutorial</em>.
  *
  * <p>
@@ -87,27 +87,26 @@ import sun.swing.UIClientPropertyKey;
  * <ul>
  * <li>The base class for both standard and custom components
  *     that use the Swing architecture.
- * <li>A "pluggable look and feel" (L&F) that can be specified by the
+ * <li>A "pluggable look and feel" (L&amp;F) that can be specified by the
  *     programmer or (optionally) selected by the user at runtime.
  *     The look and feel for each component is provided by a
  *     <em>UI delegate</em> -- an object that descends from
  *     {@link javax.swing.plaf.ComponentUI}.
  *     See <a
- * href="http://java.sun.com/docs/books/tutorial/uiswing/misc/plaf.html">How
+ * href="https://docs.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html">How
  *     to Set the Look and Feel</a>
  *     in <em>The Java Tutorial</em>
  *     for more information.
  * <li>Comprehensive keystroke handling.
  *     See the document <a
- * href="http://java.sun.com/products/jfc/tsc/special_report/kestrel/keybindings.html">Keyboard
- *     Bindings in Swing</a>,
- *     an article in <em>The Swing Connection</em>,
+ * href="https://docs.oracle.com/javase/tutorial/uiswing/misc/keybinding.html">How to Use Key Bindings</a>,
+ *     an article in <em>The Java Tutorial</em>,
  *     for more information.
  * <li>Support for tool tips --
  *     short descriptions that pop up when the cursor lingers
  *     over a component.
  *     See <a
- * href="http://java.sun.com/docs/books/tutorial/uiswing/components/tooltip.html">How
+ * href="https://docs.oracle.com/javase/tutorial/uiswing/components/tooltip.html">How
  *     to Use Tool Tips</a>
  *     in <em>The Java Tutorial</em>
  *     for more information.
@@ -125,15 +124,15 @@ import sun.swing.UIClientPropertyKey;
  * <li>An infrastructure for painting
  *     that includes double buffering and support for borders.
  *     For more information see <a
- * href="http://java.sun.com/docs/books/tutorial/uiswing/overview/draw.html">Painting</a> and
- * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/border.html">How
+ * href="http://www.oracle.com/technetwork/java/painting-140037.html#swing">Painting</a> and
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/border.htmll">How
  *     to Use Borders</a>,
  *     both of which are sections in <em>The Java Tutorial</em>.
  * </ul>
  * For more information on these subjects, see the
  * <a href="package-summary.html#package_description">Swing package description</a>
  * and <em>The Java Tutorial</em> section
- * <a href="http://java.sun.com/docs/books/tutorial/uiswing/components/jcomponent.html">The JComponent Class</a>.
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/jcomponent.html">The JComponent Class</a>.
  * <p>
  * <code>JComponent</code> and its subclasses document default values
  * for certain properties.  For example, <code>JTable</code> documents the
@@ -151,7 +150,7 @@ import sun.swing.UIClientPropertyKey;
  * <p>
  * In release 1.4, the focus subsystem was rearchitected.
  * For more information, see
- * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
  * How to Use the Focus Subsystem</a>,
  * a section in <em>The Java Tutorial</em>.
  * <p>
@@ -318,7 +317,7 @@ public abstract class JComponent extends Container implements Serializable,
 
     /**
      * <code>JPopupMenu</code> assigned to this component
-     * and all of its childrens
+     * and all of its children
      */
     private JPopupMenu popupMenu;
 
@@ -1292,7 +1291,7 @@ public abstract class JComponent extends Container implements Serializable,
     /**
      * In release 1.4, the focus subsystem was rearchitected.
      * For more information, see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
      * How to Use the Focus Subsystem</a>,
      * a section in <em>The Java Tutorial</em>.
      * <p>
@@ -1354,7 +1353,7 @@ public abstract class JComponent extends Container implements Serializable,
     /**
      * In release 1.4, the focus subsystem was rearchitected.
      * For more information, see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
      * How to Use the Focus Subsystem</a>,
      * a section in <em>The Java Tutorial</em>.
      * <p>
@@ -1387,7 +1386,7 @@ public abstract class JComponent extends Container implements Serializable,
     /**
      * In release 1.4, the focus subsystem was rearchitected.
      * For more information, see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
      * How to Use the Focus Subsystem</a>,
      * a section in <em>The Java Tutorial</em>.
      * <p>
@@ -1420,7 +1419,7 @@ public abstract class JComponent extends Container implements Serializable,
      * all, use the <code>setFocusable</code> method instead.
      * <p>
      * Please see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
      * How to Use the Focus Subsystem</a>,
      * a section in <em>The Java Tutorial</em>,
      * for more information.
@@ -1439,7 +1438,7 @@ public abstract class JComponent extends Container implements Serializable,
      * get focus; otherwise returns <code>false</code>.
      * <p>
      * Please see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
      * How to Use the Focus Subsystem</a>,
      * a section in <em>The Java Tutorial</em>,
      * for more information.
@@ -1465,7 +1464,7 @@ public abstract class JComponent extends Container implements Serializable,
      * its behavior is platform dependent. Instead we recommend the
      * use of {@link #requestFocusInWindow() requestFocusInWindow()}.
      * If you would like more information on focus, see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
      * How to Use the Focus Subsystem</a>,
      * a section in <em>The Java Tutorial</em>.
      *
@@ -1488,7 +1487,7 @@ public abstract class JComponent extends Container implements Serializable,
      * use of {@link #requestFocusInWindow(boolean)
      * requestFocusInWindow(boolean)}.
      * If you would like more information on focus, see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
      * How to Use the Focus Subsystem</a>,
      * a section in <em>The Java Tutorial</em>.
      *
@@ -1510,7 +1509,7 @@ public abstract class JComponent extends Container implements Serializable,
      * this method.
      * <p>
      * If you would like more information on focus, see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
      * How to Use the Focus Subsystem</a>,
      * a section in <em>The Java Tutorial</em>.
      *
@@ -1531,7 +1530,7 @@ public abstract class JComponent extends Container implements Serializable,
      * this method.
      * <p>
      * If you would like more information on focus, see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
      * How to Use the Focus Subsystem</a>,
      * a section in <em>The Java Tutorial</em>.
      *
@@ -2022,7 +2021,7 @@ public abstract class JComponent extends Container implements Serializable,
     /**
      * This method is now obsolete, please use a combination of
      * <code>getActionMap()</code> and <code>getInputMap()</code> for
-     * similiar behavior. For example, to bind the <code>KeyStroke</code>
+     * similar behavior. For example, to bind the <code>KeyStroke</code>
      * <code>aKeyStroke</code> to the <code>Action</code> <code>anAction</code>
      * now use:
      * <pre>
@@ -2207,7 +2206,7 @@ public abstract class JComponent extends Container implements Serializable,
     /**
      * This method is now obsolete, please use a combination of
      * <code>getActionMap()</code> and <code>getInputMap()</code> for
-     * similiar behavior.
+     * similar behavior.
      */
     public void registerKeyboardAction(ActionListener anAction,KeyStroke aKeyStroke,int aCondition) {
         registerKeyboardAction(anAction,null,aKeyStroke,aCondition);
@@ -2594,7 +2593,7 @@ public abstract class JComponent extends Container implements Serializable,
     /**
      * In release 1.4, the focus subsystem was rearchitected.
      * For more information, see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/focus.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/misc/focus.html">
      * How to Use the Focus Subsystem</a>,
      * a section in <em>The Java Tutorial</em>.
      * <p>
@@ -2985,7 +2984,7 @@ public abstract class JComponent extends Container implements Serializable,
      * Registers the text to display in a tool tip.
      * The text displays when the cursor lingers over the component.
      * <p>
-     * See <a href="http://java.sun.com/docs/books/tutorial/uiswing/components/tooltip.html">How to Use Tool Tips</a>
+     * See <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/tooltip.html">How to Use Tool Tips</a>
      * in <em>The Java Tutorial</em>
      * for further documentation.
      *
@@ -3205,7 +3204,7 @@ public abstract class JComponent extends Container implements Serializable,
      * default value for the system property is {@code false}.
      * <p>
      * Please see
-     * <a href="http://java.sun.com/docs/books/tutorial/uiswing/misc/dnd.html">
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/dnd/index.html">
      * How to Use Drag and Drop and Data Transfer</a>,
      * a section in <em>The Java Tutorial</em>, for more information.
      *
@@ -4535,7 +4534,7 @@ public abstract class JComponent extends Container implements Serializable,
      * @param propertyName  the name of the property that was listened on
      * @param oldValue  the old value of the property
      * @param newValue  the new value of the property
-     * @exception PropertyVetoException when the attempt to set the
+     * @exception java.beans.PropertyVetoException when the attempt to set the
      *          property is vetoed by the component
      */
     protected void fireVetoableChange(String propertyName, Object oldValue, Object newValue)
@@ -5250,7 +5249,7 @@ public abstract class JComponent extends Container implements Serializable,
      *
      * @return NOT_OBSCURED if non of the siblings above the Component obscure
      *         it, COMPLETELY_OBSCURED if one of the siblings completely
-     *         obscures the Component or PARTIALLY_OBSCURED if the Comonent is
+     *         obscures the Component or PARTIALLY_OBSCURED if the Component is
      *         only partially obscured.
      */
     private int getObscuredState(int compIndex, int x, int y, int width,

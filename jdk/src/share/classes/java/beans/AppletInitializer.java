@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import java.beans.beancontext.BeanContext;
 /**
  * <p>
  * This interface is designed to work in collusion with java.beans.Beans.instantiate.
- * The interafce is intended to provide mechanism to allow the proper
+ * The interface is intended to provide mechanism to allow the proper
  * initialization of JavaBeans that are also Applets, during their
  * instantiation by java.beans.Beans.instantiate().
  * </p>
@@ -68,7 +68,6 @@ public interface AppletInitializer {
      * the Applet with its Container during the subsequent invocation of its
      * addChildren() method.
      * </ol>
-     * </p>
      *
      * @param newAppletBean  The newly instantiated JavaBean
      * @param bCtxt          The BeanContext intended for this Applet, or

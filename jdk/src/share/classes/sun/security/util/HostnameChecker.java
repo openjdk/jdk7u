@@ -225,7 +225,7 @@ public class HostnameChecker {
     /**
      * Return the subject of a certificate as X500Name, by reparsing if
      * necessary. X500Name should only be used if access to name components
-     * is required, in other cases X500Principal is to be prefered.
+     * is required, in other cases X500Principal is to be preferred.
      *
      * This method is currently used from within JSSE, do not remove.
      */
@@ -279,8 +279,8 @@ public class HostnameChecker {
      */
     private static boolean matchAllWildcards(String name,
          String template) {
-        name = name.toLowerCase();
-        template = template.toLowerCase();
+        name = name.toLowerCase(Locale.ENGLISH);
+        template = template.toLowerCase(Locale.ENGLISH);
         StringTokenizer nameSt = new StringTokenizer(name, ".");
         StringTokenizer templateSt = new StringTokenizer(template, ".");
 
@@ -309,8 +309,8 @@ public class HostnameChecker {
      */
     private static boolean matchLeftmostWildcard(String name,
                          String template) {
-        name = name.toLowerCase();
-        template = template.toLowerCase();
+        name = name.toLowerCase(Locale.ENGLISH);
+        template = template.toLowerCase(Locale.ENGLISH);
 
         // Retreive leftmost component
         int templateIdx = template.indexOf(".");

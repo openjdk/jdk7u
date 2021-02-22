@@ -2,27 +2,29 @@
  * reserved comment block
  * DO NOT REMOVE OR ALTER!
  */
-/*
- * Copyright 2005 The Apache Software Foundation.
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 /*
- * Copyright (c) 2005, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMURIDereferencer.java,v 1.2 2008/07/24 15:20:32 mullan Exp $
+ * $Id: DOMURIDereferencer.java 1231033 2012-01-13 12:12:12Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
@@ -37,7 +39,6 @@ import com.sun.org.apache.xml.internal.security.signature.XMLSignatureInput;
 
 import javax.xml.crypto.*;
 import javax.xml.crypto.dom.*;
-import javax.xml.crypto.dsig.*;
 
 /**
  * DOM-based implementation of URIDereferencer.
@@ -72,6 +73,11 @@ public class DOMURIDereferencer implements URIDereferencer {
 
         boolean secVal = Utils.secureValidation(context);
 
+        if (secVal && Policy.restrictReferenceUriScheme(uri)) {
+            throw new URIReferenceException(
+                "Uri " + uri + " is forbidden when secure validation is enabled");
+        }
+
         // Check if same-document URI and already registered on the context
         if (uri != null && uri.length() != 0 && uri.charAt(0) == '#') {
             String id = uri.substring(1);
@@ -82,21 +88,24 @@ public class DOMURIDereferencer implements URIDereferencer {
                 id = id.substring(i1+1, i2);
             }
 
-            Node refElem = dcc.getElementById(id);
-            if (refElem != null) {
-                if (secVal) {
-                    Element start =
-                        refElem.getOwnerDocument().getDocumentElement();
-                    if (!XMLUtils.protectAgainstWrappingAttack(start,
-                                                               (Element)refElem,
-                                                               id)) {
-                        String error = "Multiple Elements with the same ID " +
-                                       id + " were detected";
+            // check if element is registered by Id
+            Node referencedElem = uriAttr.getOwnerDocument().getElementById(id);
+            if (referencedElem == null) {
+               // see if element is registered in DOMCryptoContext
+               referencedElem = dcc.getElementById(id);
+            }
+            if (referencedElem != null) {
+                if (secVal && Policy.restrictDuplicateIds()) {
+                    Element start = referencedElem.getOwnerDocument().getDocumentElement();
+                    if (!XMLUtils.protectAgainstWrappingAttack(start, (Element)referencedElem, id)) {
+                        String error = "Multiple Elements with the same ID "
+                            + id + " detected when secure validation"
+                            + " is enabled";
                         throw new URIReferenceException(error);
                     }
                 }
 
-                XMLSignatureInput result = new XMLSignatureInput(refElem);
+                XMLSignatureInput result = new XMLSignatureInput(referencedElem);
                 if (!uri.substring(1).startsWith("xpointer(id(")) {
                     result.setExcludeComments(true);
                 }
@@ -113,8 +122,9 @@ public class DOMURIDereferencer implements URIDereferencer {
 
         try {
             ResourceResolver apacheResolver =
-                ResourceResolver.getInstance(uriAttr, baseURI, secVal);
-            XMLSignatureInput in = apacheResolver.resolve(uriAttr, baseURI);
+                ResourceResolver.getInstance(uriAttr, baseURI, false);
+            XMLSignatureInput in = apacheResolver.resolve(uriAttr,
+                                                          baseURI, false);
             if (in.isOctetStream()) {
                 return new ApacheOctetStreamData(in);
             } else {

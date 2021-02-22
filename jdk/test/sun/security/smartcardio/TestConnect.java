@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,31 +30,21 @@
  * @run main/manual TestConnect
  */
 
-import java.io.*;
-import java.util.*;
-
-import javax.smartcardio.*;
+import java.util.List;
+import javax.smartcardio.TerminalFactory;
+import javax.smartcardio.Card;
+import javax.smartcardio.CardChannel;
+import javax.smartcardio.CardTerminal;
 
 public class TestConnect extends Utils {
 
     public static void main(String[] args) throws Exception {
-        TerminalFactory factory = TerminalFactory.getInstance("PC/SC", null, "SunPCSC");
-        System.out.println(factory);
-
-        List<CardTerminal> terminals = factory.terminals().list();
-        System.out.println("Terminals: " + terminals);
-        if (terminals.isEmpty()) {
-            throw new Exception("No card terminals available");
+        CardTerminal terminal = getTerminal(args, "SunPCSC");
+        if (terminal == null) {
+            System.out.println("Skipping the test: " +
+                    "no card terminals available");
+            return;
         }
-        CardTerminal terminal = terminals.get(0);
-
-        if (terminal.isCardPresent() == false) {
-            System.out.println("*** Insert card");
-            if (terminal.waitForCardPresent(20 * 1000) == false) {
-                throw new Exception("no card available");
-            }
-        }
-        System.out.println("card present: " + terminal.isCardPresent());
 
         Card card = terminal.connect("*");
         System.out.println("card: " + card);
@@ -62,7 +52,7 @@ public class TestConnect extends Utils {
             throw new Exception("Not T=0 protocol");
         }
         transmit(card);
-        card.disconnect(false);
+        card.disconnect(true);
 
         try {
             transmit(card);
@@ -95,7 +85,7 @@ public class TestConnect extends Utils {
             throw new Exception("Not T=0 protocol");
         }
         transmit(card);
-        card.disconnect(true);
+        card.disconnect(false);
 
         card = terminal.connect("*");
         System.out.println("card: " + card);
@@ -103,7 +93,6 @@ public class TestConnect extends Utils {
             throw new Exception("Not T=0 protocol");
         }
         transmit(card);
-        card.disconnect(true);
         card.disconnect(true);
 
         System.out.println("OK.");

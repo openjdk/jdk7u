@@ -931,7 +931,8 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
 
     /**
      * Constructs a Calendar with the default time zone
-     * and locale.
+     * and the default {@link java.util.Locale.Category#FORMAT FORMAT}
+     * locale.
      * @see     TimeZone#getDefault
      */
     protected Calendar()
@@ -959,7 +960,8 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
     /**
      * Gets a calendar using the default time zone and locale. The
      * <code>Calendar</code> returned is based on the current time
-     * in the default time zone with the default locale.
+     * in the default time zone with the default
+     * {@link Locale.Category#FORMAT FORMAT} locale.
      *
      * @return a Calendar.
      */
@@ -973,7 +975,8 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
     /**
      * Gets a calendar using the specified time zone and default locale.
      * The <code>Calendar</code> returned is based on the current time
-     * in the given time zone with the default locale.
+     * in the given time zone with the default
+     * {@link Locale.Category#FORMAT FORMAT} locale.
      *
      * @param zone the time zone to use
      * @return a Calendar.
@@ -1938,9 +1941,9 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * Returns whether this <code>Calendar</code> represents a time
      * before the time represented by the specified
      * <code>Object</code>. This method is equivalent to:
-     * <pre><blockquote>
+     * <pre>{@code
      *         compareTo(when) < 0
-     * </blockquote></pre>
+     * }</pre>
      * if and only if <code>when</code> is a <code>Calendar</code>
      * instance. Otherwise, the method returns <code>false</code>.
      *
@@ -1959,9 +1962,9 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * Returns whether this <code>Calendar</code> represents a time
      * after the time represented by the specified
      * <code>Object</code>. This method is equivalent to:
-     * <pre><blockquote>
+     * <pre>{@code
      *         compareTo(when) > 0
-     * </blockquote></pre>
+     * }</pre>
      * if and only if <code>when</code> is a <code>Calendar</code>
      * instance. Otherwise, the method returns <code>false</code>.
      *

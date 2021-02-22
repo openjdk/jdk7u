@@ -39,6 +39,7 @@ import com.sun.org.apache.xml.internal.security.c14n.implementations.Canonicaliz
 import com.sun.org.apache.xml.internal.security.c14n.implementations.Canonicalizer20010315ExclWithComments;
 import com.sun.org.apache.xml.internal.security.c14n.implementations.Canonicalizer20010315OmitComments;
 import com.sun.org.apache.xml.internal.security.c14n.implementations.Canonicalizer20010315WithComments;
+import com.sun.org.apache.xml.internal.security.c14n.implementations.CanonicalizerPhysical;
 import com.sun.org.apache.xml.internal.security.exceptions.AlgorithmAlreadyRegisteredException;
 import com.sun.org.apache.xml.internal.security.utils.JavaUtils;
 import org.w3c.dom.Document;
@@ -92,6 +93,11 @@ public class Canonicalizer {
      */
     public static final String ALGO_ID_C14N11_WITH_COMMENTS =
         ALGO_ID_C14N11_OMIT_COMMENTS + "#WithComments";
+    /**
+     * Non-standard algorithm to serialize the physical representation for XML Encryption
+     */
+    public static final String ALGO_ID_C14N_PHYSICAL =
+        "http://santuario.apache.org/c14n/physical";
 
     private static Map<String, Class<? extends CanonicalizerSpi>> canonicalizerHash =
         new ConcurrentHashMap<String, Class<? extends CanonicalizerSpi>>();
@@ -208,6 +214,10 @@ public class Canonicalizer {
         canonicalizerHash.put(
             Canonicalizer.ALGO_ID_C14N11_WITH_COMMENTS,
             Canonicalizer11_WithComments.class
+        );
+        canonicalizerHash.put(
+            Canonicalizer.ALGO_ID_C14N_PHYSICAL,
+            CanonicalizerPhysical.class
         );
     }
 

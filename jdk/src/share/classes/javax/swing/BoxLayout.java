@@ -116,7 +116,7 @@ import java.io.PrintStream;
  * <p>
  * For further information and examples see
  * <a
- href="http://java.sun.com/docs/books/tutorial/uiswing/layout/box.html">How to Use BoxLayout</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/layout/box.html">How to Use BoxLayout</a>,
  * a section in <em>The Java Tutorial.</em>
  * <p>
  * <strong>Warning:</strong>
@@ -337,7 +337,7 @@ public class BoxLayout implements LayoutManager2, Serializable {
      * to lay out the components it contains.
      *
      * @param target  the container that needs to be laid out
-     * @return the dimenions >= 0 && <= Integer.MAX_VALUE
+     * @return the dimensions >= 0 && <= Integer.MAX_VALUE
      * @exception AWTError  if the target isn't the container specified to the
      *                      BoxLayout constructor
      * @see #preferredLayoutSize

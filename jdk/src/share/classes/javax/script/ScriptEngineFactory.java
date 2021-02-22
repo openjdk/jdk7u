@@ -84,7 +84,7 @@ public interface ScriptEngineFactory {
     public List<String> getNames();
 
     /**
-     * Returns the name of the scripting langauge supported by this
+     * Returns the name of the scripting language supported by this
      * <code>ScriptEngine</code>.
      * @return The name of the supported language.
      */
@@ -141,11 +141,10 @@ public interface ScriptEngineFactory {
 
     /**
      * Returns a String which can be used to invoke a method of a  Java object using the syntax
-     * of the supported scripting language.  For instance, an implementaton for a Javascript
+     * of the supported scripting language.  For instance, an implementation for a Javascript
      * engine might be;
      * <p>
-     * <pre>
-     * <code>
+     * <pre>{@code
      * public String getMethodCallSyntax(String obj,
      *                                   String m, String... args) {
      *      String ret = obj;
@@ -159,8 +158,7 @@ public interface ScriptEngineFactory {
      *      ret += ")";
      *      return ret;
      * }
-     *</code>
-     *</pre>
+     * } </pre>
      * <p>
      *
      * @param obj The name representing the object whose method is to be invoked. The
@@ -179,7 +177,7 @@ public interface ScriptEngineFactory {
 
     /**
      * Returns a String that can be used as a statement to display the specified String  using
-     * the syntax of the supported scripting language.  For instance, the implementaton for a Perl
+     * the syntax of the supported scripting language.  For instance, the implementation for a Perl
      * engine might be;
      * <p>
      * <pre><code>
@@ -197,20 +195,19 @@ public interface ScriptEngineFactory {
 
 
     /**
-     * Returns A valid scripting language executable progam with given statements.
+     * Returns a valid scripting language executable program with given statements.
      * For instance an implementation for a PHP engine might be:
      * <p>
-     * <pre><code>
+     * <pre>{@code
      * public String getProgram(String... statements) {
-     *      $retval = "&lt;?\n";
+     *      String retval = "<?\n";
      *      int len = statements.length;
      *      for (int i = 0; i < len; i++) {
-     *          $retval += statements[i] + ";\n";
+     *          retval += statements[i] + ";\n";
      *      }
-     *      $retval += "?&gt;";
-     *
+     *      return retval += "?>";
      * }
-     * </code></pre>
+     * }</pre>
      *
      *  @param statements The statements to be executed.  May be return values of
      *  calls to the <code>getMethodCallSyntax</code> and <code>getOutputStatement</code> methods.

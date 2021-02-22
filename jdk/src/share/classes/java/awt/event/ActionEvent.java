@@ -51,7 +51,7 @@ import java.awt.Event;
  * in the range from {@code ACTION_FIRST} to {@code ACTION_LAST}.
  *
  * @see ActionListener
- * @see <a href="http://java.sun.com/docs/books/tutorial/uiswing/events/actionlistener.html">Tutorial: How to Write an Action Listener</a>
+ * @see <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/actionlistener.html">Tutorial: How to Write an Action Listener</a>
  *
  * @author Carl Quinn
  * @since 1.1
@@ -94,7 +94,7 @@ public class ActionEvent extends AWTEvent {
     public static final int ACTION_LAST                 = 1001;
 
     /**
-     * This event id indicates that a meaningful action occured.
+     * This event id indicates that a meaningful action occurred.
      */
     public static final int ACTION_PERFORMED    = ACTION_FIRST; //Event.ACTION_EVENT
 

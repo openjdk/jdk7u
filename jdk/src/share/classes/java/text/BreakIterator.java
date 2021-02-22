@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -201,7 +201,7 @@ import sun.util.resources.LocaleData;
  *
  * Find the next word:
  * <blockquote>
- * <pre>
+ * <pre>{@code
  * public static int nextWordStartAfter(int pos, String text) {
  *     BreakIterator wb = BreakIterator.getWordInstance();
  *     wb.setText(text);
@@ -217,7 +217,7 @@ import sun.util.resources.LocaleData;
  *     }
  *     return BreakIterator.DONE;
  * }
- * </pre>
+ * }</pre>
  * (The iterator returned by BreakIterator.getWordInstance() is unique in that
  * the break positions it returns don't represent both the start and end of the
  * thing being iterated over.  That is, a sentence-break iterator returns breaks
@@ -347,7 +347,7 @@ public abstract class BreakIterator implements Cloneable
      * Otherwise, the iterator's current position is set to the returned boundary.
      * The value returned is always less than the offset or the value
      * <code>BreakIterator.DONE</code>.
-     * @param offset the characater offset to begin scanning.
+     * @param offset the character offset to begin scanning.
      * @return The last boundary before the specified offset or
      * <code>BreakIterator.DONE</code> if the first text boundary is passed in
      * as the offset.

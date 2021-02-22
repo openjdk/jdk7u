@@ -56,13 +56,13 @@ import javax.print.attribute.PrintRequestAttribute;
  * any specified finishings.
  * <code>PrintService</code> provides the method to query the supported
  * values of an attribute in a suitable context :
- * See  {@link javax.print.PrintService#getSupportedAttributeValues(Class,DocFlavor, AttributeSet) <code>PrintService.getSupportedAttributeValues()</code>}
+ * See  {@link javax.print.PrintService#getSupportedAttributeValues(Class,DocFlavor, AttributeSet) PrintService.getSupportedAttributeValues()}
  * <p>
  * The rectangular printable area is defined thus:
  * The (x,y) origin is positioned at the top-left of the paper in portrait
  * mode regardless of the orientation specified in the requesting context.
  * For example a printable area for A4 paper in portrait or landscape
- * orientation will have height > width.
+ * orientation will have height {@literal >} width.
  * <p>
  * A printable area attribute's values are stored
  * internally as integers in units of micrometers (&#181;m), where 1 micrometer
@@ -107,9 +107,9 @@ public final class MediaPrintableArea
       * @param units  in which the values are expressed.
       *
       * @exception  IllegalArgumentException
-      *     Thrown if <CODE>x</CODE> < 0 or <CODE>y</CODE> < 0
-      *     or <CODE>w</CODE> <= 0 or <CODE>h</CODE> <= 0 or
-      *     <CODE>units</CODE> < 1.
+      *     Thrown if {@code x < 0} or {@code y < 0}
+      *     or {@code w <= 0} or {@code h <= 0} or
+      *     {@code units < 1}.
       */
     public MediaPrintableArea(float x, float y, float w, float h, int units) {
         if ((x < 0.0) || (y < 0.0) || (w <= 0.0) || (h <= 0.0) ||
@@ -133,9 +133,9 @@ public final class MediaPrintableArea
       * @param units  in which the values are expressed.
       *
       * @exception  IllegalArgumentException
-      *     Thrown if <CODE>x</CODE> < 0 or <CODE>y</CODE> < 0
-      *     or <CODE>w</CODE> <= 0 or <CODE>h</CODE> <= 0 or
-      *     <CODE>units</CODE> < 1.
+      *     Thrown if {@code x < 0} or {@code y < 0}
+      *     or {@code w <= 0} or {@code h <= 0} or
+      *     {@code units < 1}.
       */
     public MediaPrintableArea(int x, int y, int w, int h, int units) {
         if ((x < 0) || (y < 0) || (w <= 0) || (h <= 0) ||
@@ -153,13 +153,13 @@ public final class MediaPrintableArea
      * Get the printable area as an array of 4 values in the order
      * x, y, w, h. The values returned are in the given units.
      * @param  units
-     *     Unit conversion factor, e.g. {@link #INCH <CODE>INCH</CODE>} or
-     *     {@link #MM <CODE>MM</CODE>}.
+     *     Unit conversion factor, e.g. {@link #INCH INCH} or
+     *     {@link #MM MM}.
      *
      * @return printable area as array of x, y, w, h in the specified units.
      *
      * @exception  IllegalArgumentException
-     *     (unchecked exception) Thrown if <CODE>units</CODE> < 1.
+     *     (unchecked exception) Thrown if {@code units < 1}.
      */
     public float[] getPrintableArea(int units) {
         return new float[] { getX(units), getY(units),
@@ -170,14 +170,14 @@ public final class MediaPrintableArea
      * Get the x location of the origin of the printable area in the
      * specified units.
      * @param  units
-     *     Unit conversion factor, e.g. {@link #INCH <CODE>INCH</CODE>} or
-     *     {@link #MM <CODE>MM</CODE>}.
+     *     Unit conversion factor, e.g. {@link #INCH INCH} or
+     *     {@link #MM MM}.
      *
      * @return  x location of the origin of the printable area in the
      * specified units.
      *
      * @exception  IllegalArgumentException
-     *     (unchecked exception) Thrown if <CODE>units</CODE> < 1.
+     *     (unchecked exception) Thrown if {@code units < 1}.
      */
      public float getX(int units) {
         return convertFromMicrometers(x, units);
@@ -187,14 +187,14 @@ public final class MediaPrintableArea
      * Get the y location of the origin of the printable area in the
      * specified units.
      * @param  units
-     *     Unit conversion factor, e.g. {@link #INCH <CODE>INCH</CODE>} or
-     *     {@link #MM <CODE>MM</CODE>}.
+     *     Unit conversion factor, e.g. {@link #INCH INCH} or
+     *     {@link #MM MM}.
      *
      * @return  y location of the origin of the printable area in the
      * specified units.
      *
      * @exception  IllegalArgumentException
-     *     (unchecked exception) Thrown if <CODE>units</CODE> < 1.
+     *     (unchecked exception) Thrown if {@code units < 1}.
      */
      public float getY(int units) {
         return convertFromMicrometers(y, units);
@@ -203,13 +203,13 @@ public final class MediaPrintableArea
     /**
      * Get the width of the printable area in the specified units.
      * @param  units
-     *     Unit conversion factor, e.g. {@link #INCH <CODE>INCH</CODE>} or
-     *     {@link #MM <CODE>MM</CODE>}.
+     *     Unit conversion factor, e.g. {@link #INCH INCH} or
+     *     {@link #MM MM}.
      *
      * @return  width of the printable area in the specified units.
      *
      * @exception  IllegalArgumentException
-     *     (unchecked exception) Thrown if <CODE>units</CODE> < 1.
+     *     (unchecked exception) Thrown if {@code units < 1}.
      */
      public float getWidth(int units) {
         return convertFromMicrometers(w, units);
@@ -218,13 +218,13 @@ public final class MediaPrintableArea
     /**
      * Get the height of the printable area in the specified units.
      * @param  units
-     *     Unit conversion factor, e.g. {@link #INCH <CODE>INCH</CODE>} or
-     *     {@link #MM <CODE>MM</CODE>}.
+     *     Unit conversion factor, e.g. {@link #INCH INCH} or
+     *     {@link #MM MM}.
      *
      * @return  height of the printable area in the specified units.
      *
      * @exception  IllegalArgumentException
-     *     (unchecked exception) Thrown if <CODE>units</CODE> < 1.
+     *     (unchecked exception) Thrown if {@code units < 1}.
      */
      public float getHeight(int units) {
         return convertFromMicrometers(h, units);
@@ -292,8 +292,8 @@ public final class MediaPrintableArea
      * given units.
      *
      * @param  units
-     *     Unit conversion factor, e.g. {@link #INCH <CODE>INCH</CODE>} or
-     *     {@link #MM <CODE>MM</CODE>}.
+     *     Unit conversion factor, e.g. {@link #INCH INCH} or
+     *     {@link #MM MM}.
      * @param  unitsName
      *     Units name string, e.g. <CODE>"in"</CODE> or <CODE>"mm"</CODE>. If
      *     null, no units name is appended to the result.
@@ -301,7 +301,7 @@ public final class MediaPrintableArea
      * @return  String version of this two-dimensional size attribute.
      *
      * @exception  IllegalArgumentException
-     *     (unchecked exception) Thrown if <CODE>units</CODE> < 1.
+     *     (unchecked exception) Thrown if {@code units < 1}.
      */
     public String toString(int units, String unitsName) {
         if (unitsName == null) {

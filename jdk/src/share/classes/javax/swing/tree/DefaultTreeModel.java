@@ -33,7 +33,7 @@ import javax.swing.event.*;
 /**
  * A simple tree data model that uses TreeNodes.
  * For further information and examples that use DefaultTreeModel,
- * see <a href="http://java.sun.com/docs/books/tutorial/uiswing/components/tree.html">How to Use Trees</a>
+ * see <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/tree.html">How to Use Trees</a>
  * in <em>The Java Tutorial.</em>
  * <p>
  * <strong>Warning:</strong>
@@ -164,8 +164,8 @@ public class DefaultTreeModel implements Serializable, TreeModel {
      * Returns the child of <I>parent</I> at index <I>index</I> in the parent's
      * child array.  <I>parent</I> must be a node previously obtained from
      * this data source. This should not return null if <i>index</i>
-     * is a valid index for <i>parent</i> (that is <i>index</i> >= 0 &&
-     * <i>index</i> < getChildCount(<i>parent</i>)).
+     * is a valid index for <i>parent</i> (that is <i>index</i> &gt;= 0 &amp;&amp;
+     * <i>index</i> &lt; getChildCount(<i>parent</i>)).
      *
      * @param   parent  a node in the tree, obtained from this data source
      * @return  the child of <I>parent</I> at index <I>index</I>
@@ -357,7 +357,7 @@ public class DefaultTreeModel implements Serializable, TreeModel {
 
     /**
       * Invoke this method if you've totally changed the children of
-      * node and its childrens children...  This will post a
+      * node and its children's children...  This will post a
       * treeStructureChanged event.
       */
     public void nodeStructureChanged(TreeNode node) {

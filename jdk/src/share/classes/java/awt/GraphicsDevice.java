@@ -69,7 +69,7 @@ import sun.awt.SunToolkit;
  * </pre>
  * <p>
  * For more information on full-screen exclusive mode API, see the
- * <a href="http://java.sun.com/docs/books/tutorial/extra/fullscreen/index.html">
+ * <a href="https://docs.oracle.com/javase/tutorial/extra/fullscreen/index.html">
  * Full-Screen Exclusive Mode API Tutorial</a>.
  *
  * @see GraphicsEnvironment
@@ -162,7 +162,7 @@ public abstract class GraphicsDevice {
      * <code>GraphicsEnvironment</code>.  Although there is
      * no public method to set this <code>String</code>, a programmer can
      * use the <code>String</code> for debugging purposes.  Vendors of
-     * the Java<sup><font size=-2>TM</font></sup> Runtime Environment can
+     * the Java&trade; Runtime Environment can
      * format the return value of the <code>String</code>.  To determine
      * how to interpret the value of the <code>String</code>, contact the
      * vendor of your Java Runtime.  To find out who the vendor is, from

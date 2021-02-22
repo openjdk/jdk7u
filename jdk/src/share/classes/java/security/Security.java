@@ -500,7 +500,7 @@ public final class Security {
      * <li> <i>&lt;crypto_service>.&lt;algorithm_or_type>
      * &lt;attribute_name>:&lt attribute_value></i>
      * <p> The cryptographic service name must not contain any dots. There
-     * must be one or more space charaters between the
+     * must be one or more space characters between the
      * <i>&lt;algorithm_or_type></i> and the <i>&lt;attribute_name></i>.
      *  <p> A provider satisfies this selection criterion iff the
      * provider implements the specified algorithm or type for the specified
@@ -571,7 +571,7 @@ public final class Security {
      * specified algorithm or type for the specified cryptographic service.
      * <li>  <i>&lt;crypto_service>.&lt;algorithm_or_type> &lt;attribute_name></i>
      * <p> The cryptographic service name must not contain any dots. There
-     * must be one or more space charaters between the <i>&lt;algorithm_or_type></i>
+     * must be one or more space characters between the <i>&lt;algorithm_or_type></i>
      * and the <i>&lt;attribute_name></i>.
      * <p> The value associated with the key must be a non-empty string.
      * A provider satisfies this selection criterion iff the
@@ -1087,8 +1087,10 @@ public final class Security {
             // Check the keys for each provider.
             for (Enumeration<Object> e = providers[i].keys();
                                                 e.hasMoreElements(); ) {
-                String currentKey = ((String)e.nextElement()).toUpperCase();
-                if (currentKey.startsWith(serviceName.toUpperCase())) {
+                String currentKey =
+                        ((String)e.nextElement()).toUpperCase(Locale.ENGLISH);
+                if (currentKey.startsWith(
+                        serviceName.toUpperCase(Locale.ENGLISH))) {
                     // We should skip the currentKey if it contains a
                     // whitespace. The reason is: such an entry in the
                     // provider property contains attributes for the
@@ -1096,7 +1098,8 @@ public final class Security {
                     // in entries which lead to the implementation
                     // classes.
                     if (currentKey.indexOf(" ") < 0) {
-                        result.add(currentKey.substring(serviceName.length() + 1));
+                        result.add(currentKey.substring(
+                                                serviceName.length() + 1));
                     }
                 }
             }

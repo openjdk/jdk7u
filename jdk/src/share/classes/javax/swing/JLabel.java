@@ -80,7 +80,7 @@ import java.util.*;
  * should appear between the text and the image.
  * The default is 4 pixels.
  * <p>
- * See <a href="http://java.sun.com/docs/books/tutorial/uiswing/components/label.html">How to Use Labels</a>
+ * See <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/label.html">How to Use Labels</a>
  * in <em>The Java Tutorial</em>
  * for further documentation.
  * <p>
@@ -1456,7 +1456,7 @@ public class JLabel extends JComponent implements SwingConstants, Accessible
          * If there is no selection, but there is
          * a caret, the start and end offsets will be the same.
          *
-         * @return the index into teh text of the end of the selection
+         * @return the index into the text of the end of the selection
          * @since 1.3
          */
         public int getSelectionEnd() {

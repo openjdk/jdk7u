@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,15 +30,20 @@
  * @run main/manual TestTransmit
  */
 
-import java.io.*;
-import java.util.*;
-
-import javax.smartcardio.*;
+import javax.smartcardio.Card;
+import javax.smartcardio.CardException;
+import javax.smartcardio.CardChannel;
+import javax.smartcardio.CardTerminal;
 
 public class TestConnectAgain extends Utils {
 
     public static void main(String[] args) throws Exception {
         CardTerminal terminal = getTerminal(args);
+        if (terminal == null) {
+            System.out.println("Skipping the test: " +
+                    "no card terminals available");
+            return;
+        }
 
         Card card = terminal.connect("T=0");
         CardChannel channel = card.getBasicChannel();
@@ -94,7 +99,7 @@ public class TestConnectAgain extends Utils {
         }
 
         // disconnect
-        card.disconnect(false);
+        card.disconnect(true);
 
         System.out.println("OK.");
     }

@@ -31,7 +31,7 @@ import java.io.*;
 
 /**
  * An element as described in a DTD using the ELEMENT construct.
- * This is essentiall the description of a tag. It describes the
+ * This is essential the description of a tag. It describes the
  * type, content model, attributes, attribute types etc. It is used
  * to correctly parse a document by the Parser.
  *

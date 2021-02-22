@@ -36,6 +36,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.Provider;
+import java.util.Locale;
 
 /**
  * Implements the GSSNameSpi for the krb5 mechanism.
@@ -197,7 +198,7 @@ public class Krb5NameElement
             } catch (UnknownHostException e) {
                 // use hostname as it is
             }
-            hostName = hostName.toLowerCase();
+            hostName = hostName.toLowerCase(Locale.ENGLISH);
 
             temp = temp.append('/').append(hostName);
             return temp.toString();
@@ -267,7 +268,7 @@ public class Krb5NameElement
 
     /**
      * Returns the principal name in the form user@REALM or
-     * host/service@REALM but with the following contraints that are
+     * host/service@REALM but with the following constraints that are
      * imposed by RFC 1964:
      * <pre>
      *  (1) all occurrences of the characters `@`,  `/`, and `\` within
@@ -279,7 +280,7 @@ public class Krb5NameElement
      *   represented, respectively, with `\0`, `\b`, `\t`, or `\n`.
      *
      *   (3) the `\` quoting character shall not be emitted within an
-     *   exported name except to accomodate cases (1) and (2).
+     *   exported name except to accommodate cases (1) and (2).
      * </pre>
      */
     public byte[] export() throws GSSException {

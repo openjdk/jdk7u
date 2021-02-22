@@ -43,7 +43,7 @@ import sun.security.action.GetBooleanAction;
  * <code>JFrame</code>, <code>JDialog</code>, <code>JWindow</code>,
  * <code>JApplet</code>, and <code>JInternalFrame</code>.
  * For task-oriented information on functionality provided by root panes
- * see <a href="http://java.sun.com/docs/books/tutorial/uiswing/components/rootpane.html">How to Use Root Panes</a>,
+ * see <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/rootpane.html">How to Use Root Panes</a>,
  * a section in <em>The Java Tutorial</em>.
  *
  * <p>
@@ -161,7 +161,7 @@ import sun.security.action.GetBooleanAction;
  * <p>
  * The painting architecture of Swing requires an opaque
  * <code>JComponent</code>
- * to exist in the containment hieararchy above all other components. This is
+ * to exist in the containment hierarchy above all other components. This is
  * typically provided by way of the content pane. If you replace the content
  * pane, it is recommended that you make the content pane opaque
  * by way of <code>setOpaque(true)</code>. Additionally, if the content pane
@@ -607,7 +607,7 @@ public class JRootPane extends JComponent implements Accessible {
      * parented by the root pane.
      * <p>
      * Swing's painting architecture requires an opaque <code>JComponent</code>
-     * in the containment hiearchy. This is typically provided by the
+     * in the containment hierarchy. This is typically provided by the
      * content pane. If you replace the content pane it is recommended you
      * replace it with an opaque <code>JComponent</code>.
      *
@@ -740,7 +740,7 @@ public class JRootPane extends JComponent implements Accessible {
      * On the other hand, the <code>glassPane</code>
      * is normally not visible, and so this can return true if the
      * <code>glassPane</code> isn't visible. Therefore, the
-     * return value here depends upon the visiblity of the
+     * return value here depends upon the visibility of the
      * <code>glassPane</code>.
      *
      * @return true if this component's children don't overlap

@@ -292,8 +292,8 @@ public class StyleContext implements Serializable, AbstractDocument.AttributeCon
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://java.sun.com/docs/books/tutorial/uiswing/misc/threads.html">How
-     * to Use Threads</A> for more information.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * in Swing</A> for more information.
      *
      * @param old the old attribute set
      * @param name the non-null attribute name
@@ -321,8 +321,8 @@ public class StyleContext implements Serializable, AbstractDocument.AttributeCon
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://java.sun.com/docs/books/tutorial/uiswing/misc/threads.html">How
-     * to Use Threads</A> for more information.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * in Swing</A> for more information.
      *
      * @param old the old attribute set
      * @param attr the attributes to add
@@ -349,8 +349,8 @@ public class StyleContext implements Serializable, AbstractDocument.AttributeCon
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://java.sun.com/docs/books/tutorial/uiswing/misc/threads.html">How
-     * to Use Threads</A> for more information.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * in Swing</A> for more information.
      *
      * @param old the old set of attributes
      * @param name the non-null attribute name
@@ -377,8 +377,8 @@ public class StyleContext implements Serializable, AbstractDocument.AttributeCon
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://java.sun.com/docs/books/tutorial/uiswing/misc/threads.html">How
-     * to Use Threads</A> for more information.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * in Swing</A> for more information.
      *
      * @param old the old attribute set
      * @param names the attribute names
@@ -405,8 +405,8 @@ public class StyleContext implements Serializable, AbstractDocument.AttributeCon
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://java.sun.com/docs/books/tutorial/uiswing/misc/threads.html">How
-     * to Use Threads</A> for more information.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * in Swing</A> for more information.
      *
      * @param old the old attribute set
      * @param attrs the attributes
@@ -438,15 +438,15 @@ public class StyleContext implements Serializable, AbstractDocument.AttributeCon
     }
 
     /**
-     * Returns a set no longer needed by the MutableAttributeSet implmentation.
+     * Returns a set no longer needed by the MutableAttributeSet implementation.
      * This is useful for operation under 1.1 where there are no weak
      * references.  This would typically be called by the finalize method
      * of the MutableAttributeSet implementation.
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://java.sun.com/docs/books/tutorial/uiswing/misc/threads.html">How
-     * to Use Threads</A> for more information.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * in Swing</A> for more information.
      *
      * @param a the set to reclaim
      */
@@ -576,7 +576,7 @@ public class StyleContext implements Serializable, AbstractDocument.AttributeCon
      * special care to deal with static attribute keys that
      * have been registered wit the
      * <code>registerStaticAttributeKey</code> method.
-     * Any attribute key not regsitered as a static key
+     * Any attribute key not registered as a static key
      * will be serialized directly.  All values are expected
      * to be serializable.
      *
@@ -839,7 +839,7 @@ public class StyleContext implements Serializable, AbstractDocument.AttributeCon
         }
 
         /**
-         * Compares this object to the specifed object.
+         * Compares this object to the specified object.
          * The result is <code>true</code> if the object is an equivalent
          * set of attributes.
          * @param     obj   the object to compare with.
@@ -1040,7 +1040,7 @@ public class StyleContext implements Serializable, AbstractDocument.AttributeCon
 
     /**
      * Sorts the key strings so that they can be very quickly compared
-     * in the attribute set searchs.
+     * in the attribute set searches.
      */
     class KeyBuilder {
 
@@ -1209,7 +1209,7 @@ public class StyleContext implements Serializable, AbstractDocument.AttributeCon
         }
 
         /**
-         * Compares this object to the specifed object.
+         * Compares this object to the specified object.
          * The result is <code>true</code> if and only if the argument is not
          * <code>null</code> and is a <code>Font</code> object with the same
          * name, style, and point size as this font.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -271,7 +271,7 @@ public class DefaultPersistenceDelegate extends PersistenceDelegate {
         TableModelListener (the JTable itself in this case) to the supplied
         table model.
 
-        We do not need to explictly add these listeners to the model in an
+        We do not need to explicitly add these listeners to the model in an
         archive as they will be added automatically by, in the above case,
         the JTable's "setModel" method. In some cases, we must specifically
         avoid trying to do this since the listener may be an inner class
@@ -384,6 +384,7 @@ public class DefaultPersistenceDelegate extends PersistenceDelegate {
      * a class such that no property value depends on the value of
      * a subsequent property.
      *
+     * @param type the type of the instances
      * @param oldInstance The instance to be copied.
      * @param newInstance The instance that is to be modified.
      * @param out The stream to which any initialization statements should be written.

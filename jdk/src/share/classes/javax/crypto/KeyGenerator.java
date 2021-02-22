@@ -414,7 +414,7 @@ public class KeyGenerator {
      *
      * <p> If this key generator requires any random bytes, it will get them
      * using the
-     * {@link SecureRandom <code>SecureRandom</code>}
+     * {@link java.security.SecureRandom}
      * implementation of the highest-priority installed
      * provider as the source of randomness.
      * (If none of the installed providers supply an implementation of
@@ -479,7 +479,7 @@ public class KeyGenerator {
      *
      * <p> If this key generator requires any random bytes, it will get them
      * using the
-     * {@link SecureRandom <code>SecureRandom</code>}
+     * {@link java.security.SecureRandom}
      * implementation of the highest-priority installed
      * provider as the source of randomness.
      * (If none of the installed providers supply an implementation of

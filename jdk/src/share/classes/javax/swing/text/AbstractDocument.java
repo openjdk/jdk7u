@@ -49,7 +49,7 @@ import sun.swing.SwingUtilities2;
  * all observers of the document have been notified of a previous
  * change before beginning another mutation to the document.  The
  * read lock is acquired and released using the <code>render</code>
- * method.  A write lock is aquired by the methods that mutate the
+ * method.  A write lock is acquired by the methods that mutate the
  * document, and are held for the duration of the method call.
  * Notification is done on the thread that produced the mutation,
  * and the thread has full read access to the document for the
@@ -392,7 +392,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * is being executed.  The runnable itself may <em>not</em>
      * make any mutations.
      * <p>
-     * This is implemented to aquire a read lock for the duration
+     * This is implemented to acquire a read lock for the duration
      * of the runnables execution.  There may be multiple runnables
      * executing at the same time, and all writers will be blocked
      * while there are active rendering runnables.  If the runnable
@@ -409,8 +409,8 @@ public abstract class AbstractDocument implements Document, Serializable {
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://java.sun.com/docs/books/tutorial/uiswing/misc/threads.html">How
-     * to Use Threads</A> for more information.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * in Swing</A> for more information.
      *
      * @param r the renderer to execute
      */
@@ -427,7 +427,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * Returns the length of the data.  This is the number of
      * characters of content that represents the users data.
      *
-     * @return the length >= 0
+     * @return the length &gt;= 0
      * @see Document#getLength
      */
     public int getLength() {
@@ -570,11 +570,11 @@ public abstract class AbstractDocument implements Document, Serializable {
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://java.sun.com/docs/books/tutorial/uiswing/misc/threads.html">How
-     * to Use Threads</A> for more information.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * in Swing</A> for more information.
      *
-     * @param offs the starting offset >= 0
-     * @param len the number of characters to remove >= 0
+     * @param offs the starting offset &gt;= 0
+     * @param len the number of characters to remove &gt;= 0
      * @exception BadLocationException  the given remove position is not a valid
      *   position within the document
      * @see Document#remove
@@ -683,10 +683,10 @@ public abstract class AbstractDocument implements Document, Serializable {
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://java.sun.com/docs/books/tutorial/uiswing/misc/threads.html">How
-     * to Use Threads</A> for more information.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * in Swing</A> for more information.
      *
-     * @param offs the starting offset >= 0
+     * @param offs the starting offset &gt;= 0
      * @param str the string to insert; does nothing with null/empty strings
      * @param a the attributes for the inserted content
      * @exception BadLocationException  the given insert position is not a valid
@@ -758,8 +758,8 @@ public abstract class AbstractDocument implements Document, Serializable {
     /**
      * Gets a sequence of text from the document.
      *
-     * @param offset the starting offset >= 0
-     * @param length the number of characters to retrieve >= 0
+     * @param offset the starting offset &gt;= 0
+     * @param length the number of characters to retrieve &gt;= 0
      * @return the text
      * @exception BadLocationException  the range given includes a position
      *   that is not a valid position within the document
@@ -791,7 +791,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * &nbsp; Segment text = new Segment();
      * &nbsp; int offs = 0;
      * &nbsp; text.setPartialReturn(true);
-     * &nbsp; while (nleft > 0) {
+     * &nbsp; while (nleft &gt; 0) {
      * &nbsp;     doc.getText(offs, nleft, text);
      * &nbsp;     // do something with text
      * &nbsp;     nleft -= text.count;
@@ -799,8 +799,8 @@ public abstract class AbstractDocument implements Document, Serializable {
      * &nbsp; }
      * </pre>
      *
-     * @param offset the starting offset >= 0
-     * @param length the number of characters to retrieve >= 0
+     * @param offset the starting offset &gt;= 0
+     * @param length the number of characters to retrieve &gt;= 0
      * @param txt the Segment object to retrieve the text into
      * @exception BadLocationException  the range given includes a position
      *   that is not a valid position within the document
@@ -818,10 +818,10 @@ public abstract class AbstractDocument implements Document, Serializable {
      * <p>
      * This method is thread safe, although most Swing methods
      * are not. Please see
-     * <A HREF="http://java.sun.com/docs/books/tutorial/uiswing/misc/threads.html">How
-     * to Use Threads</A> for more information.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency
+     * in Swing</A> for more information.
      *
-     * @param offs the position in the model >= 0
+     * @param offs the position in the model &gt;= 0
      * @return the position
      * @exception BadLocationException  if the given position does not
      *   represent a valid location in the associated document
@@ -935,7 +935,7 @@ public abstract class AbstractDocument implements Document, Serializable {
      * should keep in mind however that a paragraph should at least be the
      * unit of text over which to run the Unicode bidirectional algorithm.
      *
-     * @param pos the starting offset >= 0
+     * @param pos the starting offset &gt;= 0
      * @return the element */
     public abstract Element getParagraphElement(int pos);
 
@@ -1267,8 +1267,8 @@ public abstract class AbstractDocument implements Document, Serializable {
      *
      * @param parent the parent element
      * @param a the attributes for the element
-     * @param p0 the beginning of the range >= 0
-     * @param p1 the end of the range >= p0
+     * @param p0 the beginning of the range &gt;= 0
+     * @param p1 the end of the range &gt;= p0
      * @return the new element
      */
     protected Element createLeafElement(Element parent, AttributeSet a, int p0, int p1) {
@@ -1352,7 +1352,7 @@ public abstract class AbstractDocument implements Document, Serializable {
 
     /**
      * Releases a write lock previously obtained via <code>writeLock</code>.
-     * After decrementing the lock count if there are no oustanding locks
+     * After decrementing the lock count if there are no outstanding locks
      * this will allow a new writer, or readers.
      *
      * @see #writeLock
@@ -1589,7 +1589,7 @@ public abstract class AbstractDocument implements Document, Serializable {
          * Creates a position within the content that will
          * track change as the content is mutated.
          *
-         * @param offset the offset in the content >= 0
+         * @param offset the offset in the content &gt;= 0
          * @return a Position
          * @exception BadLocationException for an invalid offset
          */
@@ -1598,14 +1598,14 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Current length of the sequence of character content.
          *
-         * @return the length >= 0
+         * @return the length &gt;= 0
          */
         public int length();
 
         /**
          * Inserts a string of characters into the sequence.
          *
-         * @param where   offset into the sequence to make the insertion >= 0
+         * @param where   offset into the sequence to make the insertion &gt;= 0
          * @param str     string to insert
          * @return  if the implementation supports a history mechanism,
          *    a reference to an <code>Edit</code> implementation will be returned,
@@ -1619,9 +1619,9 @@ public abstract class AbstractDocument implements Document, Serializable {
          * Removes some portion of the sequence.
          *
          * @param where   The offset into the sequence to make the
-         *   insertion >= 0.
-         * @param nitems  The number of items in the sequence to remove >= 0.
-         * @return  If the implementation supports a history mechansim,
+         *   insertion &gt;= 0.
+         * @param nitems  The number of items in the sequence to remove &gt;= 0.
+         * @return  If the implementation supports a history mechanism,
          *    a reference to an Edit implementation will be returned,
          *    otherwise null.
          * @exception BadLocationException  Thrown if the area covered by
@@ -1632,8 +1632,8 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Fetches a string of characters contained in the sequence.
          *
-         * @param where   Offset into the sequence to fetch >= 0.
-         * @param len     number of characters to copy >= 0.
+         * @param where   Offset into the sequence to fetch &gt;= 0.
+         * @param len     number of characters to copy &gt;= 0.
          * @return the string
          * @exception BadLocationException  Thrown if the area covered by
          *   the arguments is not contained in the character sequence.
@@ -1643,8 +1643,8 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets a sequence of characters and copies them into a Segment.
          *
-         * @param where the starting offset >= 0
-         * @param len the number of characters >= 0
+         * @param where the starting offset &gt;= 0
+         * @param len the number of characters &gt;= 0
          * @param txt the target location to copy into
          * @exception BadLocationException  Thrown if the area covered by
          *   the arguments is not contained in the character sequence.
@@ -1788,7 +1788,7 @@ public abstract class AbstractDocument implements Document, Serializable {
          * Dumps a debugging representation of the element hierarchy.
          *
          * @param psOut the output stream
-         * @param indentAmount the indentation level >= 0
+         * @param indentAmount the indentation level &gt;= 0
          */
         public void dump(PrintStream psOut, int indentAmount) {
             PrintWriter out;
@@ -1846,7 +1846,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets the number of attributes that are defined.
          *
-         * @return the number of attributes >= 0
+         * @return the number of attributes &gt;= 0
          * @see AttributeSet#getAttributeCount
          */
         public int getAttributeCount() {
@@ -2095,21 +2095,21 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets the starting offset in the model for the element.
          *
-         * @return the offset >= 0
+         * @return the offset &gt;= 0
          */
         public abstract int getStartOffset();
 
         /**
          * Gets the ending offset in the model for the element.
          *
-         * @return the offset >= 0
+         * @return the offset &gt;= 0
          */
         public abstract int getEndOffset();
 
         /**
          * Gets a child element.
          *
-         * @param index the child index, >= 0 && < getElementCount()
+         * @param index the child index, &gt;= 0 &amp;&amp; &lt; getElementCount()
          * @return the child element
          */
         public abstract Element getElement(int index);
@@ -2117,15 +2117,15 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets the number of children for the element.
          *
-         * @return the number of children >= 0
+         * @return the number of children &gt;= 0
          */
         public abstract int getElementCount();
 
         /**
          * Gets the child element index closest to the given model offset.
          *
-         * @param offset the offset >= 0
-         * @return the element index >= 0
+         * @param offset the offset &gt;= 0
+         * @return the element index &gt;= 0
          */
         public abstract int getElementIndex(int offset);
 
@@ -2251,7 +2251,7 @@ public abstract class AbstractDocument implements Document, Serializable {
          * Gets the child element that contains
          * the given model position.
          *
-         * @param pos the position >= 0
+         * @param pos the position &gt;= 0
          * @return the element, null if none
          */
         public Element positionToElement(int pos) {
@@ -2268,8 +2268,8 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Replaces content with a new set of elements.
          *
-         * @param offset the starting offset >= 0
-         * @param length the length to replace >= 0
+         * @param offset the starting offset &gt;= 0
+         * @param length the length to replace &gt;= 0
          * @param elems the new elements
          */
         public void replace(int offset, int length, Element[] elems) {
@@ -2321,7 +2321,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets the starting offset in the model for the element.
          *
-         * @return the offset >= 0
+         * @return the offset &gt;= 0
          */
         public int getStartOffset() {
             return children[0].getStartOffset();
@@ -2331,7 +2331,7 @@ public abstract class AbstractDocument implements Document, Serializable {
          * Gets the ending offset in the model for the element.
          * @throws NullPointerException if this element has no children
          *
-         * @return the offset >= 0
+         * @return the offset &gt;= 0
          */
         public int getEndOffset() {
             Element child =
@@ -2342,7 +2342,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets a child element.
          *
-         * @param index the child index, >= 0 && < getElementCount()
+         * @param index the child index, &gt;= 0 &amp;&amp; &lt; getElementCount()
          * @return the child element, null if none
          */
         public Element getElement(int index) {
@@ -2355,7 +2355,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets the number of children for the element.
          *
-         * @return the number of children >= 0
+         * @return the number of children &gt;= 0
          */
         public int getElementCount()  {
             return nchildren;
@@ -2364,8 +2364,8 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets the child element index closest to the given model offset.
          *
-         * @param offset the offset >= 0
-         * @return the element index >= 0
+         * @param offset the offset &gt;= 0
+         * @return the element index &gt;= 0
          */
         public int getElementIndex(int offset) {
             int index;
@@ -2494,8 +2494,8 @@ public abstract class AbstractDocument implements Document, Serializable {
          *
          * @param parent  The parent element
          * @param a       The element attributes
-         * @param offs0   The start offset >= 0
-         * @param offs1   The end offset >= offs0
+         * @param offs0   The start offset &gt;= 0
+         * @param offs1   The end offset &gt;= offs0
          * @since 1.4
          */
         public LeafElement(Element parent, AttributeSet a, int offs0, int offs1) {
@@ -2524,7 +2524,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets the starting offset in the model for the element.
          *
-         * @return the offset >= 0
+         * @return the offset &gt;= 0
          */
         public int getStartOffset() {
             return p0.getOffset();
@@ -2533,7 +2533,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets the ending offset in the model for the element.
          *
-         * @return the offset >= 0
+         * @return the offset &gt;= 0
          */
         public int getEndOffset() {
             return p1.getOffset();
@@ -2555,8 +2555,8 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets the child element index closest to the given model offset.
          *
-         * @param pos the offset >= 0
-         * @return the element index >= 0
+         * @param pos the offset &gt;= 0
+         * @return the element index &gt;= 0
          */
         public int getElementIndex(int pos) {
             return -1;
@@ -2565,7 +2565,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Gets a child element.
          *
-         * @param index the child index, >= 0 && < getElementCount()
+         * @param index the child index, &gt;= 0 &amp;&amp; &lt; getElementCount()
          * @return the child element
          */
         public Element getElement(int index) {
@@ -2575,7 +2575,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Returns the number of child elements.
          *
-         * @return the number of children >= 0
+         * @return the number of children &gt;= 0
          */
         public int getElementCount()  {
             return 0;
@@ -2710,8 +2710,8 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Constructs a change record.
          *
-         * @param offs the offset into the document of the change >= 0
-         * @param len  the length of the change >= 0
+         * @param offs the offset into the document of the change &gt;= 0
+         * @param len  the length of the change &gt;= 0
          * @param type the type of event (DocumentEvent.EventType)
          * @since 1.4
          */
@@ -2880,7 +2880,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Returns the offset within the document of the start of the change.
          *
-         * @return the offset >= 0
+         * @return the offset &gt;= 0
          * @see DocumentEvent#getOffset
          */
         public int getOffset() {
@@ -2890,7 +2890,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Returns the length of the change.
          *
-         * @return the length >= 0
+         * @return the length &gt;= 0
          * @see DocumentEvent#getLength
          */
         public int getLength() {
@@ -3005,7 +3005,7 @@ public abstract class AbstractDocument implements Document, Serializable {
          * current model state for views that just attached to a model.
          *
          * @param e the element
-         * @param index the index into the model >= 0
+         * @param index the index into the model &gt;= 0
          * @param removed a set of elements that were removed
          * @param added a set of elements that were added
          */
@@ -3029,7 +3029,7 @@ public abstract class AbstractDocument implements Document, Serializable {
         /**
          * Returns the index into the list of elements.
          *
-         * @return the index >= 0
+         * @return the index &gt;= 0
          */
         public int getIndex() {
             return index;
