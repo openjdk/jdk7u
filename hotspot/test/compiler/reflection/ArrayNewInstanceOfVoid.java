@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 1997, 1998, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,20 +21,24 @@
  * questions.
  */
 
-#include "jni.h"
-#include "java_lang_ref_Finalizer.h"
+/*
+ * @test
+ * @bug 8029366
+ * @summary ShouldNotReachHere error when creating an array with component type of void
+ */
 
+public class ArrayNewInstanceOfVoid {
+    public static void main(String[] args) {
+        for (int i = 0; i < 100_000; i++) {
+            test();
+        }
+    }
 
-JNIEXPORT void JNICALL
-Java_java_lang_ref_Finalizer_invokeFinalizeMethod(JNIEnv *env, jclass clazz,
-                                                  jobject ob)
-{
-    jclass cls;
-    jmethodID mid;
-
-    cls = (*env)->GetObjectClass(env, ob);
-    if (cls == NULL) return;
-    mid = (*env)->GetMethodID(env, cls, "finalize", "()V");
-    if (mid == NULL) return;
-    (*env)->CallVoidMethod(env, ob, mid);
+    private static void test() {
+        try {
+            java.lang.reflect.Array.newInstance(void.class, 2);
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+    }
 }
