@@ -548,6 +548,7 @@ extern "C" {
     long long unsigned int oldval,
     long long unsigned int newval) {
     ShouldNotCallThis();
+    return 0;
   }
 };
 #endif // !_LP64
