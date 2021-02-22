@@ -31,7 +31,6 @@ import java.lang.ref.SoftReference;
 import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -323,7 +322,7 @@ public class ZoneInfo extends TimeZone {
         return offset;
     }
 
-    private final int getTransitionIndex(long date, int type) {
+    private int getTransitionIndex(long date, int type) {
         int low = 0;
         int high = transitions.length - 1;
 
@@ -577,7 +576,7 @@ public class ZoneInfo extends TimeZone {
         List<String> excluded = ZoneInfoFile.getExcludedZones();
         if (excluded != null) {
             // List all zones from the idList and excluded lists
-            List<String> list = new ArrayList<String>(idList.size() + excluded.size());
+            List<String> list = new ArrayList<>(idList.size() + excluded.size());
             list.addAll(idList);
             list.addAll(excluded);
             idList = list;
@@ -597,7 +596,7 @@ public class ZoneInfo extends TimeZone {
      */
     public static String[] getAvailableIDs(int rawOffset) {
         String[] result;
-        List<String> matched = new ArrayList<String>();
+        List<String> matched = new ArrayList<>();
         List<String> IDs = ZoneInfoFile.getZoneIDs();
         int[] rawOffsets = ZoneInfoFile.getRawOffsets();
 
