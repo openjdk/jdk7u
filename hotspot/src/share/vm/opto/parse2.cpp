@@ -66,7 +66,7 @@ void Parse::array_store(BasicType elem_type) {
   if (elem == TypeInt::BOOL) {
     elem_type = T_BOOLEAN;
   }
-  store_to_memory(control(), adr, val, elem_type, adr_type);
+  store_to_memory(control(), adr, val, elem_type, adr_type, false, StoreNode::release_if_reference(elem_type));
 }
 
 
@@ -1641,7 +1641,7 @@ void Parse::do_one_bytecode() {
     a = pop();                  // the array itself
     const TypeOopPtr* elemtype  = _gvn.type(a)->is_aryptr()->elem()->make_oopptr();
     const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
-    Node* store = store_oop_to_array(control(), a, d, adr_type, c, elemtype, T_OBJECT);
+    Node* store = store_oop_to_array(control(), a, d, adr_type, c, elemtype, T_OBJECT, StoreNode::release);
     break;
   }
   case Bytecodes::_lastore: {

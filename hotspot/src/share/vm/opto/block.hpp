@@ -276,10 +276,12 @@ class Block : public CFGElement {
   // Add an instruction to an existing block.  It must go after the head
   // instruction and before the end instruction.
   void add_inst( Node *n ) { _nodes.insert(end_idx(),n); }
-  // Find node in block
+  // Find node in block. Fails if node not in block.
   uint find_node( const Node *n ) const;
   // Find and remove n from block list
   void find_remove( const Node *n );
+  // Check wether the node is in the block.
+  bool contains( const Node *n ) const;
 
   // helper function that adds caller save registers to MachProjNode
   void add_call_kills(MachProjNode *proj, RegMask& regs, const char* save_policy, bool exclude_soe);
@@ -437,6 +439,7 @@ class PhaseCFG : public Phase {
 
   // Remove empty basic blocks
   void remove_empty();
+  Block *fixup_trap_based_check(Node *branch, Block *block, int block_pos, Block *bnext);
   void fixup_flow();
   bool move_to_next(Block* bx, uint b_index);
   void move_to_end(Block* bx, uint b_index);
@@ -456,6 +459,9 @@ class PhaseCFG : public Phase {
     b->_nodes.insert( idx, n );
     _bbs.map( n->_idx, b );
   }
+
+  // Check all nodes and late expand them if necessary.
+  void LateExpand(PhaseRegAlloc* _ra);
 
 #ifndef PRODUCT
   bool trace_opto_pipelining() const { return _trace_opto_pipelining; }

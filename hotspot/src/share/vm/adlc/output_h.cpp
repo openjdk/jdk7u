@@ -26,7 +26,11 @@
 #include "adlc.hpp"
 
 // The comment delimiter used in format statements after assembler instructions.
+#if defined(PPC64)
+#define commentSeperator "\t//"
+#else
 #define commentSeperator "!"
+#endif
 
 // Generate the #define that describes the number of registers.
 static void defineRegCount(FILE *fp, RegisterForm *registers) {
@@ -1511,7 +1515,20 @@ void ArchDesc::declareClasses(FILE *fp) {
     if ( instr->is_ideal_jump() ) {
       fprintf(fp, "  GrowableArray<Label*> _index2label;\n");
     }
-    fprintf(fp,"public:\n");
+
+    fprintf(fp, "public:\n");
+
+    Attribute *att = instr->_attribs;
+    // Fields of the node specified in the ad file.
+    while (att != NULL) {
+      if (strncmp(att->_ident, "ins_field_", 10) == 0) {
+        const char *field_name = att->_ident+10;
+        const char *field_type = att->_val;
+        fprintf(fp, "  %s _%s;\n", field_type, field_name);
+      }
+      att = (Attribute *)att->_next;
+    }
+
     fprintf(fp,"  MachOper *opnd_array(uint operand_index) const {\n");
     fprintf(fp,"    assert(operand_index < _num_opnds, \"invalid _opnd_array index\");\n");
     fprintf(fp,"    return _opnd_array[operand_index];\n");
@@ -1558,14 +1575,23 @@ void ArchDesc::declareClasses(FILE *fp) {
     Attribute *attr = instr->_attribs;
     bool avoid_back_to_back = false;
     while (attr != NULL) {
-      if (strcmp(attr->_ident,"ins_cost") &&
-          strcmp(attr->_ident,"ins_short_branch")) {
-        fprintf(fp,"          int            %s() const { return %s; }\n",
+      if (strcmp (attr->_ident,"ins_cost") &&
+          strncmp(attr->_ident,"ins_field_", 10) != 0 &&
+          // Rematerialize attributes are used in formssel, no function needs to be generated.
+          strcmp (attr->_ident,"ins_cannot_rematerialize") != 0 &&
+          strcmp (attr->_ident,"ins_should_rematerialize") != 0 &&
+          // Must match function in node.hpp: return type bool, no prefix "ins_".
+          strcmp (attr->_ident,"ins_is_TrapBasedCheckNode") != 0 &&
+          strcmp (attr->_ident,"ins_short_branch")) {
+        fprintf(fp,"  virtual int            %s() const { return %s; }\n",
                 attr->_ident, attr->_val);
       }
       // Check value for ins_avoid_back_to_back, and if it is true (1), set the flag
       if (!strcmp(attr->_ident,"ins_avoid_back_to_back") && attr->int_val(*this) != 0)
         avoid_back_to_back = true;
+      if (strcmp (attr->_ident,"ins_is_TrapBasedCheckNode") == 0)
+        fprintf(fp,"  virtual bool           is_TrapBasedCheckNode() const { return %s; }\n", attr->_val);
+
       attr = (Attribute *)attr->_next;
     }
 
@@ -1579,7 +1605,12 @@ void ArchDesc::declareClasses(FILE *fp) {
     // Output the opcode function and the encode function here using the
     // encoding class information in the _insencode slot.
     if ( instr->_insencode ) {
-      fprintf(fp,"  virtual void           emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const;\n");
+      if (instr->lateExpands()) {
+        fprintf(fp,"  virtual bool           requires_late_expand() const { return true; }\n");
+        fprintf(fp,"  virtual void           lateExpand(GrowableArray <Node *> *nodes, PhaseRegAlloc *ra_);\n");
+      } else {
+        fprintf(fp,"  virtual void           emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const;\n");
+      }
     }
 
     // virtual function for getting the size of an instruction

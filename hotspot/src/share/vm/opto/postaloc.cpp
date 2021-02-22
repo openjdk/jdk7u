@@ -109,9 +109,12 @@ static bool expected_yanked_node(Node *old, Node *orig_old) {
   } else if (old->is_Copy()) {     // Dead copy of a callee-save value
     return (old == orig_old);
   } else if (old->is_MachTemp()) {
-    return orig_old->is_Con();
+    // Temps are all safe to yank.
+    return true;
   } else if (old->is_Phi() || old->is_MachConstantBase()) {
-    return (orig_old->is_Con() && orig_old->is_MachConstant());
+    return ((orig_old->is_Con() && orig_old->is_MachConstant()) ||
+            orig_old->is_Phi() ||
+            orig_old->is_MachSpillCopy());
   }
   return false;
 }

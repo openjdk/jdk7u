@@ -1095,7 +1095,7 @@ CodeBuffer* Compile::init_buffer(uint* blk_starts) {
   // Compute prolog code size
   _method_size = 0;
   _frame_slots = OptoReg::reg2stack(_matcher->_old_SP)+_regalloc->_framesize;
-#ifdef IA64
+#if defined(IA64) && !defined(AIX)
   if (save_argument_registers()) {
     // 4815101: this is a stub with implicit and unknown precision fp args.
     // The usual spill mechanism can only generate stfd's in this case, which
@@ -1113,6 +1113,7 @@ CodeBuffer* Compile::init_buffer(uint* blk_starts) {
   assert(_frame_slots >= 0 && _frame_slots < 1000000, "sanity check");
 
   if (has_mach_constant_base_node()) {
+    uint add_size = 0;
     // Fill the constant table.
     // Note:  This must happen before shorten_branches.
     for (uint i = 0; i < _cfg->_num_blocks; i++) {
@@ -1126,6 +1127,9 @@ CodeBuffer* Compile::init_buffer(uint* blk_starts) {
         if (n->is_MachConstant()) {
           MachConstantNode* machcon = n->as_MachConstant();
           machcon->eval_constant(C);
+        } else if (n->is_Mach()) {
+          // On Power there are more nodes that issue constants.
+          add_size += (n->as_Mach()->ins_num_consts() * 8);
         }
       }
     }
@@ -1133,8 +1137,13 @@ CodeBuffer* Compile::init_buffer(uint* blk_starts) {
     // Calculate the offsets of the constants and the size of the
     // constant table (including the padding to the next section).
     constant_table().calculate_offsets_and_size();
-    const_req = constant_table().size();
+    const_req = constant_table().size() + add_size;
   }
+
+#if defined(ASSERT) && defined(PPC64)
+  // Increase const_req by 40 for better behaviour of constant-pool overflow assertions below.
+  const_req += 40;
+#endif
 
   // Initialize the space for the BufferBlob used to find and verify
   // instruction size in MachNode::emit_size()
@@ -1404,7 +1413,7 @@ void Compile::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
             int offset = blk_starts[block_num] - current_offset;
             if (block_num >= i) {
               // Current and following block's offset are not
-              // finilized yet, adjust distance by the difference
+              // finalized yet, adjust distance by the difference
               // between calculated and final offsets of current block.
               offset -= (blk_starts[i] - blk_offset);
             }
@@ -1484,6 +1493,12 @@ void Compile::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
           // it's followed by a flag-kill and a null-check.  Happens on
           // Intel all the time, with add-to-memory kind of opcodes.
           previous_offset = current_offset;
+        }
+
+        // Not an else-if!
+        // If this is a trap based cmp then add its offset to the list.
+        if (mach->is_TrapBasedCheckNode()) {
+          inct_starts[inct_cnt++] = current_offset;
         }
       }
 
@@ -1749,6 +1764,12 @@ void Compile::FillExceptionTables(uint cnt, uint *call_returns, uint *inct_start
     if( n->is_MachNullCheck() ) {
       uint block_num = b->non_connector_successor(0)->_pre_order;
       _inc_table.append( inct_starts[inct_cnt++], blk_labels[block_num].loc_pos() );
+      continue;
+    }
+    // Handle implicit exception table updates: trap instructions.
+    if (n->is_TrapBasedCheckNode()) {
+      uint block_num = b->non_connector_successor(0)->_pre_order;
+      _inc_table.append(inct_starts[inct_cnt++], blk_labels[block_num].loc_pos());
       continue;
     }
   } // End of for all blocks fill in exception table entries

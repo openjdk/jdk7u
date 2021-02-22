@@ -250,7 +250,7 @@ int CppInterpreter::native_entry(methodOop method, intptr_t UNUSED, TRAPS) {
   if ((UseCompiler || CountCompiledCalls) && !method->is_synchronized()) {
     InvocationCounter *counter = method->invocation_counter();
     counter->increment();
-    if (counter->reached_InvocationLimit()) {
+    if (counter->reached_InvocationLimit(mcs->backedge_counter())) {
       CALL_VM_NOCHECK(
         InterpreterRuntime::frequency_counter_overflow(thread, NULL));
       if (HAS_PENDING_EXCEPTION)

@@ -43,6 +43,7 @@ define_pd_global(bool,  UncommonNullCast,     true);
 define_pd_global(intx,  CodeEntryAlignment,   32);
 define_pd_global(intx,  OptoLoopAlignment,    16);
 define_pd_global(intx,  InlineFrequencyCount, 100);
+define_pd_global(intx,  InlineSmallCode,      1000 );
 define_pd_global(intx,  PreInflateSpin,       10);
 
 define_pd_global(intx,  StackYellowPages,     2);
@@ -61,6 +62,13 @@ define_pd_global(bool,  UseMembar,            false);
 // GC Ergo Flags
 define_pd_global(intx, CMSYoungGenPerWorker, 16*M);  // default max size of CMS young gen, per GC worker thread
 
-#define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct)
+// Platform dependent flag handling: flags only defined on this platform.
+#define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct)  \
+                                                                            \
+  develop(bool, TrapBasedNullChecks, false,                                 \
+          "Not supported on this platform.")                                \
+  develop(bool, TrapBasedRangeChecks, false,                                \
+          "Not supported on this platform.")                                \
+
 
 #endif // CPU_ZERO_VM_GLOBALS_ZERO_HPP

@@ -330,10 +330,78 @@ FILES_export += \
 	sun/nio/fs/BsdNativeDispatcher.java \
 	sun/nio/fs/UnixCopyFile.java \
 	sun/nio/fs/UnixNativeDispatcher.java
-	
+
 FILES_gen += \
 	sun/nio/fs/UnixConstants.java
 endif # PLATFORM = bsd, macosx
+
+ifeq ($(PLATFORM), aix)
+FILES_java += \
+        sun/nio/ch/AbstractPollSelectorImpl.java \
+	sun/nio/ch/AixAsynchronousChannelProvider.java \
+	sun/nio/ch/AixPollPort.java \
+	sun/nio/ch/InheritedChannel.java \
+        sun/nio/ch/PollSelectorProvider.java \
+        sun/nio/ch/PollSelectorImpl.java \
+	sun/nio/ch/Port.java \
+	sun/nio/ch/SimpleAsynchronousFileChannelImpl.java \
+	sun/nio/ch/UnixAsynchronousServerSocketChannelImpl.java \
+	sun/nio/ch/UnixAsynchronousSocketChannelImpl.java \
+	\
+	sun/nio/fs/GnomeFileTypeDetector.java \
+	sun/nio/fs/AixFileStore.java \
+	sun/nio/fs/AixFileSystem.java \
+	sun/nio/fs/AixFileSystemProvider.java \
+	sun/nio/fs/PollingWatchService.java \
+	sun/nio/fs/UnixChannelFactory.java \
+	sun/nio/fs/UnixCopyFile.java \
+	sun/nio/fs/UnixDirectoryStream.java \
+	sun/nio/fs/UnixException.java \
+	sun/nio/fs/UnixFileAttributeViews.java \
+	sun/nio/fs/UnixFileAttributes.java \
+	sun/nio/fs/UnixFileKey.java \
+	sun/nio/fs/UnixFileModeAttribute.java \
+	sun/nio/fs/UnixFileStore.java \
+	sun/nio/fs/UnixFileStoreAttributes.java \
+	sun/nio/fs/UnixFileSystem.java \
+	sun/nio/fs/UnixFileSystemProvider.java \
+	sun/nio/fs/UnixMountEntry.java \
+	sun/nio/fs/AixNativeDispatcher.java \
+	sun/nio/fs/UnixNativeDispatcher.java \
+	sun/nio/fs/UnixPath.java \
+	sun/nio/fs/UnixSecureDirectoryStream.java \
+	sun/nio/fs/UnixUriUtils.java \
+	sun/nio/fs/UnixUserPrincipals.java
+
+FILES_c += \
+	AixPollPort.c \
+	InheritedChannel.c \
+	NativeThread.c \
+        PollArrayWrapper.c \
+	UnixAsynchronousServerSocketChannelImpl.c \
+	UnixAsynchronousSocketChannelImpl.c \
+	\
+	GnomeFileTypeDetector.c \
+	UnixCopyFile.c \
+	AixNativeDispatcher.c \
+	UnixNativeDispatcher.c
+
+FILES_export += \
+	sun/nio/ch/AixPollPort.java \
+	sun/nio/ch/InheritedChannel.java \
+	sun/nio/ch/NativeThread.java \
+	sun/nio/ch/UnixAsynchronousServerSocketChannelImpl.java \
+	sun/nio/ch/UnixAsynchronousSocketChannelImpl.java \
+	\
+	sun/nio/fs/GnomeFileTypeDetector.java \
+	sun/nio/fs/UnixCopyFile.java \
+	sun/nio/fs/AixNativeDispatcher.java \
+	sun/nio/fs/UnixNativeDispatcher.java
+
+FILES_gen += \
+	sun/nio/fs/UnixConstants.java
+endif # PLATFORM = aix
+
 
 ifeq ($(PLATFORM), macosx)
 FILES_java += \
@@ -393,6 +461,9 @@ endif
 ifeq ($(PLATFORM), solaris)
 OTHER_LDLIBS += $(JVMLIB) $(LIBSOCKET) -lposix4 $(LIBDL) -lsendfile \
 		-L$(LIBDIR)/$(LIBARCH) -ljava -lnet
+endif
+ifeq ($(PLATFORM), aix)
+OTHER_LDLIBS += -L$(LIBDIR)/$(LIBARCH) -ljava -lnet
 endif # PLATFORM
 
 #

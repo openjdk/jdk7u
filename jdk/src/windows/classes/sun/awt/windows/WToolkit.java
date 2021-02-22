@@ -112,7 +112,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         initIDs();
 
         // Print out which version of Windows is running
-        if (log.isLoggable(PlatformLogger.FINE)) {
+        if (log.isLoggable(PlatformLogger.Level.FINE)) {
             log.fine("Win version: " + getWindowsVersion());
         }
 
@@ -846,7 +846,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         lazilyInitWProps();
         Boolean prop = (Boolean) desktopProperties.get("awt.dynamicLayoutSupported");
 
-        if (log.isLoggable(PlatformLogger.FINER)) {
+        if (log.isLoggable(PlatformLogger.Level.FINER)) {
             log.finer("In WTK.isDynamicLayoutSupported()" +
                       "   nativeDynamic == " + nativeDynamic +
                       "   wprops.dynamic == " + prop);
@@ -905,7 +905,7 @@ public class WToolkit extends SunToolkit implements Runnable {
 
         for (String propName : props.keySet()) {
             Object val = props.get(propName);
-            if (log.isLoggable(PlatformLogger.FINER)) {
+            if (log.isLoggable(PlatformLogger.Level.FINER)) {
                 log.finer("changed " + propName + " to " + val);
             }
             setDesktopProperty(propName, val);

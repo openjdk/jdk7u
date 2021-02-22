@@ -28,7 +28,7 @@
 
 OS=`uname -s`
 case "$OS" in
-  SunOS | Linux | Darwin )
+  SunOS | Linux | Darwin | AIX )
     PS=":"
     FS="/"
     ;;
@@ -52,4 +52,4 @@ ${TESTJAVA}${FS}bin${FS}javac -d . ${TESTSRC}${FS}MarkResetTest.java
 # in this directory
 cp ${TESTSRC}${FS}EncDec.doc .
 
-${TESTJAVA}${FS}bin${FS}java MarkResetTest
+${TESTJAVA}${FS}bin${FS}java ${TESTVMOPTS} MarkResetTest

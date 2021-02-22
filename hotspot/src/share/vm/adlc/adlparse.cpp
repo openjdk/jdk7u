@@ -220,6 +220,8 @@ void ADLParser::instr_parse(void) {
       parse_err(SYNERR, "Instructions specify ins_encode, not encode\n");
     }
     else if (!strcmp(ident, "ins_encode"))     ins_encode_parse(*instr);
+    // Parse late expand keyword.
+    else if (!strcmp(ident, "lateExpand"))     lateExpand_parse(*instr);
     else if (!strcmp(ident, "opcode"))         instr->_opcode    = opcode_parse(instr);
     else if (!strcmp(ident, "size"))           instr->_size      = size_parse(instr);
     else if (!strcmp(ident, "effect"))         effect_parse(instr);
@@ -259,7 +261,8 @@ void ADLParser::instr_parse(void) {
   // Check for "Set" form of chain rule
   adjust_set_rule(instr);
   if (_AD._pipeline ) {
-    if( instr->expands() ) {
+    // No pipe required for late expand.
+    if( instr->expands() || instr->lateExpands() ) {
       if( instr->_ins_pipe )
         parse_err(WARN, "ins_pipe and expand rule both specified for instruction \"%s\"; ins_pipe will be unused\n", instr->_ident);
     } else {
@@ -2857,7 +2860,8 @@ void ADLParser::ins_encode_parse_block_impl(InstructForm& inst, EncClass* encodi
         inst.set_is_mach_constant(true);
 
         if (_curchar == '(')  {
-          parse_err(SYNERR, "constanttablebase in instruct %s cannot have an argument (only constantaddress and constantoffset)", ec_name);
+          parse_err(SYNERR, "constanttablebase in instruct %s cannot have an argument "
+                            "(only constantaddress and constantoffset)", ec_name);
           return;
         }
       }
@@ -3045,6 +3049,151 @@ void ADLParser::ins_encode_parse(InstructForm& inst) {
 
   // Debug Stuff
   if (_AD._adl_debug > 1) fprintf(stderr,"Instruction Encode: %s\n", ec_name);
+
+  // Set encode class of this instruction.
+  inst._insencode = encrule;
+}
+
+//------------------------------lateExpand_parse-------------------------------
+// Encode rules have the form
+//   lateExpand( encode_class_name(parameter_list) );
+//
+// The "encode_class_name" must be defined in the encode section.
+// The parameter list contains $names that are locals.
+//
+// This is just a copy of ins_encode_parse without the loop.
+void ADLParser::lateExpand_parse(InstructForm& inst) {
+  inst._is_lateExpand = true;
+
+  // Parse encode class name.
+  skipws();                        // Skip whitespace.
+  if (_curchar != '(') {
+
+    parse_err(SYNERR, "missing '(' in lateExpand definition\n");
+    return;
+  }
+  next_char();                     // Move past '('.
+  skipws();
+
+  InsEncode *encrule  = new InsEncode(); // Encode class for instruction.
+  encrule->_linenum = linenum();
+  char      *ec_name  = NULL;      // String representation of encode rule.
+  // identifier is optional.
+  if (_curchar != ')') {
+    ec_name = get_ident();
+    if (ec_name == NULL) {
+      parse_err(SYNERR, "Invalid lateExpand class name after 'lateExpand('.\n");
+      return;
+    }
+    // Check that encoding is defined in the encode section.
+    EncClass *encode_class = _AD._encode->encClass(ec_name);
+
+    // Get list for encode method's parameters
+    NameAndList *params = encrule->add_encode(ec_name);
+
+    // Parse the parameters to this encode method.
+    skipws();
+    if ( _curchar == '(' ) {
+      next_char();                 // Move past '(' for parameters.
+
+      // Parse the encode method's parameters.
+      while (_curchar != ')') {
+        char *param = get_ident_or_literal_constant("encoding operand");
+        if ( param != NULL ) {
+          // Found a parameter:
+
+          // First check for constant table support.
+
+          // Check if this instruct is a MachConstantNode.
+          if (strcmp(param, "constanttablebase") == 0) {
+            // This instruct is a MachConstantNode.
+            inst.set_is_mach_constant(true);
+
+            if (_curchar == '(')  {
+              parse_err(SYNERR, "constanttablebase in instruct %s cannot have an argument "
+                        "(only constantaddress and constantoffset)", ec_name);
+              return;
+            }
+          }
+          else if ((strcmp(param, "constantaddress")   == 0) ||
+                   (strcmp(param, "constantoffset")    == 0)) {
+            // This instruct is a MachConstantNode.
+            inst.set_is_mach_constant(true);
+
+            // If the constant keyword has an argument, parse it.
+            if (_curchar == '(')  constant_parse(inst);
+          }
+
+          // Else check it is a local name, add it to the list, then check for more.
+          // New: allow hex constants as parameters to an encode method.
+          // New: allow parenthesized expressions as parameters.
+          // New: allow "primary", "secondary", "tertiary" as parameters.
+          // New: allow user-defined register name as parameter.
+          else if ( (inst._localNames[param] == NULL) &&
+                    !ADLParser::is_literal_constant(param) &&
+                    (Opcode::as_opcode_type(param) == Opcode::NOT_AN_OPCODE) &&
+                    ((_AD._register == NULL ) || (_AD._register->getRegDef(param) == NULL)) ) {
+            parse_err(SYNERR, "Using non-locally defined parameter %s for encoding %s.\n", param, ec_name);
+            return;
+          }
+          params->add_entry(param);
+
+          skipws();
+          if (_curchar == ',' ) {
+            // More parameters to come.
+            next_char();           // Move past ',' between parameters.
+            skipws();              // Skip to next parameter.
+          }
+          else if (_curchar == ')') {
+            // Done with parameter list
+          }
+          else {
+            // Only ',' or ')' are valid after a parameter name.
+            parse_err(SYNERR, "expected ',' or ')' after parameter %s.\n",
+                      ec_name);
+            return;
+          }
+
+        } else {
+          skipws();
+          // Did not find a parameter.
+          if (_curchar == ',') {
+            parse_err(SYNERR, "Expected encode parameter before ',' in lateExpand %s.\n", ec_name);
+            return;
+          }
+          if (_curchar != ')') {
+            parse_err(SYNERR, "Expected ')' after lateExpand parameters.\n");
+            return;
+          }
+        }
+      } // WHILE loop collecting parameters.
+      next_char();                   // Move past ')' at end of parameters.
+    } // Done with parameter list for encoding.
+
+    // Check for ',' or ')' after encoding.
+    skipws();                      // Move to character after parameters.
+    if ( _curchar != ')' ) {
+      // Only a ')' is allowed.
+      parse_err(SYNERR, "Expected ')' after lateExpand %s.\n", ec_name);
+      return;
+    }
+  } // Done parsing lateExpand method and their parameters.
+  if (_curchar != ')') {
+    parse_err(SYNERR, "Missing ')' at end of lateExpand description.\n");
+    return;
+  }
+  next_char();                     // Move past ')'.
+  skipws();                        // Skip leading whitespace.
+
+  if ( _curchar != ';' ) {
+    parse_err(SYNERR, "Missing ';' at end of lateExpand.\n");
+    return;
+  }
+  next_char();                     // Move past ';'.
+  skipws();                        // Be friendly to oper_parse().
+
+  // Debug Stuff.
+  if (_AD._adl_debug > 1) fprintf(stderr,"Instruction lateExpand: %s\n", ec_name);
 
   // Set encode class of this instruction.
   inst._insencode = encrule;
@@ -3823,13 +3972,11 @@ void ADLParser::effect_parse(InstructForm *instr) {
 //------------------------------expand_parse-----------------------------------
 ExpandRule* ADLParser::expand_parse(InstructForm *instr) {
   char         *ident, *ident2;
-  OperandForm  *oper;
-  InstructForm *ins;
   NameAndList  *instr_and_operands = NULL;
   ExpandRule   *exp = new ExpandRule();
 
-  // Expand is a block containing an ordered list of instructions, each of
-  // which has an ordered list of operands.
+  // Expand is a block containing an ordered list of operands with initializers,
+  // or instructions, each of which has an ordered list of operands.
   // Check for block delimiter
   skipws();                        // Skip leading whitespace
   if ((_curchar != '%')
@@ -3843,12 +3990,30 @@ ExpandRule* ADLParser::expand_parse(InstructForm *instr) {
     if (ident == NULL) {
       parse_err(SYNERR, "identifier expected at %c\n", _curchar);
       continue;
-    }                              // Check that you have a valid instruction
+    }
+
+    // Check whether we should parse an instruction or operand.
     const Form *form = _globalNames[ident];
-    ins = form ? form->is_instruction() : NULL;
-    if (ins == NULL) {
+    bool parse_oper = false;
+    bool parse_ins  = false;
+    if (form == NULL) {
+      skipws();
+      // Check whether this looks like an instruction specification.  If so,
+      // just parse the instruction.  The declaration of the instruction is
+      // not needed here.
+      if (_curchar == '(') parse_ins = true;
+    } else if (form->is_instruction()) {
+      parse_ins = true;
+    } else if (form->is_operand()) {
+      parse_oper = true;
+    } else {
+      parse_err(SYNERR, "instruction/operand name expected at %s\n", ident);
+      continue;
+    }
+
+    if (parse_oper) {
       // This is a new operand
-      oper = form ? form->is_operand() : NULL;
+      OperandForm *oper = form->is_operand();
       if (oper == NULL) {
         parse_err(SYNERR, "instruction/operand name expected at %s\n", ident);
         continue;
@@ -3883,6 +4048,7 @@ ExpandRule* ADLParser::expand_parse(InstructForm *instr) {
       skipws();
     }
     else {
+      assert(parse_ins, "sanity");
       // Add instruction to list
       instr_and_operands = new NameAndList(ident);
       // Grab operands, build nameList of them, and then put into dictionary
@@ -3906,7 +4072,7 @@ ExpandRule* ADLParser::expand_parse(InstructForm *instr) {
           parse_err(SYNERR, "operand name expected at %s\n", ident2);
           continue;
         }
-        oper = form2->is_operand();
+        OperandForm *oper = form2->is_operand();
         if (oper == NULL && !form2->is_opclass()) {
           parse_err(SYNERR, "operand name expected at %s\n", ident2);
           continue;
