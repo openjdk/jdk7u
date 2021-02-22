@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,15 +26,12 @@
 package com.sun.tools.internal.ws.wsdl.parser;
 
 import com.sun.istack.internal.NotNull;
-import com.sun.tools.internal.ws.resources.WscompileMessages;
-import com.sun.tools.internal.ws.wscompile.AbortException;
-import com.sun.tools.internal.ws.wscompile.DefaultAuthenticator;
+import com.sun.tools.internal.ws.util.xml.XmlUtil;
 import com.sun.tools.internal.ws.wscompile.ErrorReceiver;
 import com.sun.tools.internal.ws.wscompile.WsimportOptions;
 import com.sun.tools.internal.ws.wsdl.document.schema.SchemaConstants;
 import com.sun.tools.internal.xjc.reader.internalizer.LocatorTable;
 import com.sun.xml.internal.bind.marshaller.DataWriter;
-import com.sun.xml.internal.ws.util.JAXWSUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -51,9 +48,6 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.sax.SAXResult;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -118,13 +112,13 @@ public class DOMForest {
         this.entityResolver = entityResolver;
         this.errorReceiver = errReceiver;
         this.logic = logic;
-        try {
-            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-            dbf.setNamespaceAware(true);
-            this.documentBuilder = dbf.newDocumentBuilder();
+        // secure xml processing can be switched off if input requires it
+        boolean disableXmlSecurity = options == null ? false : options.disableXmlSecurity;
 
-            this.parserFactory = SAXParserFactory.newInstance();
-            this.parserFactory.setNamespaceAware(true);
+        DocumentBuilderFactory dbf = XmlUtil.newDocumentBuilderFactory(disableXmlSecurity);
+        this.parserFactory = XmlUtil.newSAXParserFactory(disableXmlSecurity);
+        try {
+            this.documentBuilder = dbf.newDocumentBuilder();
         } catch (ParserConfigurationException e) {
             throw new AssertionError(e);
         }
@@ -368,7 +362,10 @@ public class DOMForest {
     public void dump(OutputStream out) throws IOException {
         try {
             // create identity transformer
-            Transformer it = TransformerFactory.newInstance().newTransformer();
+            // secure xml processing can be switched off if input requires it
+            boolean secureProcessingEnabled = options == null || !options.disableXmlSecurity;
+            TransformerFactory tf = XmlUtil.newTransformerFactory(secureProcessingEnabled);
+            Transformer it = tf.newTransformer();
 
             for (Map.Entry<String, Document> e : core.entrySet()) {
                 out.write(("---<< " + e.getKey() + '\n').getBytes());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,6 +78,15 @@ public class Options {
      * -Xnocompile
      */
     public boolean nocompile;
+
+    /**
+     * If true XML security features when parsing XML documents will be disabled.
+     * The default value is false.
+     *
+     * Boolean
+     * @since 2.2.9
+     */
+    public boolean disableXmlSecurity;
 
     public enum Target {
         V2_0, V2_1, V2_2;
@@ -310,6 +319,9 @@ public class Options {
                 throw new BadCommandLineException(WscompileMessages.WSCOMPILE_NO_SUCH_DIRECTORY(sourceDir.getPath()));
             }
             return 2;
+        } else if (args[i].equals("-disableXmlSecurity")) {
+            disableXmlSecurity();
+            return 1;
         } else if (args[i].equals("-extension")) {
             compatibilityMode = EXTENSION;
             return 1;
@@ -324,6 +336,11 @@ public class Options {
             return 1;
         }
         return 0;
+    }
+
+    // protected method to allow overriding
+    protected void disableXmlSecurity() {
+        disableXmlSecurity= true;
     }
 
     /**

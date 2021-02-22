@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,6 +102,15 @@ public class Options
 
     /** Encoding to be used by generated java sources, null for platform default. */
     public String encoding;
+
+    /**
+     * If true XML security features when parsing XML documents will be disabled.
+     * The default value is false.
+     *
+     * Boolean
+     * @since 2.2.6
+     */
+    public boolean disableXmlSecurity;
 
     /**
      * Check the source schemas with extra scrutiny.
@@ -538,6 +547,10 @@ public class Options
         }
         if (args[i].equals("-enableIntrospection")) {
             enableIntrospection = true;
+            return 1;
+        }
+        if (args[i].equals("-disableXmlSecurity")) {
+            disableXmlSecurity = true;
             return 1;
         }
         if (args[i].equals("-contentForWildcard")) {

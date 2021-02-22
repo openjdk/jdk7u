@@ -348,13 +348,16 @@ class Parse : public GraphKit {
   int _est_switch_depth;        // Debugging SwitchRanges.
 #endif
 
+  bool         _first_return;                  // true if return is the first to be parsed
+  bool         _replaced_nodes_for_exceptions; // needs processing of replaced nodes in exception paths?
+  uint         _new_idx;                       // any node with _idx above were new during this parsing. Used to trim the replaced nodes list.
+
  public:
   // Constructor
   Parse(JVMState* caller, ciMethod* parse_method, float expected_uses);
 
   virtual Parse* is_Parse() const { return (Parse*)this; }
 
- public:
   // Accessors.
   JVMState*     caller()        const { return _caller; }
   float         expected_uses() const { return _expected_uses; }
