@@ -104,6 +104,18 @@ public class FormatData_tr extends ListResourceBundle {
                     "Cmt" // abb Saturday
                 }
             },
+            { "long.Eras",
+                new String[] {
+                    "Milattan \u00d6nce",
+                    "Milattan Sonra",
+                }
+            },
+            { "Eras",
+                new String[] {
+                    "M\u00d6",
+                    "MS",
+                }
+            },
             { "NumberPatterns",
                 new String[] {
                     "#,##0.###;-#,##0.###", // decimal pattern
