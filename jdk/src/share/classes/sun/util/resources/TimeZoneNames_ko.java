@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,8 +117,6 @@ public final class TimeZoneNames_ko extends TimeZoneNamesBundle {
                                         "\uc601\uad6d \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "BST"};
         String GST[] = new String[] {"\uac78\ud504\ub9cc \ud45c\uc900\uc2dc", "GST",
                                      "\uac78\ud504\ub9cc \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "GDT"};
-        String HAST[] = new String[] {"\ud558\uc640\uc774 \uc54c\ub958\uc0e8 \ud45c\uc900\uc2dc", "HAST",
-                                      "\ud558\uc640\uc774 \uc54c\ub958\uc0e8 \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "HADT"};
         String HKT[] =  new String[] {"\ud64d\ucf69 \uc2dc\uac04", "HKT",
                                       "\ud64d\ucf69 \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "HKST"};
         String HST[] = new String[] {"\ud558\uc640\uc774 \ud45c\uc900\uc2dc", "HST",
@@ -296,7 +294,7 @@ public final class TimeZoneNames_ko extends TimeZoneNamesBundle {
             {"Africa/Tripoli", EET},
             {"Africa/Tunis", CET},
             {"Africa/Windhoek", WAT},
-            {"America/Adak", HAST},
+            {"America/Adak", HST},
             {"America/Anguilla", AST},
             {"America/Antigua", AST},
             {"America/Araguaina", BRT},
@@ -317,7 +315,7 @@ public final class TimeZoneNames_ko extends TimeZoneNamesBundle {
             {"America/Asuncion", new String[] {"\ud30c\ub77c\uacfc\uc774 \uc2dc\uac04", "PYT",
                                                "\ud30c\ub77c\uacfc\uc774 \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "PYST"}},
             {"America/Atikokan", EST},
-            {"America/Atka", HAST},
+            {"America/Atka", HST},
             {"America/Bahia", BRT},
             {"America/Bahia_Banderas", CST},
             {"America/Barbados", AST},
@@ -331,7 +329,7 @@ public final class TimeZoneNames_ko extends TimeZoneNamesBundle {
             {"America/Buenos_Aires", AGT},
             {"America/Cambridge_Bay", MST},
             {"America/Campo_Grande", AMT},
-            {"America/Cancun", CST},
+            {"America/Cancun", EST},
             {"America/Caracas", new String[] {"\ubca0\ub124\uc218\uc5d8\ub77c \uc2dc\uac04", "VET",
                                               "\ubca0\ub124\uc218\uc5d8\ub77c \uc77c\uad11\uc808\uc57d\uc2dc\uac04", "VEST"}},
             {"America/Catamarca", AGT},
@@ -861,7 +859,7 @@ public final class TimeZoneNames_ko extends TimeZoneNamesBundle {
             {"UCT", UTC},
             {"Universal", UTC},
             {"US/Alaska", AKST},
-            {"US/Aleutian", HAST},
+            {"US/Aleutian", HST},
             {"US/Arizona", MST},
             {"US/Central", CST},
             {"US/Eastern", EST},

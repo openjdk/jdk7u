@@ -809,6 +809,12 @@ void parseExclusiveBindProperty(JNIEnv *env) {
     }
 #endif
 }
+
+JNIEXPORT jint JNICALL
+NET_EnableFastTcpLoopback(int fd) {
+    return 0;
+}
+
 /* In the case of an IPv4 Inetaddress this method will return an
  * IPv4 mapped address where IPv6 is available and v4MappedAddress is TRUE.
  * Otherwise it will return a sockaddr_in structure for an IPv4 InetAddress.
@@ -1351,7 +1357,7 @@ NET_SetSockOpt(int fd, int level, int  opt, const void *arg,
      *    or sending UDP packet.
      * 2. IPv6 on Linux: By default Linux ignores flowinfo
      *    field so enable IPV6_FLOWINFO_SEND so that flowinfo
-     *    will be examined.
+     *    will be examined. We also set the IPv4 TOS option in this case.
      * 3. IPv4: set socket option based on ToS and Precedence
      *    fields (otherwise get invalid argument)
      */
@@ -1367,8 +1373,10 @@ NET_SetSockOpt(int fd, int level, int  opt, const void *arg,
 #if defined(AF_INET6) && defined(__linux__)
         if (ipv6_available()) {
             int optval = 1;
-            return setsockopt(fd, IPPROTO_IPV6, IPV6_FLOWINFO_SEND,
-                              (void *)&optval, sizeof(optval));
+            if (setsockopt(fd, IPPROTO_IPV6, IPV6_FLOWINFO_SEND,
+                           (void *)&optval, sizeof(optval)) < 0) {
+                return -1;
+            }
         }
 #endif
 
@@ -1537,6 +1545,7 @@ NET_Bind(int fd, struct sockaddr *him, int len)
     int exclbind = -1;
 #endif
     int rv;
+    int arg, alen;
 
 #ifdef __linux__
     /*
@@ -1553,7 +1562,7 @@ NET_Bind(int fd, struct sockaddr *him, int len)
     }
 #endif
 
-#if defined(__solaris__) && defined(AF_INET6)
+#if defined(__solaris__)
     /*
      * Solaris has seperate IPv4 and IPv6 port spaces so we
      * use an exclusive bind when SO_REUSEADDR is not used to
@@ -1563,35 +1572,31 @@ NET_Bind(int fd, struct sockaddr *him, int len)
      * results in a late bind that fails because the
      * corresponding IPv4 port is in use.
      */
-    if (ipv6_available()) {
-        int arg, len;
-
-        len = sizeof(arg);
-        if (useExclBind || getsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-                       (char *)&arg, &len) == 0) {
-            if (useExclBind || arg == 0) {
-                /*
-                 * SO_REUSEADDR is disabled or sun.net.useExclusiveBind
-                 * property is true so enable TCP_EXCLBIND or
-                 * UDP_EXCLBIND
-                 */
-                len = sizeof(arg);
-                if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&arg,
-                               &len) == 0) {
-                    if (arg == SOCK_STREAM) {
-                        level = IPPROTO_TCP;
-                        exclbind = TCP_EXCLBIND;
-                    } else {
-                        level = IPPROTO_UDP;
-                        exclbind = UDP_EXCLBIND;
-                    }
+    alen = sizeof(arg);
+    if (useExclBind || getsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+                   (char *)&arg, &alen) == 0) {
+        if (useExclBind || arg == 0) {
+            /*
+             * SO_REUSEADDR is disabled or sun.net.useExclusiveBind
+             * property is true so enable TCP_EXCLBIND or
+             * UDP_EXCLBIND
+             */
+            alen = sizeof(arg);
+            if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&arg,
+                           &alen) == 0) {
+                if (arg == SOCK_STREAM) {
+                    level = IPPROTO_TCP;
+                    exclbind = TCP_EXCLBIND;
+                } else {
+                    level = IPPROTO_UDP;
+                    exclbind = UDP_EXCLBIND;
                 }
-
-                arg = 1;
-                setsockopt(fd, level, exclbind, (char *)&arg,
-                           sizeof(arg));
             }
-        }
+
+            arg = 1;
+            setsockopt(fd, level, exclbind, (char *)&arg,
+                       sizeof(arg));
+            }
     }
 
 #endif
