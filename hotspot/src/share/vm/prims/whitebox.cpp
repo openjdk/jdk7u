@@ -34,6 +34,7 @@
 #include "prims/whitebox.hpp"
 #include "prims/wbtestmethods/parserTests.hpp"
 
+#include "runtime/arguments.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/os.hpp"
 #include "utilities/debug.hpp"
@@ -54,6 +55,20 @@ WB_END
 
 WB_ENTRY(jint, WB_GetHeapOopSize(JNIEnv* env, jobject o))
   return heapOopSize;
+WB_END
+
+WB_ENTRY(jlong, WB_GetCompressedOopsMaxHeapSize(JNIEnv* env, jobject o)) {
+  return (jlong)Arguments::max_heap_for_compressed_oops();
+}
+WB_END
+
+WB_ENTRY(void, WB_PrintHeapSizes(JNIEnv* env, jobject o)) {
+  CollectorPolicy * p = Universe::heap()->collector_policy();
+  gclog_or_tty->print_cr("Minimum heap "SIZE_FORMAT" Initial heap "
+    SIZE_FORMAT" Maximum heap "SIZE_FORMAT" Min alignment "SIZE_FORMAT" Max alignment "SIZE_FORMAT,
+    p->min_heap_byte_size(), p->initial_heap_byte_size(), p->max_heap_byte_size(),
+    p->min_alignment(), p->max_alignment());
+}
 WB_END
 
 #ifndef SERIALGC
@@ -204,6 +219,9 @@ static JNINativeMethod methods[] = {
       CC "(Ljava/lang/String;[Lsun/hotspot/parser/DiagnosticCommand;)[Ljava/lang/Object;",
       (void*) &WB_ParseCommandLine
   },
+  {CC"getCompressedOopsMaxHeapSize", CC"()J",
+      (void*)&WB_GetCompressedOopsMaxHeapSize},
+  {CC"printHeapSizes",     CC"()V",                   (void*)&WB_PrintHeapSizes    },
 #ifndef SERIALGC
   {CC"g1InConcurrentMark", CC"()Z",                   (void*)&WB_G1InConcurrentMark},
   {CC"g1IsHumongous",      CC"(Ljava/lang/Object;)Z", (void*)&WB_G1IsHumongous     },

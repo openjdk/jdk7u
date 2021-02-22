@@ -139,9 +139,13 @@ class os: AllStatic {
   static void   pd_realign_memory(char *addr, size_t bytes, size_t alignment_hint);
 
 
+  static void initialize_initial_active_processor_count();
  public:
   static void init(void);                      // Called before command line parsing
+  static void init_before_ergo(void);          // Called after command line parsing
+                                               // before VM ergonomics processing.
   static jint init_2(void);                    // Called after command line parsing
+                                               // and VM ergonomics processing
   static void init_globals(void) {             // Called from init_globals() in init.cpp
     init_globals_ext();
   }
@@ -202,7 +206,7 @@ class os: AllStatic {
   }
   static julong available_memory();
   static julong physical_memory();
-  static julong allocatable_physical_memory(julong size);
+  static bool has_allocatable_memory_limit(julong* limit);
   static bool is_server_class_machine();
 
   // number of CPUs
@@ -214,6 +218,13 @@ class os: AllStatic {
   // Returns the number of CPUs this process is currently allowed to run on.
   // Note that on some OSes this can change dynamically.
   static int active_processor_count();
+
+  // At startup the number of active CPUs this process is allowed to run on.
+  // This value does not change dynamically. May be different from active_processor_count().
+  static int initial_active_processor_count() {
+    assert(_initial_active_processor_count > 0, "Initial active processor count not set yet.");
+    return _initial_active_processor_count;
+  }
 
   // Bind processes to processors.
   //     This is a two step procedure:
@@ -256,6 +267,11 @@ class os: AllStatic {
   static size_t page_size_for_region(size_t region_min_size,
                                      size_t region_max_size,
                                      uint min_pages);
+  // Return the largest page size that can be used
+  static size_t max_page_size() {
+    // The _page_sizes array is sorted in descending order.
+    return _page_sizes[0];
+  }
 
   // Methods for tracing page sizes returned by the above method; enabled by
   // TracePageSizes.  The region_{min,max}_size parameters should be the values
@@ -669,10 +685,6 @@ class os: AllStatic {
 
   static struct hostent* get_host_by_name(char* name);
 
-  // Printing 64 bit integers
-  static const char* jlong_format_specifier();
-  static const char* julong_format_specifier();
-
   // Support for signals (see JVM_RaiseSignal, JVM_RegisterSignal)
   static void  signal_init();
   static void  signal_init_pd();
@@ -927,8 +939,9 @@ class os: AllStatic {
 
 
  protected:
-  static long _rand_seed;                   // seed for random number generator
-  static int _processor_count;              // number of processors
+  static long _rand_seed;                     // seed for random number generator
+  static int _processor_count;                // number of processors
+  static int _initial_active_processor_count; // number of active processors during initialization.
 
   static char* format_boot_path(const char* format_string,
                                 const char* home,

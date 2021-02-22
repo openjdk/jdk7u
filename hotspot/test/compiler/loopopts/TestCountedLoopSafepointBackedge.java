@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,23 +21,33 @@
  * questions.
  */
 
-package sun.awt;
-
 /**
- * A GraphicsConfiguration implements the TextureSizeConstraining
- * interface to indicate that it imposes certain limitations on the
- * maximum size of supported textures.
+ * @test
+ * @bug 8161147
+ * @requires vm.flavor == "server"
+ * @summary Safepoint on backedge breaks UseCountedLoopSafepoints
+ * @run main/othervm -XX:-BackgroundCompilation -XX:-UseOnStackReplacement -XX:+UseCountedLoopSafepoints TestCountedLoopSafepointBackedge
+ *
  */
-public interface TextureSizeConstraining {
 
-    /**
-     * Returns the maximum width of any texture image.
-     */
-    public int getMaxTextureWidth();
+public class TestCountedLoopSafepointBackedge {
+    static void test(int[] arr, int inc) {
+        int i = 0;
+        for (;;) {
+            for (int j = 0; j < 10; j++);
+            arr[i] = i;
+            i++;
+            if (i >= 100) {
+                break;
+            }
+            for (int j = 0; j < 10; j++);
+        }
+    }
 
-    /**
-     * Returns the maximum height of any texture image.
-     */
-    public int getMaxTextureHeight();
-
+    static public void main(String[] args) {
+        int[] arr = new int[100];
+        for (int i = 0; i < 20000; i++) {
+             test(arr, 1);
+        }
+    }
 }

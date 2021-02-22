@@ -143,6 +143,7 @@ AWT_NS_WINDOW_IMPLEMENTATION
 @synthesize isEnabled;
 @synthesize ownerWindow;
 @synthesize preFullScreenLevel;
+@synthesize isMinimizing;
 
 - (void) updateMinMaxSize:(BOOL)resizable {
     if (resizable) {
@@ -281,6 +282,7 @@ AWT_ASSERT_APPKIT_THREAD;
     [self.nsWindow release]; // the property retains the object already
 
     self.isEnabled = YES;
+    self.isMinimizing = NO;
     self.javaPlatformWindow = platformWindow;
     self.styleBits = bits;
     self.ownerWindow = owner;
@@ -319,10 +321,44 @@ AWT_ASSERT_APPKIT_THREAD;
     return [window isKindOfClass: [AWTWindow_Panel class]] || [window isKindOfClass: [AWTWindow_Normal class]];
 }
 
+// Retrieves the list of possible window layers (levels)
++ (NSArray*) getWindowLayers {
+    static NSArray *windowLayers;
+    static dispatch_once_t token;
+
+    // Initialize the list of possible window layers
+    dispatch_once(&token, ^{
+        // The layers are ordered from front to back, (i.e. the toppest one is the first)
+        windowLayers = [NSArray arrayWithObjects:
+                            [NSNumber numberWithInt:CGWindowLevelForKey(kCGPopUpMenuWindowLevelKey)],
+                            [NSNumber numberWithInt:CGWindowLevelForKey(kCGFloatingWindowLevelKey)],
+                            [NSNumber numberWithInt:CGWindowLevelForKey(kCGNormalWindowLevelKey)],
+                            nil
+                       ];
+        [windowLayers retain];
+    });
+    return windowLayers;
+}
+
+
 // return id for the topmost window under mouse
 + (NSInteger) getTopmostWindowUnderMouseID {
     NSInteger result = -1;
-    
+
+    NSArray *windowLayers = [AWTWindow getWindowLayers];
+    // Looking for the window under mouse starting from the toppest layer
+    for (NSNumber *layer in windowLayers) {
+        result = [AWTWindow getTopmostWindowUnderMouseIDImpl:[layer integerValue]];
+        if (result != -1) {
+            break;
+        }
+    }
+    return result;
+}
+
++ (NSInteger) getTopmostWindowUnderMouseIDImpl:(NSInteger)windowLayer {
+    NSInteger result = -1;
+
     NSRect screenRect = [[NSScreen mainScreen] frame];
     NSPoint nsMouseLocation = [NSEvent mouseLocation];
     CGPoint cgMouseLocation = CGPointMake(nsMouseLocation.x, screenRect.size.height - nsMouseLocation.y);
@@ -332,7 +368,7 @@ AWT_ASSERT_APPKIT_THREAD;
 
     for (NSDictionary *window in windows) {
         NSInteger layer = [[window objectForKey:(id)kCGWindowLayer] integerValue];
-        if (layer == 0) {
+        if (layer == windowLayer) {
             CGRect rect;
             CGRectMakeWithDictionaryRepresentation((CFDictionaryRef)[window objectForKey:(id)kCGWindowBounds], &rect);
             if (CGRectContainsPoint(rect, cgMouseLocation)) {
@@ -421,6 +457,68 @@ AWT_ASSERT_APPKIT_THREAD;
     self.nsWindow = nil;
     self.ownerWindow = nil;
     [super dealloc];
+}
+
+// Tests wheather the corresponding Java paltform window is visible or not
++ (BOOL) isJavaPlatformWindowVisible:(NSWindow *)window {
+    BOOL isVisible = NO;
+    
+    if ([AWTWindow isAWTWindow:window] && [window delegate] != nil) {
+        AWTWindow *awtWindow = (AWTWindow *)[window delegate];
+        [AWTToolkit eventCountPlusPlus];
+        
+        JNIEnv *env = [ThreadUtilities getJNIEnv];
+        jobject platformWindow = [awtWindow.javaPlatformWindow jObjectWithEnv:env];
+        if (platformWindow != NULL) {
+            static JNF_MEMBER_CACHE(jm_isVisible, jc_CPlatformWindow, "isVisible", "()Z");
+            isVisible = JNFCallBooleanMethod(env, platformWindow, jm_isVisible) == JNI_TRUE ? YES : NO;
+            (*env)->DeleteLocalRef(env, platformWindow);
+            
+        }
+    }
+    return isVisible;
+}
+
+// Orders window's childs based on the current focus state
+- (void) orderChildWindows:(BOOL)focus {
+AWT_ASSERT_APPKIT_THREAD;
+
+    if (self.isMinimizing) {
+        // Do not perform any ordering, if iconify is in progress
+        return;
+    }
+
+    NSEnumerator *windowEnumerator = [[NSApp windows]objectEnumerator];
+    NSWindow *window;
+    while ((window = [windowEnumerator nextObject]) != nil) {
+        if ([AWTWindow isJavaPlatformWindowVisible:window]) {
+            AWTWindow *awtWindow = (AWTWindow *)[window delegate];
+            AWTWindow *owner = awtWindow.ownerWindow;
+            if (IS(awtWindow.styleBits, ALWAYS_ON_TOP)) {
+                // Do not order 'always on top' windows
+                continue;
+            }
+            while (awtWindow.ownerWindow != nil) {
+                if (awtWindow.ownerWindow == self) {
+                    if (focus) {
+                        // Move the childWindow to floating level
+                        // so it will appear in front of its
+                        // parent which owns the focus
+                        [window setLevel:NSFloatingWindowLevel];
+                    } else {
+                        // Focus owner has changed, move the childWindow
+                        // back to normal window level
+                        [window setLevel:NSNormalWindowLevel];
+                    }
+                    // The childWindow should be displayed in front of
+                    // its nearest parentWindow
+                    [window orderWindow:NSWindowAbove relativeTo:[owner.nsWindow windowNumber]];
+                    break;
+                }
+                awtWindow = awtWindow.ownerWindow;
+            }
+        }
+    }
 }
 
 // NSWindow overrides
@@ -572,6 +670,30 @@ AWT_ASSERT_APPKIT_THREAD;
     return YES;
 }
 
+// Hides/shows window's childs during iconify/de-iconify operation
+- (void) iconifyChildWindows:(BOOL)iconify {
+AWT_ASSERT_APPKIT_THREAD;
+
+    NSEnumerator *windowEnumerator = [[NSApp windows]objectEnumerator];
+    NSWindow *window;
+    while ((window = [windowEnumerator nextObject]) != nil) {
+        if ([AWTWindow isJavaPlatformWindowVisible:window]) {
+            AWTWindow *awtWindow = (AWTWindow *)[window delegate];
+            while (awtWindow.ownerWindow != nil) {
+                if (awtWindow.ownerWindow == self) {
+                    if (iconify) {
+                        [window orderOut:window];
+                    } else {
+                        [window orderFront:window];
+                    }
+                    break;
+                }
+                awtWindow = awtWindow.ownerWindow;
+            }
+        }
+    }
+}
+
 - (void) _deliverIconify:(BOOL)iconify {
 AWT_ASSERT_APPKIT_THREAD;
 
@@ -585,16 +707,36 @@ AWT_ASSERT_APPKIT_THREAD;
     }
 }
 
+- (void)windowWillMiniaturize:(NSNotification *)notification {
+AWT_ASSERT_APPKIT_THREAD;
+
+    self.isMinimizing = YES;
+
+    JNIEnv *env = [ThreadUtilities getJNIEnv];
+    jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
+    if (platformWindow != NULL) {
+        static JNF_MEMBER_CACHE(jm_windowWillMiniaturize, jc_CPlatformWindow, "windowWillMiniaturize", "()V");
+        JNFCallVoidMethod(env, platformWindow, jm_windowWillMiniaturize);
+        (*env)->DeleteLocalRef(env, platformWindow);
+    }
+    // Excplicitly make myself a key window to avoid possible
+    // negative visual effects during iconify operation
+    [self.nsWindow makeKeyAndOrderFront:self.nsWindow];
+    [self iconifyChildWindows:YES];
+}
+
 - (void)windowDidMiniaturize:(NSNotification *)notification {
 AWT_ASSERT_APPKIT_THREAD;
 
     [self _deliverIconify:JNI_TRUE];
+    self.isMinimizing = NO;
 }
 
 - (void)windowDidDeminiaturize:(NSNotification *)notification {
 AWT_ASSERT_APPKIT_THREAD;
 
     [self _deliverIconify:JNI_FALSE];
+    [self iconifyChildWindows:NO];
 }
 
 - (void) _deliverWindowFocusEvent:(BOOL)focused oppositeWindow:(AWTWindow *)opposite {
@@ -640,6 +782,7 @@ AWT_ASSERT_APPKIT_THREAD;
     [AWTWindow setLastKeyWindow:nil];
 
     [self _deliverWindowFocusEvent:YES oppositeWindow: opposite];
+    [self orderChildWindows:YES];
 }
 
 - (void) windowDidResignKey: (NSNotification *) notification {
@@ -667,6 +810,7 @@ AWT_ASSERT_APPKIT_THREAD;
     }
 
     [self _deliverWindowFocusEvent:NO oppositeWindow: opposite];
+    [self orderChildWindows:NO];
 }
 
 - (void) windowDidBecomeMain: (NSNotification *) notification {
@@ -1195,15 +1339,16 @@ JNIEXPORT jobject
 JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeGetTopmostPlatformWindowUnderMouse
 (JNIEnv *env, jclass clazz)
 {
-    jobject topmostWindowUnderMouse = nil;
+    __block jobject topmostWindowUnderMouse = nil;
 
     JNF_COCOA_ENTER(env);
-    AWT_ASSERT_APPKIT_THREAD;
 
-    AWTWindow *awtWindow = [AWTWindow getTopmostWindowUnderMouse];
-    if (awtWindow != nil) {
-        topmostWindowUnderMouse = [awtWindow.javaPlatformWindow jObject];
-    }
+    [ThreadUtilities performOnMainThreadWaiting:YES block:^{
+        AWTWindow *awtWindow = [AWTWindow getTopmostWindowUnderMouse];
+        if (awtWindow != nil) {
+            topmostWindowUnderMouse = [awtWindow.javaPlatformWindow jObject];
+        }
+    }];
 
     JNF_COCOA_EXIT(env);
 

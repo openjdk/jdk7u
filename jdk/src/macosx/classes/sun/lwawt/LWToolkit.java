@@ -313,7 +313,7 @@ public abstract class LWToolkit extends SunToolkit implements Runnable {
     @Override
     public CanvasPeer createCanvas(Canvas target) {
         PlatformComponent platformComponent = createPlatformComponent();
-        LWCanvasPeer peer = new LWCanvasPeer(target, platformComponent);
+        LWCanvasPeer<?, ?> peer = new LWCanvasPeer<>(target, platformComponent);
         targetCreatedPeer(target, peer);
         peer.initialize();
         return peer;
@@ -383,6 +383,8 @@ public abstract class LWToolkit extends SunToolkit implements Runnable {
         peer.initialize();
         return peer;
     }
+
+    protected abstract PlatformWindow getPlatformWindowUnderMouse();
 
     @Override
     public TextFieldPeer createTextField(TextField target) {
@@ -528,16 +530,18 @@ public abstract class LWToolkit extends SunToolkit implements Runnable {
     }
 
     @Override
-    public void grab(Window w) {
-        if (w.getPeer() != null) {
-            ((LWWindowPeer)w.getPeer()).grab();
+    public void grab(final Window w) {
+        final Object peer = AWTAccessor.getComponentAccessor().getPeer(w);
+        if (peer != null) {
+            ((LWWindowPeer) peer).grab();
         }
     }
 
     @Override
-    public void ungrab(Window w) {
-        if (w.getPeer() != null) {
-            ((LWWindowPeer)w.getPeer()).ungrab(false);
+    public void ungrab(final Window w) {
+        final Object peer = AWTAccessor.getComponentAccessor().getPeer(w);
+        if (peer != null) {
+            ((LWWindowPeer) peer).ungrab(false);
         }
     }
 }

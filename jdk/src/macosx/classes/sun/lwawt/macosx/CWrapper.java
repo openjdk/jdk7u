@@ -40,6 +40,7 @@ final class CWrapper {
         // The levels: (these are NOT real constants, these are keys. See native code.)
         static final int NSNormalWindowLevel = 0;
         static final int NSFloatingWindowLevel = 1;
+        static final int NSPopUpMenuWindowLevel = 2;
 
         // 'level' is one of the keys defined above
         static native void setLevel(long window, int level);
@@ -53,14 +54,39 @@ final class CWrapper {
         static native void orderFront(long window);
         static native void orderFrontRegardless(long window);
         static native void orderWindow(long window, int ordered, long relativeTo);
+
+        /**
+         * Removes the window from the screen.
+         *
+         * @param window the pointer of the NSWindow
+         */
         static native void orderOut(long window);
+
+        /**
+         * Removes the window from the screen and releases it. According to
+         * documentation this method should be similar to {@link #orderOut},
+         * because we use ReleasedWhenClosed:NO, so the window shouldn't be
+         * released. But the close method works differently, for example it
+         * close the space if the window was in the full screen via
+         * {@link CPlatformWindow#toggleFullScreen()}.
+         *
+         * @param window the pointer of the NSWindow
+         */
+        static native void close(long window);
 
         static native void addChildWindow(long parent, long child, int ordered);
         static native void removeChildWindow(long parent, long child);
 
         static native void setAlphaValue(long window, float alpha);
         static native void setOpaque(long window, boolean opaque);
-        static native void setBackgroundColor(long window, long color);
+
+        /**
+         * Sets background color of the NSWindow.
+         *
+         * @param window the pointer of the NSWindow
+         * @param color the color in argb format
+         */
+        static native void setBackgroundColor(long window, int color);
 
         static native void miniaturize(long window);
         static native void deminiaturize(long window);
@@ -80,9 +106,5 @@ final class CWrapper {
         static native void setHidden(long view, boolean hidden);
 
         static native void setToolTip(long view, String msg);
-    }
-
-    static final class NSColor {
-        static native long clearColor();
     }
 }

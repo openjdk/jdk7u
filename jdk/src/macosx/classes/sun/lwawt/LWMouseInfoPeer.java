@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,9 @@ import java.awt.Window;
 
 import java.awt.peer.MouseInfoPeer;
 
-public class LWMouseInfoPeer implements MouseInfoPeer {
+import sun.awt.AWTAccessor;
 
-    public LWMouseInfoPeer() {
-    }
+public class LWMouseInfoPeer implements MouseInfoPeer {
 
     @Override
     public int fillPointWithCoords(Point point) {
@@ -52,8 +51,12 @@ public class LWMouseInfoPeer implements MouseInfoPeer {
             return false;
         }
 
-        LWWindowPeer windowPeer = (LWWindowPeer)w.getPeer();
-        return LWWindowPeer.getWindowUnderCursor() == windowPeer;
+        LWWindowPeer windowPeer = (LWWindowPeer)AWTAccessor.getComponentAccessor().getPeer(w);
+        if (windowPeer == null) {
+            return false;
+        }
+
+        return LWToolkit.getLWToolkit().getPlatformWindowUnderMouse() == windowPeer.getPlatformWindow();
     }
 
 }
