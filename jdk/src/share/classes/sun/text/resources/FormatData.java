@@ -138,6 +138,7 @@ public class FormatData extends ListResourceBundle {
                     "Taisho",
                     "Showa",
                     "Heisei",
+                    "Reiwa",
                 }
             },
             { "java.util.JapaneseImperialCalendar.short.Eras",
@@ -147,6 +148,7 @@ public class FormatData extends ListResourceBundle {
                     "T",
                     "S",
                     "H",
+                    "R",
                 }
             },
             { "java.util.JapaneseImperialCalendar.FirstYear",
