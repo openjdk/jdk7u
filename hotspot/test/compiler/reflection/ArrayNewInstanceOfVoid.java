@@ -19,22 +19,26 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_VM_OBJECT_COUNT_EVENT_SENDER_HPP
-#define SHARE_VM_OBJECT_COUNT_EVENT_SENDER_HPP
+/*
+ * @test
+ * @bug 8029366
+ * @summary ShouldNotReachHere error when creating an array with component type of void
+ */
 
-#include "gc_implementation/shared/gcTrace.hpp"
-#include "memory/allocation.hpp"
+public class ArrayNewInstanceOfVoid {
+    public static void main(String[] args) {
+        for (int i = 0; i < 100_000; i++) {
+            test();
+        }
+    }
 
-class KlassInfoEntry;
-class Ticks;
-
-class ObjectCountEventSender : public AllStatic {
- public:
-  static void send(const KlassInfoEntry* entry, GCId gc_id, const Ticks& timestamp);
-  static bool should_send_event();
-};
-
-#endif // SHARE_VM_OBJECT_COUNT_EVENT_SENDER
+    private static void test() {
+        try {
+            java.lang.reflect.Array.newInstance(void.class, 2);
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+    }
+}
