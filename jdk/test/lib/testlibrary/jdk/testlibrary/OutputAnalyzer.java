@@ -36,7 +36,7 @@ public final class OutputAnalyzer {
 
     private final String stdout;
     private final String stderr;
-    private final int exitValue;
+    private final int exitValue;    // useless now. output contains exit value.
 
     /**
      * Create an OutputAnalyzer, a utility class for verifying output and exit
@@ -357,6 +357,21 @@ public final class OutputAnalyzer {
             reportDiagnosticSummary();
             throw new RuntimeException("Expected to get exit value of ["
                     + expectedExitValue + "]\n");
+        }
+        return this;
+    }
+
+    /**
+     * Verify the exit value of the process
+     *
+     * @param notExpectedExitValue Unexpected exit value from process
+     * @throws RuntimeException If the exit value from the process did match the expected value
+     */
+    public OutputAnalyzer shouldNotHaveExitValue(int notExpectedExitValue) {
+        if (getExitValue() == notExpectedExitValue) {
+            reportDiagnosticSummary();
+            throw new RuntimeException("Unexpected to get exit value of ["
+                    + notExpectedExitValue + "]\n");
         }
         return this;
     }
