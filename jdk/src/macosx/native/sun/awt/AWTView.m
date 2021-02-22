@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 #import "LWCToolkit.h"
 #import "JavaComponentAccessibility.h"
 #import "JavaTextAccessibility.h"
+#import "JavaAccessibilityUtilities.h"
 #import "GeomUtilities.h"
 #import "OSVersion.h"
 #import "CGLLayer.h"
@@ -111,9 +112,9 @@ AWT_ASSERT_APPKIT_THREAD;
             remoteLayer.parentLayer = parentLayer;
             remoteLayer.remoteLayer = NULL;
             remoteLayer.jrsRemoteLayer = [remoteLayer createRemoteLayerBoundTo:JRSRemotePort];
-            CFRetain(remoteLayer);  // REMIND
+            [remoteLayer retain];  // REMIND
             remoteLayer.frame = CGRectMake(0, 0, 720, 500); // REMIND
-            CFRetain(remoteLayer.jrsRemoteLayer); // REMIND
+            [remoteLayer.jrsRemoteLayer retain]; // REMIND
             int layerID = [remoteLayer.jrsRemoteLayer layerID];
             NSLog(@"layer id to send = %d", layerID);
             sendLayerID(layerID);
@@ -129,8 +130,8 @@ AWT_ASSERT_APPKIT_THREAD;
 
     self.cglLayer = nil;
 
-    JNIEnv *env = [ThreadUtilities getJNIEnv];
-    (*env)->DeleteGlobalRef(env, m_cPlatformView);
+    JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
+    (*env)->DeleteWeakGlobalRef(env, m_cPlatformView);
     m_cPlatformView = NULL;
 
     if (fInputMethodLOCKABLE != NULL)
@@ -365,7 +366,7 @@ AWT_ASSERT_APPKIT_THREAD;
     }
 
     static JNF_CLASS_CACHE(jc_NSEvent, "sun/lwawt/macosx/NSEvent");
-    static JNF_CTOR_CACHE(jctor_NSEvent, jc_NSEvent, "(IIIIIIIIDD)V");
+    static JNF_CTOR_CACHE(jctor_NSEvent, jc_NSEvent, "(IIIIIIIIDDI)V");
     jobject jEvent = JNFNewObject(env, jctor_NSEvent,
                                   [event type],
                                   [event modifierFlags],
@@ -374,7 +375,8 @@ AWT_ASSERT_APPKIT_THREAD;
                                   (jint)localPoint.x, (jint)localPoint.y,
                                   (jint)absP.x, (jint)absP.y,
                                   [event deltaY],
-                                  [event deltaX]);
+                                  [event deltaX],
+                                  [AWTToolkit scrollStateWithEvent: event]);
     if (jEvent == nil) {
         // Unable to create event by some reason.
         return;
@@ -382,7 +384,12 @@ AWT_ASSERT_APPKIT_THREAD;
 
     static JNF_CLASS_CACHE(jc_PlatformView, "sun/lwawt/macosx/CPlatformView");
     static JNF_MEMBER_CACHE(jm_deliverMouseEvent, jc_PlatformView, "deliverMouseEvent", "(Lsun/lwawt/macosx/NSEvent;)V");
-    JNFCallVoidMethod(env, m_cPlatformView, jm_deliverMouseEvent, jEvent);
+
+    jobject jlocal = (*env)->NewLocalRef(env, m_cPlatformView);
+    if (!(*env)->IsSameObject(env, jlocal, NULL)) {
+        JNFCallVoidMethod(env, jlocal, jm_deliverMouseEvent, jEvent);
+        (*env)->DeleteLocalRef(env, jlocal);
+    }
 }
 
 - (void) resetTrackingArea {
@@ -443,7 +450,12 @@ AWT_ASSERT_APPKIT_THREAD;
     static JNF_CLASS_CACHE(jc_PlatformView, "sun/lwawt/macosx/CPlatformView");
     static JNF_MEMBER_CACHE(jm_deliverKeyEvent, jc_PlatformView,
                             "deliverKeyEvent", "(Lsun/lwawt/macosx/NSEvent;)V");
-    JNFCallVoidMethod(env, m_cPlatformView, jm_deliverKeyEvent, jevent);
+
+    jobject jlocal = (*env)->NewLocalRef(env, m_cPlatformView);
+    if (!(*env)->IsSameObject(env, jlocal, NULL)) {
+        JNFCallVoidMethod(env, jlocal, jm_deliverKeyEvent, jevent);
+        (*env)->DeleteLocalRef(env, jlocal);
+    }
 
     if (characters != NULL) {
         (*env)->DeleteLocalRef(env, characters);
@@ -458,7 +470,12 @@ AWT_ASSERT_APPKIT_THREAD;
     JNIEnv *env = [ThreadUtilities getJNIEnv];
     static JNF_CLASS_CACHE(jc_PlatformView, "sun/lwawt/macosx/CPlatformView");
     static JNF_MEMBER_CACHE(jm_deliverResize, jc_PlatformView, "deliverResize", "(IIII)V");
-    JNFCallVoidMethod(env, m_cPlatformView, jm_deliverResize, x,y,w,h);
+
+    jobject jlocal = (*env)->NewLocalRef(env, m_cPlatformView);
+    if (!(*env)->IsSameObject(env, jlocal, NULL)) {
+        JNFCallVoidMethod(env, jlocal, jm_deliverResize, x,y,w,h);
+        (*env)->DeleteLocalRef(env, jlocal);
+    }
 }
 
 
@@ -487,7 +504,12 @@ AWT_ASSERT_APPKIT_THREAD;
 */
         static JNF_CLASS_CACHE(jc_CPlatformView, "sun/lwawt/macosx/CPlatformView");
         static JNF_MEMBER_CACHE(jm_deliverWindowDidExposeEvent, jc_CPlatformView, "deliverWindowDidExposeEvent", "()V");
-        JNFCallVoidMethod(env, m_cPlatformView, jm_deliverWindowDidExposeEvent);
+
+        jobject jlocal = (*env)->NewLocalRef(env, m_cPlatformView);
+        if (!(*env)->IsSameObject(env, jlocal, NULL)) {
+            JNFCallVoidMethod(env, jlocal, jm_deliverWindowDidExposeEvent);
+            (*env)->DeleteLocalRef(env, jlocal);
+        }
 /*
         }
 */
@@ -507,7 +529,13 @@ AWT_ASSERT_APPKIT_THREAD;
         }
         return NULL;
     }
-    jobject peer = JNFGetObjectField(env, m_cPlatformView, jf_Peer);
+
+    jobject peer = NULL;
+    jobject jlocal = (*env)->NewLocalRef(env, m_cPlatformView);
+    if (!(*env)->IsSameObject(env, jlocal, NULL)) {
+        peer = JNFGetObjectField(env, jlocal, jf_Peer);
+        (*env)->DeleteLocalRef(env, jlocal);
+    }
     static JNF_CLASS_CACHE(jc_LWWindowPeer, "sun/lwawt/LWWindowPeer");
     static JNF_MEMBER_CACHE(jf_Target, jc_LWWindowPeer, "target", "Ljava/awt/Component;");
     if (peer == NULL) {
@@ -515,12 +543,27 @@ AWT_ASSERT_APPKIT_THREAD;
         JNFDumpJavaStack(env);
         return NULL;
     }
-    return JNFGetObjectField(env, peer, jf_Target);
+    jobject comp = JNFGetObjectField(env, peer, jf_Target);
+    (*env)->DeleteLocalRef(env, peer);
+    return comp;
+}
+
++ (AWTView *) awtView:(JNIEnv*)env ofAccessible:(jobject)jaccessible
+{
+    static JNF_STATIC_MEMBER_CACHE(jm_getAWTView, sjc_CAccessibility, "getAWTView", "(Ljavax/accessibility/Accessible;)J");
+
+    jlong jptr = JNFCallStaticLongMethod(env, jm_getAWTView, jaccessible);
+    if (jptr == 0) return nil;
+
+    return (AWTView *)jlong_to_ptr(jptr);
 }
 
 - (id)getAxData:(JNIEnv*)env
 {
-    return [[[JavaComponentAccessibility alloc] initWithParent:self withEnv:env withAccessible:[self awtComponent:env] withIndex:-1 withView:self withJavaRole:nil] autorelease];
+    jobject jcomponent = [self awtComponent:env];
+    id ax = [[[JavaComponentAccessibility alloc] initWithParent:self withEnv:env withAccessible:jcomponent withIndex:-1 withView:self withJavaRole:nil] autorelease];
+    (*env)->DeleteLocalRef(env, jcomponent);
+    return ax;
 }
 
 - (NSArray *)accessibilityAttributeNames
@@ -587,7 +630,7 @@ AWT_ASSERT_APPKIT_THREAD;
 
 // --- Services menu support for lightweights ---
 
-// finds the focused accessable element, and if it's a text element, obtains the text from it
+// finds the focused accessible element, and if it is a text element, obtains the text from it
 - (NSString *)accessibleSelectedText
 {
     id focused = [self accessibilityFocusedUIElement];
@@ -605,7 +648,7 @@ AWT_ASSERT_APPKIT_THREAD;
     return rtfdData;
 }
 
-// finds the focused accessable element, and if it's a text element, sets the text in it
+// finds the focused accessible element, and if it is a text element, sets the text in it
 - (BOOL)replaceAccessibleTextSelection:(NSString *)text
 {
     id focused = [self accessibilityFocusedUIElement];
@@ -1247,17 +1290,14 @@ Java_sun_lwawt_macosx_CPlatformView_nativeCreateView
 JNF_COCOA_ENTER(env);
 
     NSRect rect = NSMakeRect(originX, originY, width, height);
-    jobject cPlatformView = (*env)->NewGlobalRef(env, obj);
+    jobject cPlatformView = (*env)->NewWeakGlobalRef(env, obj);
 
     [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
 
         CALayer *windowLayer = jlong_to_ptr(windowLayerPtr);
-        AWTView *view = [[AWTView alloc] initWithRect:rect
-                                         platformView:cPlatformView
-                                         windowLayer:windowLayer];
-        CFRetain(view);
-        [view release]; // GC
-        newView = view;
+        newView = [[AWTView alloc] initWithRect:rect
+                                   platformView:cPlatformView
+                                    windowLayer:windowLayer];
     }];
 
 JNF_COCOA_EXIT(env);

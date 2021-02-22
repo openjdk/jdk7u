@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,8 @@ import javax.naming.spi.*;
 import org.omg.CosNaming.*;
 import org.omg.CosNaming.NamingContextPackage.*;
 import org.omg.CORBA.*;
+
+import com.sun.jndi.toolkit.corba.CorbaUtils;
 
 /**
   * A convenience class to map the COS Naming exceptions to the JNDI exceptions.
@@ -102,10 +104,10 @@ public final class ExceptionMapper {
 
     private static final NamingException tryFed(NotFound e, CNCtx ctx,
         NameComponent[] inputName) throws NamingException {
-        NameComponent[] rest = ((NotFound) e).rest_of_name;
+        NameComponent[] rest = e.rest_of_name;
 
         if (debug) {
-            System.out.println(((NotFound)e).why.value());
+            System.out.println(e.why.value());
             System.out.println(rest.length);
         }
 
@@ -202,10 +204,13 @@ public final class ExceptionMapper {
             // Not a context, use object factory to transform object.
 
             Name cname = CNNameParser.cosNameToName(resolvedName);
-            java.lang.Object resolvedObj2;
+            java.lang.Object resolvedObj2 = null;
             try {
+                // Check whether object factory codebase is trusted
+                if (CorbaUtils.isObjectFactoryTrusted(resolvedObj)) {
                 resolvedObj2 = NamingManager.getObjectInstance(resolvedObj,
                     cname, ctx, ctx._env);
+                }
             } catch (NamingException ge) {
                 throw ge;
             } catch (Exception ge) {

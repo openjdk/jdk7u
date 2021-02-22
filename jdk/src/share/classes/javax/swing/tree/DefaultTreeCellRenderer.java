@@ -49,7 +49,7 @@ import sun.swing.DefaultLookup;
  * <code>DefaultTreeCellRenderer</code> is not opaque and
  * unless you subclass paint you should not change this.
  * See <a
- href="http://java.sun.com/docs/books/tutorial/uiswing/components/tree.html">How to Use Trees</a>
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/tree.html">How to Use Trees</a>
  * in <em>The Java Tutorial</em>
  * for examples of customizing node display using this class.
  * <p>
@@ -60,11 +60,10 @@ import sun.swing.DefaultLookup;
  * that have a value of type {@code UIResource} are refreshed from the
  * defaults table. The following table lists the mapping between
  * {@code DefaultTreeCellRenderer} property and defaults table key:
- * <table border="1" cellpadding="1" cellspacing="0"
- *         valign="top" >
+ * <table border="1" cellpadding="1" cellspacing="0" summary="">
  *   <tr valign="top"  align="left">
- *     <th bgcolor="#CCCCFF" align="left">Property:
- *     <th bgcolor="#CCCCFF" align="left">Key:
+ *     <th style="background-color:#CCCCFF" align="left">Property:
+ *     <th style="background-color:#CCCCFF" align="left">Key:
  *   <tr><td>"leafIcon"<td>"Tree.leafIcon"
  *   <tr><td>"closedIcon"<td>"Tree.closedIcon"
  *   <tr><td>"openIcon"<td>"Tree.openIcon"

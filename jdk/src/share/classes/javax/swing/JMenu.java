@@ -76,11 +76,11 @@ import java.lang.ref.WeakReference;
  * configuring a menu.  Refer to <a href="Action.html#buttonActions">
  * Swing Components Supporting <code>Action</code></a> for more
  * details, and you can find more information in <a
- * href="http://java.sun.com/docs/books/tutorial/uiswing/misc/action.html">How
+ * href="https://docs.oracle.com/javase/tutorial/uiswing/misc/action.html">How
  * to Use Actions</a>, a section in <em>The Java Tutorial</em>.
  * <p>
  * For information and examples of using menus see
- * <a href="http://java.sun.com/doc/books/tutorial/uiswing/components/menu.html">How to Use Menus</a>,
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/menu.html">How to Use Menus</a>,
  * a section in <em>The Java Tutorial.</em>
  * <p>
  * <strong>Warning:</strong> Swing is not thread safe. For more
@@ -501,7 +501,7 @@ public class JMenu extends JMenuItem implements Accessible,MenuElement
      * In most cases, the delay is not observed for top level menus
      * or while dragging.  The default for <code>delay</code> is 0.
      * This method is a property of the look and feel code and is used
-     * to manage the idiosyncracies of the various UI implementations.
+     * to manage the idiosyncrasies of the various UI implementations.
      *
      *
      * @return the <code>delay</code> property
@@ -516,7 +516,7 @@ public class JMenu extends JMenuItem implements Accessible,MenuElement
      * it's own policy for observing the delay property.  In most cases,
      * the delay is not observed for top level menus or while dragging.
      * This method is a property of the look and feel code and is used
-     * to manage the idiosyncracies of the various UI implementations.
+     * to manage the idiosyncrasies of the various UI implementations.
      *
      * @param       d the number of milliseconds to delay
      * @exception   IllegalArgumentException if <code>d</code>

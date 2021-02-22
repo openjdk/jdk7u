@@ -40,7 +40,7 @@ import javax.print.event.PrintServiceAttributeListener;
  * a printer's supported attributes.
  * <P>
  * Example:
- *   <PRE>
+ *   <PRE>{@code
  *   DocFlavor flavor = DocFlavor.INPUT_STREAM.POSTSCRIPT;
  *   PrintRequestAttributeSet aset = new HashPrintRequestAttributeSet();
  *   aset.add(MediaSizeName.ISO_A4);
@@ -56,7 +56,7 @@ import javax.print.event.PrintServiceAttributeListener;
  *        } catch (PrintException e) {
  *        }
  *   }
- *   </PRE>
+ *   }</PRE>
  */
 public interface PrintService {
 
@@ -118,7 +118,7 @@ public interface PrintService {
     /**
      * Gets the value of the single specified service attribute.
      * This may be useful to clients which only need the value of one
-     * attribute and want to minimise overhead.
+     * attribute and want to minimize overhead.
      * @param category the category of a PrintServiceAttribute supported
      * by this service - may not be null.
      * @return the value of the supported attribute or null if the

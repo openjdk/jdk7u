@@ -244,6 +244,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * Sets the method that should be used to read the property value.
      *
      * @param readMethod The new read method.
+     * @throws IntrospectionException if the read method is invalid
      */
     public synchronized void setReadMethod(Method readMethod)
                                 throws IntrospectionException {
@@ -313,6 +314,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * Sets the method that should be used to write the property value.
      *
      * @param writeMethod The new write method.
+     * @throws IntrospectionException if the write method is invalid
      */
     public synchronized void setWriteMethod(Method writeMethod)
                                 throws IntrospectionException {
@@ -334,7 +336,7 @@ public class PropertyDescriptor extends FeatureDescriptor {
      */
     void setClass0(Class clz) {
         if (getClass0() != null && clz.isAssignableFrom(getClass0())) {
-            // dont replace a subclass with a superclass
+            // don't replace a subclass with a superclass
             return;
         }
         super.setClass0(clz);

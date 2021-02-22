@@ -60,7 +60,7 @@ public abstract class AbstractLayoutCache implements RowMapper {
     protected boolean            rootVisible;
 
     /**
-      * Height to use for each row.  If this is <= 0 the renderer will be
+      * Height to use for each row.  If this is &lt;= 0 the renderer will be
       * used to determine the height for each row.
       */
     protected int                rowHeight;
@@ -68,7 +68,7 @@ public abstract class AbstractLayoutCache implements RowMapper {
 
     /**
      * Sets the renderer that is responsible for drawing nodes in the tree
-     * and which is threfore responsible for calculating the dimensions of
+     * and which is therefore responsible for calculating the dimensions of
      * individual nodes.
      *
      * @param nd a <code>NodeDimensions</code> object

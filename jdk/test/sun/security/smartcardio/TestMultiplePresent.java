@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,17 +30,22 @@
  * @run main/manual TestPresent
  */
 
-import java.io.*;
-import java.util.*;
-
-import javax.smartcardio.*;
+import java.util.List;
+import javax.smartcardio.CardTerminal;
+import javax.smartcardio.CardTerminals;
+import javax.smartcardio.TerminalFactory;
 import static javax.smartcardio.CardTerminals.State.*;
 
 public class TestMultiplePresent {
 
     public static void main(String[] args) throws Exception {
         Utils.setLibrary(args);
-        TerminalFactory factory = TerminalFactory.getInstance("PC/SC", null);
+        TerminalFactory factory = Utils.getTerminalFactory(null);
+        if (factory == null) {
+            System.out.println("Skipping the test: " +
+                    "no card terminals available");
+            return;
+        }
         System.out.println(factory);
 
         CardTerminals terminals = factory.terminals();
@@ -49,7 +54,9 @@ public class TestMultiplePresent {
         boolean multipleReaders = true;
         if (list.size() < 2) {
             if (list.isEmpty()) {
-                throw new Exception("no terminals");
+                System.out.println("Skipping the test: " +
+                        "no card terminals available");
+                return;
             }
             System.out.println("Only one reader present, using simplified test");
             multipleReaders = false;

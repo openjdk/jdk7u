@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -540,11 +540,11 @@ public final class HttpCookie implements Cloneable {
      * Indicates whether the cookie should only be sent using a secure protocol,
      * such as HTTPS or SSL.
      *
-     * <p>The default value is <code>false</code>.
+     * <p>The default value is {@code false}.
      *
-     * @param flag      If <code>true</code>, the cookie can only be sent over
+     * @param flag      If {@code true}, the cookie can only be sent over
      *                  a secure protocol like https.
-     *                  If <code>false</code>, it can be sent over any protocol.
+     *                  If {@code false}, it can be sent over any protocol.
      *
      * @see #getSecure
      *
