@@ -26,14 +26,15 @@
  * @bug 7067974
  * @summary multiple ETYPE-INFO-ENTRY with same etype and different salt
  * @compile -XDignore.symbol.file DupEtypes.java
- * @run main/othervm DupEtypes 1
- * @run main/othervm DupEtypes 2
- * @run main/othervm/fail DupEtypes 3
- * @run main/othervm DupEtypes 4
- * @run main/othervm DupEtypes 5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock DupEtypes 1
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock DupEtypes 2
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock DupEtypes 3
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock DupEtypes 4
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock DupEtypes 5
  */
 
 import sun.security.jgss.GSSUtil;
+import sun.security.krb5.Config;
 
 public class DupEtypes {
 
@@ -41,6 +42,14 @@ public class DupEtypes {
 
         OneKDC kdc = new OneKDC(null);
         kdc.writeJAASConf();
+
+        KDC.saveConfig(OneKDC.KRB5_CONF, kdc,
+                "default_keytab_name = " + OneKDC.KTAB,
+                "allow_weak_crypto = true");
+        Config.refresh();
+
+        // Rewrite to include DES keys
+        kdc.writeKtab(OneKDC.KTAB);
 
         // Different test cases, read KDC.processAsReq for details
         kdc.setOption(KDC.Option.DUP_ETYPE, Integer.parseInt(args[0]));

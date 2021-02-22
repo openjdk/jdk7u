@@ -529,6 +529,9 @@ class Net {                                             // package-private
                                              int level, int opt, int arg, boolean isIPv6)
         throws IOException;
 
+    static native int poll(FileDescriptor fd, int events, long timeout)
+        throws IOException;
+
     // -- Multicast support --
 
 
@@ -627,9 +630,34 @@ class Net {                                             // package-private
 
     private static native void initIDs();
 
+    /**
+     * Event masks for the various poll system calls.
+     * They will be set platform dependant in the static initializer below.
+     */
+    public static final short POLLIN;
+    public static final short POLLOUT;
+    public static final short POLLERR;
+    public static final short POLLHUP;
+    public static final short POLLNVAL;
+    public static final short POLLCONN;
+
+    static native short pollinValue();
+    static native short polloutValue();
+    static native short pollerrValue();
+    static native short pollhupValue();
+    static native short pollnvalValue();
+    static native short pollconnValue();
+
     static {
         IOUtil.load();
         initIDs();
+
+        POLLIN     = pollinValue();
+        POLLOUT    = polloutValue();
+        POLLERR    = pollerrValue();
+        POLLHUP    = pollhupValue();
+        POLLNVAL   = pollnvalValue();
+        POLLCONN   = pollconnValue();
     }
 
     static {

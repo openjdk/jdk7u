@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,22 @@
 
 package sun.nio.ch;
 
-import java.io.*;
-import java.net.*;
-import java.nio.*;
-import java.nio.channels.*;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.DatagramSocketImpl;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
+import java.net.SocketAddress;
+import java.net.SocketException;
+import java.net.SocketOption;
+import java.net.SocketTimeoutException;
+import java.net.StandardSocketOptions;
+import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.DatagramChannel;
+import java.nio.channels.IllegalBlockingModeException;
 
 
 // Make a datagram-socket channel look like a datagram socket.
@@ -176,40 +188,29 @@ public class DatagramSocketAdaptor
             return dc.receive(bb);
         }
 
-        // Implement timeout with a selector
-        SelectionKey sk = null;
-        Selector sel = null;
         dc.configureBlocking(false);
         try {
-            int n;
             SocketAddress sender;
             if ((sender = dc.receive(bb)) != null)
                 return sender;
-            sel = Util.getTemporarySelector(dc);
-            sk = dc.register(sel, SelectionKey.OP_READ);
             long to = timeout;
             for (;;) {
                 if (!dc.isOpen())
                      throw new ClosedChannelException();
                 long st = System.currentTimeMillis();
-                int ns = sel.select(to);
-                if (ns > 0 && sk.isReadable()) {
+                int result = dc.poll(Net.POLLIN, to);
+                if (result > 0 && ((result & Net.POLLIN) != 0)) {
                     if ((sender = dc.receive(bb)) != null)
                         return sender;
                 }
-                sel.selectedKeys().remove(sk);
                 to -= System.currentTimeMillis() - st;
                 if (to <= 0)
                     throw new SocketTimeoutException();
-
             }
         } finally {
-            if (sk != null)
-                sk.cancel();
-            if (dc.isOpen())
+            try {
                 dc.configureBlocking(true);
-            if (sel != null)
-                Util.releaseTemporarySelector(sel);
+            } catch (ClosedChannelException e) { }
         }
     }
 
