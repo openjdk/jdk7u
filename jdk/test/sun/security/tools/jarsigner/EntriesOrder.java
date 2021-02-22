@@ -25,6 +25,9 @@
  * @test
  * @bug 8031572
  * @summary jarsigner -verify exits with 0 when a jar file is not properly signed
+ * @library /lib/testlibrary
+ * @build jdk.testlibrary.IOUtils
+ * @run main EntriesOrder
  */
 
 import java.io.FileInputStream;
@@ -38,6 +41,8 @@ import java.util.jar.JarFile;
 import java.util.jar.JarInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import jdk.testlibrary.IOUtils;
 
 public class EntriesOrder {
 
@@ -70,10 +75,10 @@ public class EntriesOrder {
         if (!m.run("cvf a.jar a META-INF/inf".split(" "))) {
             throw new Exception("jar creation failed");
         }
-        sun.security.tools.KeyTool.main(
+        sun.security.tools.keytool.Main.main(
                 ("-keystore jks -storepass changeit -keypass changeit -dname" +
                         " CN=A -alias a -genkeypair -keyalg rsa").split(" "));
-        sun.security.tools.JarSigner.main(
+        sun.security.tools.jarsigner.Main.main(
                 "-keystore jks -storepass changeit a.jar a".split(" "));
         m = new sun.tools.jar.Main(System.out, System.err, "jar");
         if (!m.run("xvf a.jar".split(" "))) {
@@ -106,7 +111,7 @@ public class EntriesOrder {
                 Enumeration<JarEntry> jes = jf.entries();
                 while (jes.hasMoreElements()) {
                     JarEntry je = jes.nextElement();
-                    sun.misc.IOUtils.readFully(jf.getInputStream(je), -1, true);
+                    IOUtils.readFully(jf.getInputStream(je));
                     Certificate[] certs = je.getCertificates();
                     if (certs != null && certs.length > 0) {
                         cc++;
@@ -138,7 +143,7 @@ public class EntriesOrder {
                 while (true) {
                     JarEntry je = jis.getNextJarEntry();
                     if (je == null) break;
-                    sun.misc.IOUtils.readFully(jis, -1, true);
+                    IOUtils.readFully(jis);
                     Certificate[] certs = je.getCertificates();
                     if (certs != null && certs.length > 0) {
                         cc++;

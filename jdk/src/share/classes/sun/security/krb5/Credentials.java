@@ -423,9 +423,11 @@ public class Credentials {
                 if (DEBUG) {
                     System.out.println(">> Acquire default native Credentials");
                 }
-                int[] etypes = EType.getDefaults("default_tkt_enctypes");
-                if (etypes != null) {
-                    result = acquireDefaultNativeCreds(etypes);
+                try {
+                    result = acquireDefaultNativeCreds(
+                            EType.getDefaults("default_tkt_enctypes"));
+                } catch (KrbException ke) {
+                    // when there is no default_tkt_enctypes.
                 }
             }
         }
@@ -512,4 +514,23 @@ public class Credentials {
         return buffer.toString();
     }
 
+    public sun.security.krb5.internal.ccache.Credentials toCCacheCreds() {
+        return new sun.security.krb5.internal.ccache.Credentials(
+                getClient(), getServer(),
+                getSessionKey(),
+                date2kt(getAuthTime()),
+                date2kt(getStartTime()),
+                date2kt(getEndTime()),
+                date2kt(getRenewTill()),
+                false,
+                flags,
+                new HostAddresses(getClientAddresses()),
+                getAuthzData(),
+                getTicket(),
+                null);
+    }
+
+    private static KerberosTime date2kt(Date d) {
+        return d == null ? null : new KerberosTime(d);
+    }
 }

@@ -26,9 +26,10 @@
  * @bug 6327047
  * @summary verify that TerminalFactory.getDefault() works
  * @author Andreas Sterbenz
- * @ignore requires special hardware
  * @run main/manual TestDefault
  */
+
+// This test requires special hardware.
 
 import java.util.List;
 import javax.smartcardio.CardTerminal;

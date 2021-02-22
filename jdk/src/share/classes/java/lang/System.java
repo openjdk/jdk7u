@@ -40,6 +40,8 @@ import sun.reflect.Reflection;
 import sun.security.util.SecurityConstants;
 import sun.reflect.annotation.AnnotationType;
 
+import jdk.internal.util.StaticProperty;
+
 /**
  * The <code>System</code> class contains several useful class fields
  * and methods. It cannot be instantiated.
@@ -1136,6 +1138,7 @@ public final class System {
 
 
         lineSeparator = props.getProperty("line.separator");
+        StaticProperty.jdkSerialFilter();   // Load StaticProperty to cache the property values
         sun.misc.Version.init();
 
         FileInputStream fdIn = new FileInputStream(FileDescriptor.in);

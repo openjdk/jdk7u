@@ -2016,7 +2016,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 }
 
                 if (!MessageDigest.isEqual(macData.getDigest(), macResult)) {
-                   throw new SecurityException("Failed PKCS12" +
+                   throw new UnrecoverableKeyException("Failed PKCS12" +
                                         " integrity checking");
                 }
             } catch (Exception e) {

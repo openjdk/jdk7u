@@ -51,15 +51,6 @@ class PollArrayWrapper {
 
     static short SIZE_POLLFD = 8; // sizeof pollfd struct
 
-    // events masks
-    static final short POLLIN     = AbstractPollArrayWrapper.POLLIN;
-    static final short POLLOUT    = AbstractPollArrayWrapper.POLLOUT;
-    static final short POLLERR    = AbstractPollArrayWrapper.POLLERR;
-    static final short POLLHUP    = AbstractPollArrayWrapper.POLLHUP;
-    static final short POLLNVAL   = AbstractPollArrayWrapper.POLLNVAL;
-    static final short POLLREMOVE = AbstractPollArrayWrapper.POLLREMOVE;
-    static final short POLLCONN   = 0x0002;
-
     private int size; // Size of the pollArray
 
     PollArrayWrapper(int newSize) {
@@ -117,6 +108,6 @@ class PollArrayWrapper {
     // Adds Windows wakeup socket at a given index.
     void addWakeupSocket(int fdVal, int index) {
         putDescriptor(index, fdVal);
-        putEventOps(index, POLLIN);
+        putEventOps(index, Net.POLLIN);
     }
 }

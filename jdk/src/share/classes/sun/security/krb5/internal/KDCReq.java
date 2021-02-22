@@ -59,9 +59,9 @@ import java.math.BigInteger;
 public class KDCReq {
 
     public KDCReqBody reqBody;
+    public PAData[] pAData = null; //optional
     private int pvno;
     private int msgType;
-    private PAData[] pAData = null; //optional
 
     public KDCReq(PAData[] new_pAData, KDCReqBody new_reqBody,
             int req_type) throws IOException {

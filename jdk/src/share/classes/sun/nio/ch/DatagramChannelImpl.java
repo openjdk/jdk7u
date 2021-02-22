@@ -50,9 +50,6 @@ class DatagramChannelImpl
 
     // Our file descriptor
     private final FileDescriptor fd;
-
-    // fd value needed for dev/poll. This value will remain valid
-    // even after the value in the file descriptor object has been set to -1
     private final int fdVal;
 
     // The protocol family of the socket
@@ -104,7 +101,6 @@ class DatagramChannelImpl
 
     // -- End of fields protected by stateLock
 
-
     public DatagramChannelImpl(SelectorProvider sp)
         throws IOException
     {
@@ -139,16 +135,27 @@ class DatagramChannelImpl
                 throw new UnsupportedOperationException("IPv6 not available");
             }
         }
-        this.family = family;
-        this.fd = Net.socket(family, false);
-        this.fdVal = IOUtil.fdVal(fd);
-        this.state = ST_UNCONNECTED;
+
+        ResourceManager.beforeUdpCreate();
+        try {
+            this.family = family;
+            this.fd = Net.socket(family, false);
+            this.fdVal = IOUtil.fdVal(fd);
+            this.state = ST_UNCONNECTED;
+        } catch (IOException ioe) {
+            ResourceManager.afterUdpClose();
+            throw ioe;
+        }
     }
 
     public DatagramChannelImpl(SelectorProvider sp, FileDescriptor fd)
         throws IOException
     {
         super(sp);
+
+        // increment UDP count to match decrement when closing
+        ResourceManager.beforeUdpCreate();
+
         this.family = Net.isIPv6Available() ?
             StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
         this.fd = fd;
@@ -742,10 +749,9 @@ class DatagramChannelImpl
                     localAddress = Net.localAddress(fd);
 
                     // flush any packets already received.
-                    boolean blocking = false;
                     synchronized (blockingLock()) {
+                        boolean blocking = isBlocking();
                         try {
-                            blocking = isBlocking();
                             // remainder of each packet thrown away
                             ByteBuffer tmpBuf = ByteBuffer.allocate(1);
                             if (blocking) {
@@ -1051,25 +1057,24 @@ class DatagramChannelImpl
         int oldOps = sk.nioReadyOps();
         int newOps = initialOps;
 
-        if ((ops & PollArrayWrapper.POLLNVAL) != 0) {
+        if ((ops & Net.POLLNVAL) != 0) {
             // This should only happen if this channel is pre-closed while a
             // selection operation is in progress
             // ## Throw an error if this channel has not been pre-closed
             return false;
         }
 
-        if ((ops & (PollArrayWrapper.POLLERR
-                    | PollArrayWrapper.POLLHUP)) != 0) {
+        if ((ops & (Net.POLLERR | Net.POLLHUP)) != 0) {
             newOps = intOps;
             sk.nioReadyOps(newOps);
             return (newOps & ~oldOps) != 0;
         }
 
-        if (((ops & PollArrayWrapper.POLLIN) != 0) &&
+        if (((ops & Net.POLLIN) != 0) &&
             ((intOps & SelectionKey.OP_READ) != 0))
             newOps |= SelectionKey.OP_READ;
 
-        if (((ops & PollArrayWrapper.POLLOUT) != 0) &&
+        if (((ops & Net.POLLOUT) != 0) &&
             ((intOps & SelectionKey.OP_WRITE) != 0))
             newOps |= SelectionKey.OP_WRITE;
 
@@ -1085,6 +1090,28 @@ class DatagramChannelImpl
         return translateReadyOps(ops, 0, sk);
     }
 
+    // package-private
+    int poll(int events, long timeout) throws IOException {
+        assert Thread.holdsLock(blockingLock()) && !isBlocking();
+
+        synchronized (readLock) {
+            int n = 0;
+            try {
+                begin();
+                synchronized (stateLock) {
+                    if (!isOpen())
+                        return 0;
+                    readerThread = NativeThread.current();
+                }
+                n = Net.poll(fd, events, timeout);
+            } finally {
+                readerThread = 0;
+                end(n > 0);
+            }
+            return n;
+        }
+    }
+
     /**
      * Translates an interest operation set into a native poll event set
      */
@@ -1092,11 +1119,11 @@ class DatagramChannelImpl
         int newOps = 0;
 
         if ((ops & SelectionKey.OP_READ) != 0)
-            newOps |= PollArrayWrapper.POLLIN;
+            newOps |= Net.POLLIN;
         if ((ops & SelectionKey.OP_WRITE) != 0)
-            newOps |= PollArrayWrapper.POLLOUT;
+            newOps |= Net.POLLOUT;
         if ((ops & SelectionKey.OP_CONNECT) != 0)
-            newOps |= PollArrayWrapper.POLLIN;
+            newOps |= Net.POLLIN;
         sk.selector.putEventOps(sk, newOps);
     }
 
