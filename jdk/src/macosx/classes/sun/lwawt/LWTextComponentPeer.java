@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,14 +44,14 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.Document;
 import javax.swing.text.JTextComponent;
 
+/**
+ * Lightweight implementation of {@link TextComponentPeer}. Provides useful
+ * methods for {@link LWTextAreaPeer} and {@link LWTextFieldPeer}
+ */
 abstract class LWTextComponentPeer<T extends TextComponent, D extends JComponent>
         extends LWComponentPeer<T, D>
         implements DocumentListener, TextComponentPeer, InputMethodListener {
 
-    /**
-     * Character with reasonable value between the minimum width and maximum.
-     */
-    protected static final char WIDE_CHAR = 'w';
     private volatile boolean firstChangeSkipped;
 
     LWTextComponentPeer(final T target,
@@ -95,18 +95,16 @@ abstract class LWTextComponentPeer<T extends TextComponent, D extends JComponent
      */
     abstract JTextComponent getTextComponent();
 
-    public Dimension getPreferredSize(final int rows, final int columns) {
+    public Dimension getMinimumSize(final int rows, final int columns) {
         final Insets insets;
         synchronized (getDelegateLock()) {
-            insets = getDelegate().getInsets();
+            insets = getTextComponent().getInsets();
         }
         final int borderHeight = insets.top + insets.bottom;
         final int borderWidth = insets.left + insets.right;
         final FontMetrics fm = getFontMetrics(getFont());
-        final int charWidth = (fm != null) ? fm.charWidth(WIDE_CHAR) : 10;
-        final int itemHeight = (fm != null) ? fm.getHeight() : 10;
-        return new Dimension(columns * charWidth + borderWidth,
-                             rows * itemHeight + borderHeight);
+        return new Dimension(fm.charWidth(WIDE_CHAR) * columns + borderWidth,
+                             fm.getHeight() * rows + borderHeight);
     }
 
     @Override
@@ -187,6 +185,7 @@ abstract class LWTextComponentPeer<T extends TextComponent, D extends JComponent
         }
     }
 
+    //TODO IN XAWT we just return true..
     @Override
     public final boolean isFocusable() {
         return getTarget().isFocusable();
@@ -222,14 +221,14 @@ abstract class LWTextComponentPeer<T extends TextComponent, D extends JComponent
     }
 
     @Override
-    public void inputMethodTextChanged(InputMethodEvent event) {
+    public void inputMethodTextChanged(final InputMethodEvent event) {
         synchronized (getDelegateLock()) {
             AWTAccessor.getComponentAccessor().processEvent(getTextComponent(), event);
         }
     }
 
     @Override
-    public void caretPositionChanged(InputMethodEvent event) {
+    public void caretPositionChanged(final InputMethodEvent event) {
         synchronized (getDelegateLock()) {
             AWTAccessor.getComponentAccessor().processEvent(getTextComponent(), event);
         }

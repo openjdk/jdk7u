@@ -221,7 +221,7 @@ public:
   HeapRegionRemSet(G1BlockOffsetSharedArray* bosa,
                    HeapRegion* hr);
 
-  static int num_par_rem_sets();
+  static uint num_par_rem_sets();
   static void setup_remset_size();
 
   HeapRegion* hr() const {

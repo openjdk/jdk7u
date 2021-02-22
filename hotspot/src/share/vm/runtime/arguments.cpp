@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "compiler/compilerOracle.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/cardTableRS.hpp"
+#include "memory/genCollectedHeap.hpp"
 #include "memory/referenceProcessor.hpp"
 #include "memory/universe.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -55,6 +56,8 @@
 #endif
 #ifndef SERIALGC
 #include "gc_implementation/concurrentMarkSweep/compactibleFreeListSpace.hpp"
+#include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
+#include "gc_implementation/parallelScavenge/parallelScavengeHeap.hpp"
 #endif
 
 // Note: This is a special bug reporting site for the JVM
@@ -70,6 +73,7 @@ SystemProperty* Arguments::_system_properties   = NULL;
 const char*  Arguments::_gc_log_filename        = NULL;
 bool   Arguments::_has_profile                  = false;
 bool   Arguments::_has_alloc_profile            = false;
+size_t Arguments::_conservative_max_heap_alignment = 0;
 uintx  Arguments::_min_heap_size                = 0;
 Arguments::Mode Arguments::_mode                = _mixed;
 bool   Arguments::_java_compiler                = false;
@@ -544,7 +548,7 @@ char* SysClassPath::add_jars_to_path(char* path, const char* directory) {
 // Parses a memory size specification string.
 static bool atomull(const char *s, julong* result) {
   julong n = 0;
-  int args_read = sscanf(s, os::julong_format_specifier(), &n);
+  int args_read = sscanf(s, JULONG_FORMAT, &n);
   if (args_read != 1) {
     return false;
   }
@@ -1148,7 +1152,7 @@ void Arguments::set_parnew_gc_flags() {
     // AlwaysTenure flag should make ParNew promote all at first collection.
     // See CR 6362902.
     if (AlwaysTenure) {
-      FLAG_SET_CMDLINE(intx, MaxTenuringThreshold, 0);
+      FLAG_SET_CMDLINE(uintx, MaxTenuringThreshold, 0);
     }
     // When using compressed oops, we use local overflow stacks,
     // rather than using a global overflow list chained through
@@ -1262,7 +1266,7 @@ void Arguments::set_cms_and_parnew_gc_flags() {
   // promote all objects surviving "tenuring_default" scavenges.
   if (FLAG_IS_DEFAULT(MaxTenuringThreshold) &&
       FLAG_IS_DEFAULT(SurvivorRatio)) {
-    FLAG_SET_ERGO(intx, MaxTenuringThreshold, tenuring_default);
+    FLAG_SET_ERGO(uintx, MaxTenuringThreshold, tenuring_default);
   }
   // If we decided above (or user explicitly requested)
   // `promote all' (via MaxTenuringThreshold := 0),
@@ -1367,12 +1371,19 @@ bool verify_object_alignment() {
   return true;
 }
 
-inline uintx max_heap_for_compressed_oops() {
+uintx Arguments::max_heap_for_compressed_oops() {
   // Avoid sign flip.
   if (OopEncodingHeapMax < MaxPermSize + os::vm_page_size()) {
     return 0;
   }
-  LP64_ONLY(return OopEncodingHeapMax - MaxPermSize - os::vm_page_size());
+  // We need to fit both the NULL page and the heap into the memory budget, while
+  // keeping alignment constraints of the heap. To guarantee the latter, as the
+  // NULL page is located before the heap, we pad the NULL page to the conservative
+  // maximum alignment that the GC may ever impose upon the heap.
+  size_t displacement_due_to_null_page = align_size_up_(os::vm_page_size(),
+    Arguments::conservative_max_heap_alignment());
+
+  LP64_ONLY(return OopEncodingHeapMax - MaxPermSize - displacement_due_to_null_page);
   NOT_LP64(ShouldNotReachHere(); return 0);
 }
 
@@ -1388,6 +1399,23 @@ bool Arguments::should_auto_select_low_pause_collector() {
     return true;
   }
   return false;
+}
+
+void Arguments::set_conservative_max_heap_alignment() {
+  // The conservative maximum required alignment for the heap is the maximum of
+  // the alignments imposed by several sources: any requirements from the heap
+  // itself, the collector policy and the maximum page size we may run the VM
+  // with.
+  size_t heap_alignment = GenCollectedHeap::conservative_max_heap_alignment();
+#ifndef SERIALGC
+  if (UseParallelGC) {
+    heap_alignment = ParallelScavengeHeap::conservative_max_heap_alignment();
+  } else if (UseG1GC) {
+    heap_alignment = G1CollectedHeap::conservative_max_heap_alignment();
+  }
+#endif // !SERIALGC
+  _conservative_max_heap_alignment = MAX3(heap_alignment, os::max_page_size(),
+    CollectorPolicy::compute_max_alignment());
 }
 
 void Arguments::set_ergonomics_flags() {
@@ -1415,6 +1443,8 @@ void Arguments::set_ergonomics_flags() {
       no_shared_spaces();
     }
   }
+
+  set_conservative_max_heap_alignment();
 
 #ifndef ZERO
 #ifdef _LP64
@@ -1551,15 +1581,53 @@ void Arguments::set_heap_base_min_address() {
   }
 }
 
+julong Arguments::limit_by_allocatable_memory(julong limit) {
+  julong max_allocatable;
+  julong result = limit;
+  if (os::has_allocatable_memory_limit(&max_allocatable)) {
+    result = MIN2(result, max_allocatable / MaxVirtMemFraction);
+  }
+  return result;
+}
+
 void Arguments::set_heap_size() {
   if (!FLAG_IS_DEFAULT(DefaultMaxRAMFraction)) {
     // Deprecated flag
     FLAG_SET_CMDLINE(uintx, MaxRAMFraction, DefaultMaxRAMFraction);
   }
 
-  const julong phys_mem =
+  julong phys_mem =
     FLAG_IS_DEFAULT(MaxRAM) ? MIN2(os::physical_memory(), (julong)MaxRAM)
                             : (julong)MaxRAM;
+
+  // Experimental support for CGroup memory limits
+  if (UseCGroupMemoryLimitForHeap) {
+    // This is a rough indicator that a CGroup limit may be in force
+    // for this process
+    const char* lim_file = "/sys/fs/cgroup/memory/memory.limit_in_bytes";
+    FILE *fp = fopen(lim_file, "r");
+    if (fp != NULL) {
+      julong cgroup_max = 0;
+      int ret = fscanf(fp, JULONG_FORMAT, &cgroup_max);
+      if (ret == 1 && cgroup_max > 0) {
+        // If unlimited, cgroup_max will be a very large, but unspecified
+        // value, so use initial phys_mem as a limit
+        if (PrintGCDetails && Verbose) {
+          // Cannot use gclog_or_tty yet.
+          tty->print_cr("Setting phys_mem to the min of cgroup limit ("
+                        JULONG_FORMAT "MB) and initial phys_mem ("
+                        JULONG_FORMAT "MB)", cgroup_max/M, phys_mem/M);
+        }
+        phys_mem = MIN2(cgroup_max, phys_mem);
+      } else {
+        warning("Unable to read/parse cgroup memory limit from %s: %s",
+                lim_file, errno != 0 ? strerror(errno) : "unknown error");
+      }
+      fclose(fp);
+    } else {
+      warning("Unable to open cgroup memory limit file %s (%s)", lim_file, strerror(errno));
+    }
+  }
 
   // If the maximum heap size has not been set with -Xmx,
   // then set it as fraction of the size of physical memory,
@@ -1589,12 +1657,12 @@ void Arguments::set_heap_size() {
       }
       reasonable_max = MIN2(reasonable_max, max_coop_heap);
     }
-    reasonable_max = os::allocatable_physical_memory(reasonable_max);
+    reasonable_max = limit_by_allocatable_memory(reasonable_max);
 
     if (!FLAG_IS_DEFAULT(InitialHeapSize)) {
       // An initial heap size was specified on the command line,
       // so be sure that the maximum size is consistent.  Done
-      // after call to allocatable_physical_memory because that
+      // after call to limit_by_allocatable_memory because that
       // method might reduce the allocation size.
       reasonable_max = MAX2(reasonable_max, (julong)InitialHeapSize);
     }
@@ -1606,30 +1674,38 @@ void Arguments::set_heap_size() {
     FLAG_SET_ERGO(uintx, MaxHeapSize, (uintx)reasonable_max);
   }
 
-  // If the initial_heap_size has not been set with InitialHeapSize
-  // or -Xms, then set it as fraction of the size of physical memory,
-  // respecting the maximum and minimum sizes of the heap.
-  if (FLAG_IS_DEFAULT(InitialHeapSize)) {
+  // If the minimum or initial heap_size have not been set or requested to be set
+  // ergonomically, set them accordingly.
+  if (InitialHeapSize == 0 || min_heap_size() == 0) {
     julong reasonable_minimum = (julong)(OldSize + NewSize);
 
     reasonable_minimum = MIN2(reasonable_minimum, (julong)MaxHeapSize);
 
-    reasonable_minimum = os::allocatable_physical_memory(reasonable_minimum);
+    reasonable_minimum = limit_by_allocatable_memory(reasonable_minimum);
 
-    julong reasonable_initial = phys_mem / InitialRAMFraction;
+    if (InitialHeapSize == 0) {
+      julong reasonable_initial = phys_mem / InitialRAMFraction;
 
-    reasonable_initial = MAX2(reasonable_initial, reasonable_minimum);
-    reasonable_initial = MIN2(reasonable_initial, (julong)MaxHeapSize);
+      reasonable_initial = MAX3(reasonable_initial, reasonable_minimum, (julong)min_heap_size());
+      reasonable_initial = MIN2(reasonable_initial, (julong)MaxHeapSize);
 
-    reasonable_initial = os::allocatable_physical_memory(reasonable_initial);
+      reasonable_initial = limit_by_allocatable_memory(reasonable_initial);
 
-    if (PrintGCDetails && Verbose) {
-      // Cannot use gclog_or_tty yet.
-      tty->print_cr("  Initial heap size " SIZE_FORMAT, (uintx)reasonable_initial);
-      tty->print_cr("  Minimum heap size " SIZE_FORMAT, (uintx)reasonable_minimum);
+      if (PrintGCDetails && Verbose) {
+        // Cannot use gclog_or_tty yet.
+        tty->print_cr("  Initial heap size " SIZE_FORMAT, (uintx)reasonable_initial);
+      }
+      FLAG_SET_ERGO(uintx, InitialHeapSize, (uintx)reasonable_initial);
     }
-    FLAG_SET_ERGO(uintx, InitialHeapSize, (uintx)reasonable_initial);
-    set_min_heap_size((uintx)reasonable_minimum);
+    // If the minimum heap size has not been set (via -Xms),
+    // synchronize with InitialHeapSize to avoid errors with the default value.
+    if (min_heap_size() == 0) {
+      set_min_heap_size(MIN2((uintx)reasonable_minimum, InitialHeapSize));
+      if (PrintGCDetails && Verbose) {
+        // Cannot use gclog_or_tty yet.
+        tty->print_cr("  Minimum heap size " SIZE_FORMAT, min_heap_size());
+      }
+    }
   }
 }
 
@@ -2376,7 +2452,8 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
     // -Xms
     } else if (match_option(option, "-Xms", &tail)) {
       julong long_initial_heap_size = 0;
-      ArgsRange errcode = parse_memory_size(tail, &long_initial_heap_size, 1);
+      // an initial heap size of 0 means automatically determine
+      ArgsRange errcode = parse_memory_size(tail, &long_initial_heap_size, 0);
       if (errcode != arg_in_range) {
         jio_fprintf(defaultStream::error_stream(),
                     "Invalid initial heap size: %s\n", option->optionString);
@@ -2387,7 +2464,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
       // Currently the minimum size and the initial heap sizes are the same.
       set_min_heap_size(InitialHeapSize);
     // -Xmx
-    } else if (match_option(option, "-Xmx", &tail)) {
+    } else if (match_option(option, "-Xmx", &tail) || match_option(option, "-XX:MaxHeapSize=", &tail)) {
       julong long_max_heap_size = 0;
       ArgsRange errcode = parse_memory_size(tail, &long_max_heap_size, 1);
       if (errcode != arg_in_range) {
@@ -2640,9 +2717,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
       initHeapSize = MIN2(total_memory / (julong)2,
                           total_memory - (julong)160*M);
 
-      // Make sure that if we have a lot of memory we cap the 32 bit
-      // process space.  The 64bit VM version of this function is a nop.
-      initHeapSize = os::allocatable_physical_memory(initHeapSize);
+      initHeapSize = limit_by_allocatable_memory(initHeapSize);
 
       // The perm gen is separate but contiguous with the
       // object heap (and is reserved with it) so subtract it
@@ -3431,6 +3506,11 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
 #ifdef SERIALGC
   force_serial_gc();
 #endif // SERIALGC
+
+  return JNI_OK;
+}
+
+jint Arguments::apply_ergo() {
 
   // Set flags based on ergonomics.
   set_ergonomics_flags();

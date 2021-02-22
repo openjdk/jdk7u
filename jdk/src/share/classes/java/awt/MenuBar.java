@@ -81,7 +81,7 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
                     return menuBar.helpMenu;
                 }
 
-                public Vector getMenus(MenuBar menuBar) {
+                public Vector<Menu> getMenus(MenuBar menuBar) {
                     return menuBar.menus;
                 }
             });
@@ -94,7 +94,7 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
      * @serial
      * @see #countMenus()
      */
-    Vector menus = new Vector();
+    Vector<Menu> menus = new Vector<>();
 
     /**
      * This menu is a special menu dedicated to
@@ -222,7 +222,6 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
             if (m.parent != null) {
                 m.parent.remove(m);
             }
-            menus.addElement(m);
             m.parent = this;
 
             MenuBarPeer peer = (MenuBarPeer)this.peer;
@@ -230,7 +229,10 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
                 if (m.peer == null) {
                     m.addNotify();
                 }
+                menus.addElement(m);
                 peer.addMenu(m);
+            } else {
+                menus.addElement(m);
             }
             return m;
         }
@@ -248,9 +250,9 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
             menus.removeElementAt(index);
             MenuBarPeer peer = (MenuBarPeer)this.peer;
             if (peer != null) {
+                peer.delMenu(index);
                 m.removeNotify();
                 m.parent = null;
-                peer.delMenu(index);
             }
         }
     }
@@ -309,7 +311,7 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
      * be called on the toolkit thread.
      */
     final Menu getMenuImpl(int i) {
-        return (Menu)menus.elementAt(i);
+        return menus.elementAt(i);
     }
 
     /**
@@ -321,10 +323,10 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
      * @since       JDK1.1
      */
     public synchronized Enumeration<MenuShortcut> shortcuts() {
-        Vector shortcuts = new Vector();
+        Vector<MenuShortcut> shortcuts = new Vector<>();
         int nmenus = getMenuCount();
         for (int i = 0 ; i < nmenus ; i++) {
-            Enumeration e = getMenu(i).shortcuts();
+            Enumeration<MenuShortcut> e = getMenu(i).shortcuts();
             while (e.hasMoreElements()) {
                 shortcuts.addElement(e.nextElement());
             }
@@ -438,7 +440,7 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
       // HeadlessException will be thrown from MenuComponent's readObject
       s.defaultReadObject();
       for (int i = 0; i < menus.size(); i++) {
-        Menu m = (Menu)menus.elementAt(i);
+        Menu m = menus.elementAt(i);
         m.parent = this;
       }
     }
