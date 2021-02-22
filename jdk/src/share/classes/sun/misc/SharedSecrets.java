@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@ import java.util.GregorianCalendar;
 import java.util.jar.JarFile;
 import java.util.zip.Adler32;
 
+import javax.crypto.SealedObject;
 import javax.security.auth.kerberos.KeyTab;
 
 /** A repository of "shared secrets", which are a mechanism for
@@ -65,6 +66,7 @@ public class SharedSecrets {
     private static JavaObjectInputStreamAccess javaObjectInputStreamAccess;
     private static JavaUtilCalendarAccess javaUtilCalendarAccess;
     private static JavaSecurityKeyStoreAccess javaSecurityKeyStoreAccess;
+    private static JavaxCryptoSealedObjectAccess javaxCryptoSealedObjectAccess;
 
     public static JavaUtilJarAccess javaUtilJarAccess() {
         if (javaUtilJarAccess == null) {
@@ -217,6 +219,17 @@ public class SharedSecrets {
         // this may return null in which case calling code needs to
         // provision for.
         return javaAWTAccess;
+    }
+
+    public static void setJavaxCryptoSealedObjectAccess(JavaxCryptoSealedObjectAccess jcsoa) {
+        javaxCryptoSealedObjectAccess = jcsoa;
+    }
+
+    public static JavaxCryptoSealedObjectAccess getJavaxCryptoSealedObjectAccess() {
+        if (javaxCryptoSealedObjectAccess == null) {
+            unsafe.ensureClassInitialized(SealedObject.class);
+        }
+        return javaxCryptoSealedObjectAccess;
     }
 
     public static JavaObjectInputStreamAccess getJavaObjectInputStreamAccess() {
