@@ -2329,7 +2329,7 @@ void Compile::dump_asm(int *pcs, uint pc_limit) {
         starts_bundle = ' ';
         tty->print("\t");
         delay->format(_regalloc, tty);
-        tty->print_cr("");
+        tty->cr();
         delay = NULL;
       }
 
@@ -2343,12 +2343,12 @@ void Compile::dump_asm(int *pcs, uint pc_limit) {
     if (pcs && n->_idx < pc_limit)
       tty->print_cr("%3.3x", pcs[n->_idx]);
     else
-      tty->print_cr("");
+      tty->cr();
 
     assert(cut_short || delay == NULL, "no unconditional delay branch");
 
   } // End of per-block dump
-  tty->print_cr("");
+  tty->cr();
 
   if (cut_short)  tty->print_cr("*** disassembly is cut short ***");
 }
@@ -3617,7 +3617,7 @@ void Compile::ConstantTable::fill_jump_table(CodeBuffer& cb, MachConstantNode* n
 
   for (uint i = 0; i < n->outcnt(); i++) {
     address* constant_addr = &jump_table_base[i];
-    assert(*constant_addr == (((address) n) + i), err_msg_res("all jump-table entries must contain adjusted node pointer: " INTPTR_FORMAT " == " INTPTR_FORMAT, *constant_addr, (((address) n) + i)));
+    assert(*constant_addr == (((address) n) + i), err_msg_res("all jump-table entries must contain adjusted node pointer: " INTPTR_FORMAT " == " INTPTR_FORMAT, p2i(*constant_addr), p2i(((address) n) + i)));
     *constant_addr = cb.consts()->target(*labels.at(i), (address) constant_addr);
     cb.consts()->relocate((address) constant_addr, relocInfo::internal_word_type);
   }
@@ -3648,7 +3648,7 @@ void Compile::dump_inlining() {
       }
     }
     for (int i = 0; i < _print_inlining_list->length(); i++) {
-      tty->print(_print_inlining_list->adr_at(i)->ss()->as_string());
+      tty->print("%s", _print_inlining_list->adr_at(i)->ss()->as_string());
     }
   }
 }

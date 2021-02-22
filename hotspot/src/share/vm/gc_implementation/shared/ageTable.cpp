@@ -106,8 +106,8 @@ uint ageTable::compute_tenuring_threshold(size_t survivor_capacity) {
       total += sizes[age];
       if (sizes[age] > 0) {
         if (PrintTenuringDistribution) {
-          gclog_or_tty->print_cr("- age %3u: %10ld bytes, %10ld total",
-            age, sizes[age]*oopSize, total*oopSize);
+          gclog_or_tty->print_cr("- age %3u: " SIZE_FORMAT_W(10) " bytes, " SIZE_FORMAT_W(10) " total",
+                                        age,    sizes[age]*oopSize,          total*oopSize);
         }
       }
       if (UsePerfData) {

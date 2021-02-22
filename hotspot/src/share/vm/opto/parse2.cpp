@@ -638,7 +638,7 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
     for( r = lo; r <= hi; r++ ) {
       r->print(env());
     }
-    tty->print_cr("");
+    tty->cr();
   }
 #endif
 }
