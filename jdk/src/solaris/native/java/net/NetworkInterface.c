@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -301,15 +301,15 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
     (JNIEnv *env, jclass cls, jobject iaObj) {
 
     netif *ifs, *curr;
+    jobject obj = NULL;
+    jboolean match = JNI_FALSE;
 
 #ifdef AF_INET6
     int family = (getInetAddress_family(env, iaObj) == IPv4) ? AF_INET : AF_INET6;
+    JNU_CHECK_EXCEPTION_RETURN(env, NULL);
 #else
     int family =  AF_INET;
 #endif
-
-    jobject obj = NULL;
-    jboolean match = JNI_FALSE;
 
     ifs = enumInterfaces(env);
     if (ifs == NULL) {
@@ -329,7 +329,7 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
                 if (family == AF_INET) {
                     int address1 = htonl(((struct sockaddr_in*)addrP->addr)->sin_addr.s_addr);
                     int address2 = getInetAddress_addr(env, iaObj);
-
+                    JNU_CHECK_EXCEPTION_RETURN(env, NULL);
                     if (address1 == address2) {
                         match = JNI_TRUE;
                         break;
@@ -661,6 +661,7 @@ jobject createNetworkInterface(JNIEnv *env, netif *ifs) {
             iaObj = (*env)->NewObject(env, ni_ia4cls, ni_ia4ctrID);
             if (iaObj) {
                  setInetAddress_addr(env, iaObj, htonl(((struct sockaddr_in*)addrP->addr)->sin_addr.s_addr));
+                 JNU_CHECK_EXCEPTION_RETURN(env, NULL);
             }
             ibObj = (*env)->NewObject(env, ni_ibcls, ni_ibctrID);
             if (ibObj) {
@@ -670,6 +671,7 @@ jobject createNetworkInterface(JNIEnv *env, netif *ifs) {
                     ia2Obj = (*env)->NewObject(env, ni_ia4cls, ni_ia4ctrID);
                     if (ia2Obj) {
                        setInetAddress_addr(env, ia2Obj, htonl(((struct sockaddr_in*)addrP->brdcast)->sin_addr.s_addr));
+                       JNU_CHECK_EXCEPTION_RETURN(env, NULL);
                        (*env)->SetObjectField(env, ibObj, ni_ib4broadcastID, ia2Obj);
                        (*env)->SetShortField(env, ibObj, ni_ib4maskID, addrP->mask);
                     }

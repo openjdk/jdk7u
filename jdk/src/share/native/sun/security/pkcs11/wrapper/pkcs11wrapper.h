@@ -55,6 +55,9 @@
  * @author Martin Schlaeffer <schlaeff@sbox.tugraz.at>
  */
 
+#ifndef _PKCS11WRAPPER_H
+#define _PKCS11WRAPPER_H 1
+
 /* disable asserts in product mode */
 #ifndef DEBUG
   #ifndef NDEBUG
@@ -455,3 +458,5 @@ void p11free(void *p, char *file, int line);
 #define free(c)         (p11free((c), __FILE__, __LINE__))
 
 #endif
+
+#endif /* _PKCS11WRAPPER_H */
