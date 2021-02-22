@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -212,7 +212,7 @@ void print_oop(oop value, outputStream* st) {
       st->print_cr(" %s", buf);
     }
   } else {
-    st->print_cr(" " PTR_FORMAT, (intptr_t) value);
+    st->print_cr(" " INTPTR_FORMAT, p2i(value));
   }
 }
 
@@ -244,7 +244,7 @@ bool BytecodePrinter::check_index(int i, int& cp_index, outputStream* st) {
       i = cache->entry_at(i)->main_entry_index() + constantPoolOopDesc::CPCACHE_INDEX_TAG;
       goto check_cache_index;
     } else {
-      st->print_cr(" not in cache[*]?", i);
+      st->print_cr("%d not in cache[*]?", i);
       return false;
     }
   }
@@ -283,7 +283,7 @@ bool BytecodePrinter::check_index(int i, int& cp_index, outputStream* st) {
     i = cache->entry_at(i)->constant_pool_index();
     goto check_cp_index;
   }
-  st->print_cr(" not in CP[*]?", i);
+  st->print_cr("%d not in CP[*]?", i);
   return false;
 }
 
@@ -322,7 +322,7 @@ void BytecodePrinter::print_constant(int i, outputStream* st) {
   } else if (tag.is_method_handle()) {
     int kind = constants->method_handle_ref_kind_at(i);
     int i2 = constants->method_handle_index_at(i);
-    st->print(" <MethodHandle of kind %d>", kind, i2);
+    st->print(" <MethodHandle of kind %d index at %d>", kind, i2);
     print_field_or_method(-i, i2, st);
   } else {
     st->print_cr(" bad tag=%d at %d", tag.value(), i);

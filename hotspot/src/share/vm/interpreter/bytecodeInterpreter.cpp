@@ -519,7 +519,7 @@ BytecodeInterpreter::run(interpreterState istate) {
       assert(labs(istate->_stack_base - istate->_stack_limit) == (istate->_method->max_stack() + 1), "bad stack limit");
     }
     else {
-      const int extra_stack_entries = 2; // MUST match the value in methodOopDesc::extra_stack_entries()
+      const int extra_stack_entries = methodOopDesc::extra_stack_entries();
       assert(labs(istate->_stack_base - istate->_stack_limit) == (istate->_method->max_stack() + extra_stack_entries
                                                                                                + 1), "bad stack limit");
     }
@@ -2867,11 +2867,11 @@ run:
       if (TraceExceptions) {
         ttyLocker ttyl;
         ResourceMark rm;
-        tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")", except_oop->print_value_string(), except_oop());
+        tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")", except_oop->print_value_string(), p2i(except_oop()));
         tty->print_cr(" thrown in interpreter method <%s>", METHOD->print_value_string());
         tty->print_cr(" at bci %d, continuing at %d for thread " INTPTR_FORMAT,
-                      istate->bcp() - (intptr_t)METHOD->code_base(),
-                      continuation_bci, THREAD);
+                      (int)(istate->bcp() - METHOD->code_base()),
+                      (int)continuation_bci, p2i(THREAD));
       }
       // for AbortVMOnException flag
       NOT_PRODUCT(Exceptions::debug_check_abort(except_oop));
@@ -2883,11 +2883,11 @@ run:
     if (TraceExceptions) {
       ttyLocker ttyl;
       ResourceMark rm;
-      tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")", except_oop->print_value_string(), except_oop());
+      tty->print_cr("Exception <%s> (" INTPTR_FORMAT ")", except_oop->print_value_string(), p2i(except_oop()));
       tty->print_cr(" thrown in interpreter method <%s>", METHOD->print_value_string());
       tty->print_cr(" at bci %d, unwinding for thread " INTPTR_FORMAT,
-                    istate->bcp() - (intptr_t)METHOD->code_base(),
-                    THREAD);
+                    (int)(istate->bcp() - METHOD->code_base()),
+                    p2i(THREAD));
     }
     // for AbortVMOnException flag
     NOT_PRODUCT(Exceptions::debug_check_abort(except_oop));

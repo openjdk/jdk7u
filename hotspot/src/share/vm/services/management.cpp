@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1802,12 +1802,12 @@ JVM_ENTRY(void, jmm_SetVMGlobal(JNIEnv *env, jstring flag_name, jvalue new_value
     uintx uvalue = (uintx)new_value.j;
 
     if (strncmp(name, "MaxHeapFreeRatio", 17) == 0) {
-      FormatBuffer<80> err_msg("");
+      FormatBuffer<80> err_msg("%s", "");
       if (!Arguments::verify_MaxHeapFreeRatio(err_msg, uvalue)) {
         THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), err_msg.buffer());
       }
     } else if (strncmp(name, "MinHeapFreeRatio", 17) == 0) {
-      FormatBuffer<80> err_msg("");
+      FormatBuffer<80> err_msg("%s", "");
       if (!Arguments::verify_MinHeapFreeRatio(err_msg, uvalue)) {
         THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), err_msg.buffer());
       }

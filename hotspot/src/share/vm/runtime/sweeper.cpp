@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -621,7 +621,7 @@ void NMethodSweeper::log_sweep(const char* msg, const char* format, ...) {
       tty->vprint(format, ap);
       va_end(ap);
     }
-    tty->print_cr(s.as_string());
+    tty->print_cr("%s", s.as_string());
   }
 
   if (LogCompilation && (xtty != NULL)) {
@@ -638,7 +638,7 @@ void NMethodSweeper::log_sweep(const char* msg, const char* format, ...) {
       xtty->vprint(format, ap);
       va_end(ap);
     }
-    xtty->print(s.as_string());
+    xtty->print("%s", s.as_string());
     xtty->stamp();
     xtty->end_elem();
   }
