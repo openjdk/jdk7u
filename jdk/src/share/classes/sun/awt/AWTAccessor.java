@@ -492,6 +492,11 @@ public final class AWTAccessor {
          */
         void invokeAndWait(Object source, Runnable r)
             throws InterruptedException, InvocationTargetException;
+
+        /**
+         * Gets most recent event time in the EventQueue
+         */
+        long getMostRecentEventTime(EventQueue eventQueue);
     }
 
     /*
@@ -645,6 +650,11 @@ public final class AWTAccessor {
          * Sets extendedKeyCode field for KeyEvent
          */
         void setExtendedKeyCode(KeyEvent ev, long extendedKeyCode);
+
+        /**
+         * Gets original source for KeyEvent
+         */
+        Component getOriginalSource(KeyEvent ev);
     }
 
     /**
