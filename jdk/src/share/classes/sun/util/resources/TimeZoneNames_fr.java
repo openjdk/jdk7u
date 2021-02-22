@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,8 +117,6 @@ public final class TimeZoneNames_fr extends TimeZoneNamesBundle {
                                         "Heure d'\u00e9t\u00e9 britannique", "BST"};
         String GST[] = new String[] {"Heure normale du Golfe", "GST",
                                      "Heure avanc\u00e9e du Golfe", "GDT"};
-        String HAST[] = new String[] {"Heure normale d'Hawa\u00ef-Al\u00e9outiennes", "HAST",
-                                      "Heure avanc\u00e9e d'Hawa\u00ef-Al\u00e9outiennes", "HADT"};
         String HKT[] =  new String[] {"Heure de Hong Kong", "HKT",
                                       "Heure d'\u00e9t\u00e9 de Hong Kong", "HKST"};
         String HST[] = new String[] {"Heure normale d'Hawa\u00ef", "HST",
@@ -296,7 +294,7 @@ public final class TimeZoneNames_fr extends TimeZoneNamesBundle {
             {"Africa/Tripoli", EET},
             {"Africa/Tunis", CET},
             {"Africa/Windhoek", WAT},
-            {"America/Adak", HAST},
+            {"America/Adak", HST},
             {"America/Anguilla", AST},
             {"America/Antigua", AST},
             {"America/Araguaina", BRT},
@@ -317,7 +315,7 @@ public final class TimeZoneNames_fr extends TimeZoneNamesBundle {
             {"America/Asuncion", new String[] {"Heure du Paraguay", "PYT",
                                                "Heure d'\u00e9t\u00e9 du Paraguay", "PYST"}},
             {"America/Atikokan", EST},
-            {"America/Atka", HAST},
+            {"America/Atka", HST},
             {"America/Bahia", BRT},
             {"America/Bahia_Banderas", CST},
             {"America/Barbados", AST},
@@ -331,7 +329,7 @@ public final class TimeZoneNames_fr extends TimeZoneNamesBundle {
             {"America/Buenos_Aires", AGT},
             {"America/Cambridge_Bay", MST},
             {"America/Campo_Grande", AMT},
-            {"America/Cancun", CST},
+            {"America/Cancun", EST},
             {"America/Caracas", new String[] {"Heure du Venezuela", "VET",
                                               "Heure d'\u00e9t\u00e9 du Venezuela", "VEST"}},
             {"America/Catamarca", AGT},
@@ -861,7 +859,7 @@ public final class TimeZoneNames_fr extends TimeZoneNamesBundle {
             {"UCT", UTC},
             {"Universal", UTC},
             {"US/Alaska", AKST},
-            {"US/Aleutian", HAST},
+            {"US/Aleutian", HST},
             {"US/Arizona", MST},
             {"US/Central", CST},
             {"US/Eastern", EST},
