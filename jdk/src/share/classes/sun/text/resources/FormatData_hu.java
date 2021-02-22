@@ -116,6 +116,12 @@ public class FormatData_hu extends ListResourceBundle {
                     "i.u."
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "i. e.",
+                    "i. sz.",
+                }
+            },
             { "NumberElements",
                 new String[] {
                     ",", // decimal separator

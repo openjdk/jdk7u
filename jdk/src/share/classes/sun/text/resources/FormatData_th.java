@@ -141,6 +141,32 @@ public class FormatData_th extends ListResourceBundle {
                     "\u0e04.\u0e28."
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "\u0e01\u0e48\u0e2d\u0e19 \u0e04.\u0e28.",
+                    "\u0e04.\u0e28.",
+                }
+            },
+            { "java.util.JapaneseImperialCalendar.Eras",
+                new String[] {
+                    "\u0e04.\u0e28.",
+                    "\u0e40\u0e21\u0e08\u0e34",
+                    "\u0e17\u0e30\u0e2d\u0e34\u0e42\u0e0a",
+                    "\u0e42\u0e0a\u0e27\u0e30",
+                    "\u0e40\u0e2e\u0e40\u0e0b",
+                    "\u0e40\u0e23\u0e27\u0e30",
+                }
+            },
+            { "java.util.JapaneseImperialCalendar.short.Eras",
+                new String[] {
+                    "\u0e04.\u0e28.",
+                    "\u0e21",
+                    "\u0e17",
+                    "\u0e0a",
+                    "\u0e2e",
+                    "R",
+                }
+            },
             { "sun.util.BuddhistCalendar.DateTimePatterns",
                 dateTimePatterns
             },

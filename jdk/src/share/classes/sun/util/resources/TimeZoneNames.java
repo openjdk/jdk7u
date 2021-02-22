@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -292,7 +292,7 @@ public final class TimeZoneNames extends TimeZoneNamesBundle {
             {"Africa/Nouakchott", GMT},
             {"Africa/Ouagadougou", GMT},
             {"Africa/Porto-Novo", WAT},
-            {"Africa/Sao_Tome", WAT},
+            {"Africa/Sao_Tome", GMT},
             {"Africa/Timbuktu", GMT},
             {"Africa/Tripoli", EET},
             {"Africa/Tunis", CET},
@@ -567,6 +567,9 @@ public final class TimeZoneNames extends TimeZoneNamesBundle {
             {"Asia/Pontianak", WIT},
             {"Asia/Pyongyang", KST},
             {"Asia/Qatar", ARAST},
+            {"Asia/Qostanay", new String[] {"Kostanay Standard Time", "QOST",
+                                            "Kostanay Summer Time", "QOSST",
+                                            "Kostanay Time", "QOST"}},
             {"Asia/Qyzylorda", new String[] {"Qyzylorda Time", "QYZT",
                                              "Qyzylorda Summer Time", "QYZST"}},
             {"Asia/Rangoon", MMT},

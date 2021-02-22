@@ -104,6 +104,18 @@ public class FormatData_pt extends ListResourceBundle {
                     "S\u00e1b" // abb Saturday
                 }
             },
+            { "long.Eras",
+                new String[] {
+                    "Antes de Cristo",
+                    "Ano do Senhor",
+                }
+            },
+            { "Eras",
+                new String[] {
+                    "a.C.",
+                    "d.C.",
+                }
+            },
             { "NumberElements",
                 new String[] {
                     ",", // decimal al separator

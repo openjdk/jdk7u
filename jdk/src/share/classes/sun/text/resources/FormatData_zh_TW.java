@@ -46,6 +46,7 @@ public class FormatData_zh_TW extends ListResourceBundle {
     /**
      * Overrides ListResourceBundle
      */
+    @Override
     protected final Object[][] getContents() {
         return new Object[][] {
             { "Eras",
