@@ -34,8 +34,8 @@ import sun.security.krb5.*;
 import sun.security.krb5.internal.*;
 import sun.security.krb5.internal.ccache.*;
 import java.io.IOException;
-import java.time.Instant;
 import java.io.FileInputStream;
+import java.util.Calendar;
 
 /**
  * Maintains user-specific options or default settings when the user requests
@@ -267,6 +267,8 @@ class KinitOptions {
     }
 
     private KerberosTime getTime(int s) {
-        return new KerberosTime(Instant.now().plusSeconds(s));
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.SECOND, s);
+        return new KerberosTime(cal.getTime());
     }
 }
