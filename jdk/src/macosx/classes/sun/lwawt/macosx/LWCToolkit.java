@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -285,11 +285,6 @@ public final class LWCToolkit extends LWToolkit {
     }
 
     @Override
-    protected MouseInfoPeer createMouseInfoPeerImpl() {
-        return new CMouseInfoPeer();
-    }
-
-    @Override
     protected int getScreenHeight() {
         return GraphicsEnvironment.getLocalGraphicsEnvironment()
                 .getDefaultScreenDevice().getDefaultConfiguration().getBounds().height;
@@ -414,8 +409,15 @@ public final class LWCToolkit extends LWToolkit {
     }
 
     // Intended to be called from the LWCToolkit.m only.
-    private static void installToolkitThreadNameInJava() {
+    private static void installToolkitThreadInJava() {
         Thread.currentThread().setName(CThreading.APPKIT_THREAD_NAME);
+        AccessController.doPrivileged(new PrivilegedAction<Void>() {
+            @Override
+            public Void run() {
+                Thread.currentThread().setContextClassLoader(null);
+                return null;
+            }
+        });
     }
 
     @Override
@@ -518,22 +520,21 @@ public final class LWCToolkit extends LWToolkit {
     // Any selector invoked using ThreadUtilities performOnMainThread will be processed in doAWTRunLoop
     // The InvocationEvent will call LWCToolkit.stopAWTRunLoop() when finished, which will stop our manual runloop
     // Does not dispatch native events while in the loop
-    public static void invokeAndWait(Runnable event, Component component) throws InterruptedException, InvocationTargetException {
+    public static void invokeAndWait(Runnable runnable, Component component) throws InvocationTargetException {
         final long mediator = createAWTRunLoopMediator();
 
-        InvocationEvent invocationEvent =
-                new InvocationEvent(component != null ? component : Toolkit.getDefaultToolkit(), event) {
-                    @Override
-                    public void dispatch() {
-                        try {
-                            super.dispatch();
-                        } finally {
-                            if (mediator != 0) {
-                                stopAWTRunLoop(mediator);
+        InvocationEvent invocationEvent = AWTAccessor.getInvocationEventAccessor()
+                .createEvent(component != null ? component : Toolkit.getDefaultToolkit(),
+                        runnable,
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                if (mediator != 0) {
+                                    stopAWTRunLoop(mediator);
+                                }
                             }
-                        }
-                    }
-                };
+                        },
+                        true);
 
         if (component != null) {
             AppContext appContext = SunToolkit.targetToAppContext(component);
