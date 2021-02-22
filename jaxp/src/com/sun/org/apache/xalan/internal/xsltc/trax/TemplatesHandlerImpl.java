@@ -1,4 +1,7 @@
 /*
+ * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ */
+/*
  * reserved comment block
  * DO NOT REMOVE OR ALTER!
  */
@@ -95,7 +98,7 @@ public class TemplatesHandlerImpl
         _tfactory = tfactory;
 
         // Instantiate XSLTC and get reference to parser object
-        XSLTC xsltc = new XSLTC(tfactory.useServicesMechnism(), tfactory.getFeatureManager());
+        XSLTC xsltc = new XSLTC(tfactory.getJdkXmlFeatures());
         if (tfactory.getFeature(XMLConstants.FEATURE_SECURE_PROCESSING))
             xsltc.setSecureProcessing(true);
 

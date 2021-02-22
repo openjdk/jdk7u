@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,9 +44,17 @@ import sun.rmi.registry.RegistryImpl;
 
 /** A Registry that consists of a single entry that never changes. */
 public class SingleEntryRegistry extends RegistryImpl {
+
+    private static final ObjectInputFilter singleFilter = new ObjectInputFilter() {
+        @Override
+        public Status checkInput(ObjectInputFilter.FilterInfo info) {
+            return SingleEntryRegistry.singleRegistryFilter(info);
+        }
+    };
+
     SingleEntryRegistry(int port, String name, Remote object)
             throws RemoteException {
-        super(port);
+        super(port, null, null, singleFilter);
         this.name = name;
         this.object = object;
     }
@@ -57,12 +65,7 @@ public class SingleEntryRegistry extends RegistryImpl {
                         String name,
                         Remote object)
             throws RemoteException {
-        super(port, csf, ssf, new ObjectInputFilter() {
-            @Override
-            public Status checkInput(ObjectInputFilter.FilterInfo info) {
-                return SingleEntryRegistry.singleRegistryFilter(info);
-            }
-        });
+        super(port, csf, ssf, singleFilter);
         this.name = name;
         this.object = object;
     }

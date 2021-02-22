@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,6 +85,10 @@ public final class SunJCE extends Provider {
 
     /* Are we debugging? -- for developers */
     static final boolean debug = false;
+
+    // Instance of this provider, so we don't have to call the provider list
+    // to find ourselves or run the risk of not being in the list.
+    private static volatile SunJCE instance = null;
 
     static final SecureRandom RANDOM = new SecureRandom();
 
@@ -512,6 +516,8 @@ public final class SunJCE extends Provider {
                         "com.sun.crypto.provider.TlsMasterSecretGenerator");
                     put("Alg.Alias.KeyGenerator.SunTls12MasterSecret",
                         "SunTlsMasterSecret");
+                    put("Alg.Alias.KeyGenerator.SunTlsExtendedMasterSecret",
+                        "SunTlsMasterSecret");
 
                     put("KeyGenerator.SunTlsKeyMaterial",
                         "com.sun.crypto.provider.TlsKeyMaterialGenerator");
@@ -526,5 +532,17 @@ public final class SunJCE extends Provider {
                     return null;
                 }
             });
+
+        if (instance == null) {
+            instance = this;
+        }
+    }
+
+    // Return the instance of this class or create one if needed.
+    static SunJCE getInstance() {
+        if (instance == null) {
+            return new SunJCE();
+        }
+        return instance;
     }
 }
