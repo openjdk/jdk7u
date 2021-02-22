@@ -809,9 +809,9 @@ void os::print_environment_variables(outputStream* st, const char** env_list,
 
     for (int i = 0; env_list[i] != NULL; i++) {
       if (getenv(env_list[i], buffer, len)) {
-        st->print(env_list[i]);
+        st->print("%s", env_list[i]);
         st->print("=");
-        st->print_cr(buffer);
+        st->print_cr("%s", buffer);
       }
     }
   }

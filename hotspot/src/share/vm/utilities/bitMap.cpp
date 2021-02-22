@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -525,7 +525,7 @@ BitMap::idx_t BitMap::count_one_bits() const {
 #ifndef PRODUCT
 
 void BitMap::print_on(outputStream* st) const {
-  tty->print("Bitmap(%d):", size());
+  tty->print("Bitmap(" SIZE_FORMAT "):", size());
   for (idx_t index = 0; index < size(); index++) {
     tty->print("%c", at(index) ? '1' : '0');
   }

@@ -1271,7 +1271,7 @@ void java_lang_Throwable::print_stack_trace(oop throwable, outputStream* st) {
   while (h_throwable.not_null()) {
     objArrayHandle result (THREAD, objArrayOop(backtrace(h_throwable())));
     if (result.is_null()) {
-      st->print_cr(no_stack_trace_message());
+      st->print_cr("%s", no_stack_trace_message());
       return;
     }
 

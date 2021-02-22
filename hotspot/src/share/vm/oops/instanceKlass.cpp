@@ -695,7 +695,7 @@ instanceOop instanceKlass::register_finalizer(instanceOop i, TRAPS) {
   if (TraceFinalizerRegistration) {
     tty->print("Registered ");
     i->print_value_on(tty);
-    tty->print_cr(" (" INTPTR_FORMAT ") as finalizable", (address)i);
+    tty->print_cr(" (" INTPTR_FORMAT ") as finalizable", p2i((address) i));
   }
   instanceHandle h_i(THREAD, i);
   // Pass the handle as argument, JavaCalls::call expects oop as jobjects
@@ -809,7 +809,7 @@ void instanceKlass::call_class_initializer_impl(instanceKlassHandle this_oop, TR
   if (TraceClassInitialization) {
     tty->print("%d Initializing ", call_class_initializer_impl_counter++);
     this_oop->name()->print_value();
-    tty->print_cr("%s (" INTPTR_FORMAT ")", h_method() == NULL ? "(no method)" : "", (address)this_oop());
+    tty->print_cr("%s (" INTPTR_FORMAT ")", h_method() == NULL ? "(no method)" : "", p2i((address) this_oop()));
   }
   if (h_method() != NULL) {
     JavaCallArguments args; // No arguments
@@ -2508,7 +2508,7 @@ class VerifyFieldClosure: public OopClosure {
     guarantee(Universe::heap()->is_in_closed_subset(p), "should be in heap");
     oop obj = oopDesc::load_decode_heap_oop(p);
     if (!obj->is_oop_or_null()) {
-      tty->print_cr("Failed: " PTR_FORMAT " -> " PTR_FORMAT, p, (address)obj);
+      tty->print_cr("Failed: " PTR_FORMAT " -> " PTR_FORMAT, p2i(p), p2i((address) obj));
       Universe::print();
       guarantee(false, "boom");
     }

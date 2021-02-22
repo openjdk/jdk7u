@@ -366,7 +366,7 @@ void print_statistics() {
       BaselineTTYOutputer outputer(tty);
       MemTracker::print_memory_usage(outputer, K, false);
     } else {
-      tty->print_cr(MemTracker::reason());
+      tty->print_cr("%s", MemTracker::reason());
     }
   }
 }
@@ -393,7 +393,7 @@ void print_statistics() {
       BaselineTTYOutputer outputer(tty);
       MemTracker::print_memory_usage(outputer, K, false);
     } else {
-      tty->print_cr(MemTracker::reason());
+      tty->print_cr("%s", MemTracker::reason());
     }
   }
 }

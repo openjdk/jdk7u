@@ -3601,7 +3601,7 @@ void PhaseIdealLoop::build_loop_late_post( Node *n ) {
 
 #ifdef ASSERT
 void PhaseIdealLoop::dump_bad_graph(const char* msg, Node* n, Node* early, Node* LCA) {
-  tty->print_cr(msg);
+  tty->print_cr("%s", msg);
   tty->print("n: "); n->dump();
   tty->print("early(n): "); early->dump();
   if (n->in(0) != NULL  && !n->in(0)->is_top() &&
