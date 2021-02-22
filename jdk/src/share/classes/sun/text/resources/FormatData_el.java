@@ -49,6 +49,7 @@ public class FormatData_el extends ListResourceBundle {
     /**
      * Overrides ListResourceBundle
      */
+    @Override
     protected final Object[][] getContents() {
         return new Object[][] {
             { "MonthNames",
@@ -105,6 +106,12 @@ public class FormatData_el extends ListResourceBundle {
                     "\u03a0\u03b5\u03bc", // abb Thursday
                     "\u03a0\u03b1\u03c1", // abb Friday
                     "\u03a3\u03b1\u03b2" // abb Saturday
+                }
+            },
+            { "short.Eras",
+                new String[] {
+                    "\u03c0.\u03a7.",
+                    "\u03bc.\u03a7.",
                 }
             },
             { "AmPmMarkers",

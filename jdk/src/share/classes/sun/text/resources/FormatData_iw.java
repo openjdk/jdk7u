@@ -110,6 +110,12 @@ public class FormatData_iw extends ListResourceBundle {
                     "\u05dc\u05e4\u05e1\u05d4\"\u05e0"
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "\u05dc\u05e4\u05e0\u05d4\u05f4\u05e1",
+                    "\u05dc\u05e1\u05d4\u05f4\u05e0",
+                }
+            },
             { "DateTimePatterns",
                 new String[] {
                     "HH:mm:ss z", // full time pattern

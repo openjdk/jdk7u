@@ -46,6 +46,7 @@ public class FormatData_hr extends ListResourceBundle {
     /**
      * Overrides ListResourceBundle
      */
+    @Override
     protected final Object[][] getContents() {
         return new Object[][] {
             { "MonthNames",
@@ -102,6 +103,18 @@ public class FormatData_hr extends ListResourceBundle {
                     "\u010det", // abb Thursday
                     "pet", // abb Friday
                     "sub" // abb Saturday
+                }
+            },
+            { "Eras",
+                new String[] {
+                    "Prije Krista",
+                    "Poslije Krista",
+                }
+            },
+            { "short.Eras",
+                new String[] {
+                    "p. n. e.",
+                    "A. D.",
                 }
             },
             { "NumberElements",

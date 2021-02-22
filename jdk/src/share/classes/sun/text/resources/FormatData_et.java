@@ -110,6 +110,12 @@ public class FormatData_et extends ListResourceBundle {
                     "m.a.j."
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "e.m.a.",
+                    "m.a.j.",
+                }
+            },
             { "NumberElements",
                 new String[] {
                     ",", // decimal separator

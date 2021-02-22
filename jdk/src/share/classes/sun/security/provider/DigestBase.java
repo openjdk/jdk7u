@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.security.MessageDigestSpi;
 import java.security.DigestException;
 import java.security.ProviderException;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Common base message digest implementation for the Sun provider.
@@ -123,15 +124,46 @@ abstract class DigestBase extends MessageDigestSpi implements Cloneable {
             }
         }
         // compress complete blocks
-        while (len >= blockSize) {
-            implCompress(b, ofs);
-            len -= blockSize;
-            ofs += blockSize;
+        if (len >= blockSize) {
+            int limit = ofs + len;
+            ofs = implCompressMultiBlock(b, ofs, limit - blockSize);
+            len = limit - ofs;
         }
         // copy remainder to buffer
         if (len > 0) {
             System.arraycopy(b, ofs, buffer, 0, len);
             bufOfs = len;
+        }
+    }
+
+    // compress complete blocks
+    private int implCompressMultiBlock(byte[] b, int ofs, int limit) {
+        implCompressMultiBlockCheck(b, ofs, limit);
+        return implCompressMultiBlock0(b, ofs, limit);
+    }
+
+    private int implCompressMultiBlock0(byte[] b, int ofs, int limit) {
+        for (; ofs <= limit; ofs += blockSize) {
+            implCompress(b, ofs);
+        }
+        return ofs;
+    }
+
+    private void implCompressMultiBlockCheck(byte[] b, int ofs, int limit) {
+        if (limit < 0) {
+            return;  // not an error because implCompressMultiBlockImpl won't execute if limit < 0
+                     // and an exception is thrown if ofs < 0.
+        }
+
+        Objects.requireNonNull(b);
+
+        if (ofs < 0 || ofs >= b.length) {
+            throw new ArrayIndexOutOfBoundsException(ofs);
+        }
+
+        int endIndex = (limit / blockSize) * blockSize  + blockSize - 1;
+        if (endIndex >= b.length) {
+            throw new ArrayIndexOutOfBoundsException(endIndex);
         }
     }
 

@@ -110,6 +110,24 @@ public class FormatData_fr extends ListResourceBundle {
                     "ap. J.-C."
                 }
             },
+            { "short.Eras",
+                new String[] {
+                    "av. J.-C.",
+                    "ap. J.-C.",
+                }
+            },
+            { "sun.util.BuddhistCalendar.Eras",
+                new String[] {
+                    "BC",
+                    "\u00e8re bouddhiste",
+                }
+            },
+            { "sun.util.BuddhistCalendar.short.Eras",
+                new String[] {
+                    "BC",
+                    "\u00e8re b.",
+                }
+            },
             { "NumberPatterns",
                 new String[] {
                     "#,##0.###;-#,##0.###", // decimal pattern

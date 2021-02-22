@@ -23,14 +23,15 @@
 
 /*
  * @test
- * @bug 8202088
- * @summary Test the localized Japanese new era name (May 1st. 2019-)
- *      is retrieved no matter CLDR provider contains the name or not.
- * @run testng/othervm JapaneseEraNameTest
+ * @bug 8218781
+ * @summary Test the localized names of Japanese era Reiwa from COMPAT provider.
+ * @modules jdk.localedata
+ * @run testng/othervm -Djava.locale.providers=COMPAT JapanEraNameCompatTest
  */
 
 import static java.util.Calendar.*;
 import static java.util.Locale.*;
+
 import java.util.Calendar;
 import java.util.Locale;
 
@@ -39,32 +40,41 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
 
 @Test
-public class JapaneseEraNameTest {
+public class JapanEraNameCompatTest {
     static final Calendar c;
+    static final String EngName = "Reiwa";
+    static final String CJName = "\u4ee4\u548c";
+    static final String KoreanName = "\ub808\uc774\uc640";
+    static final String ArabicName = "\u0631\u064a\u0648\u0627";
+    static final String ThaiName = "\u0e40\u0e23\u0e27\u0e30";
 
     static {
         c = Calendar.getInstance(new Locale("ja","JP","JP"));
         c.set(ERA, 5);
-        c.set(YEAR, 1);
-        c.set(MONTH, MAY);
-        c.set(DAY_OF_MONTH, 1);
+        c.set(1, MAY, 1);
     }
 
-    @DataProvider(name="names")
-    Object[][] names() {
+    @DataProvider(name="UtilCalendar")
+    Object[][] dataUtilCalendar() {
         return new Object[][] {
-            // type,    locale,  name
-            { LONG,     JAPAN,   "\u4ee4\u548c" },
-            { LONG,     US,      "Reiwa" },
-            { LONG,     CHINA,   "Reiwa" },
-            { SHORT,    JAPAN,   "R" },
-            { SHORT,    US,      "R" },
-            { SHORT,    CHINA,   "R" },
+            //locale,   long,       short
+            { US,       EngName,    "R" },
+            { JAPAN,    CJName,     "R" },
+            { KOREAN,   KoreanName, "R" },
+            { CHINA,    CJName,     "R" },
+            { TAIWAN,   CJName,     "R" }, // fallback to zh
+            { new Locale("ar"), ArabicName, ArabicName },
+            { new Locale("th"), ThaiName, "R" },
+            // hi_IN fallback to root
+            { new Locale("hi", "IN"), EngName, "R" }
         };
     }
 
-    @Test(dataProvider="names")
-    public void testJapaneseNewEraName(int type, Locale locale, String expected) {
-        assertEquals(c.getDisplayName(ERA, type, locale), expected);
+    @Test(dataProvider="UtilCalendar")
+    public void testCalendarEraDisplayName(Locale locale,
+            String longName, String shortName) {
+        assertEquals(c.getDisplayName(ERA, LONG, locale), longName);
+        assertEquals(c.getDisplayName(ERA, SHORT, locale), shortName);
     }
+
 }
