@@ -131,7 +131,7 @@ import java.util.Enumeration;
  *         representation. However, it will be converted into an IPv4
  *         address.</td></tr>
  * </table></blockquote>
- * <p>
+ *
  * <h4> <A NAME="scoped">Textual representation of IPv6 scoped addresses</a> </h4>
  * <p>
  * The textual representation of IPv6 addresses as described above can be extended
@@ -145,11 +145,11 @@ import java.util.Enumeration;
  * zone, it is possible to append a zone identifier (or <i>scope_id</i>) to an IPv6 address.
  * <p>
  * The general format for specifying the <i>scope_id</i> is the following:
- * <p><blockquote><i>IPv6-address</i>%<i>scope_id</i></blockquote>
+ * <blockquote><i>IPv6-address</i>%<i>scope_id</i></blockquote>
  * <p> The IPv6-address is a literal IPv6 address as described above.
  * The <i>scope_id</i> refers to an interface on the local system, and it can be specified
  * in two ways.
- * <p><ol><li><i>As a numeric identifier.</i> This must be a positive integer that identifies the
+ * <ol><li><i>As a numeric identifier.</i> This must be a positive integer that identifies the
  * particular interface and scope as understood by the system. Usually, the numeric
  * values can be determined through administration tools on the system. Each interface may
  * have multiple values, one for each scope. If the scope is unspecified, then the default value

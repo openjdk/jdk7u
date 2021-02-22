@@ -136,6 +136,8 @@ default: all
 CLASSES_JAR = $(LIB_DIR)/classes.jar
 $(CLASSES_JAR):
 	$(MKDIR) -p $(@D)
+# Avoid including stubs of sun.misc.* classes; real versions are in jdk tree
+	$(RM) -r $(CLASSES_DIR)/sun/misc
 	$(BOOT_JAR_CMD) -cf $@ -C $(CLASSES_DIR) .
 
 #----- src.zip

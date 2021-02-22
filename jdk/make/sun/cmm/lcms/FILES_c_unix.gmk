@@ -24,6 +24,7 @@
 #
 
 FILES_c = \
+    cmsalpha.c \
     cmscam02.c \
     cmscgats.c \
     cmscnvrt.c \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,45 +50,45 @@ import sun.security.util.Debug;
  * updated, one of the {@link #digest() digest} methods should
  * be called to complete the hash computation.
  *
- * <p>The <code>digest</code> method can be called once for a given number
- * of updates. After <code>digest</code> has been called, the MessageDigest
+ * <p>The {@code digest} method can be called once for a given number
+ * of updates. After {@code digest} has been called, the MessageDigest
  * object is reset to its initialized state.
  *
  * <p>Implementations are free to implement the Cloneable interface.
  * Client applications can test cloneability by attempting cloning
- * and catching the CloneNotSupportedException: <p>
+ * and catching the CloneNotSupportedException:
  *
-* <pre>
-* MessageDigest md = MessageDigest.getInstance("SHA");
-*
-* try {
-*     md.update(toChapter1);
-*     MessageDigest tc1 = md.clone();
-*     byte[] toChapter1Digest = tc1.digest();
-*     md.update(toChapter2);
-*     ...etc.
-* } catch (CloneNotSupportedException cnse) {
-*     throw new DigestException("couldn't make digest of partial content");
-* }
-* </pre>
+ * <pre>{@code
+ * MessageDigest md = MessageDigest.getInstance("SHA-256");
+ *
+ * try {
+ *     md.update(toChapter1);
+ *     MessageDigest tc1 = md.clone();
+ *     byte[] toChapter1Digest = tc1.digest();
+ *     md.update(toChapter2);
+ *     ...etc.
+ * } catch (CloneNotSupportedException cnse) {
+ *     throw new DigestException("couldn't make digest of partial content");
+ * }
+ * }</pre>
  *
  * <p>Note that if a given implementation is not cloneable, it is
  * still possible to compute intermediate digests by instantiating
  * several instances, if the number of digests is known in advance.
  *
  * <p>Note that this class is abstract and extends from
- * <code>MessageDigestSpi</code> for historical reasons.
+ * {@code MessageDigestSpi} for historical reasons.
  * Application developers should only take notice of the methods defined in
- * this <code>MessageDigest</code> class; all the methods in
+ * this {@code MessageDigest} class; all the methods in
  * the superclass are intended for cryptographic service providers who wish to
  * supply their own implementations of message digest algorithms.
  *
  * <p> Every implementation of the Java platform is required to support
- * the following standard <code>MessageDigest</code> algorithms:
+ * the following standard {@code MessageDigest} algorithms:
  * <ul>
- * <li><tt>MD5</tt></li>
- * <li><tt>SHA-1</tt></li>
- * <li><tt>SHA-256</tt></li>
+ * <li>{@code MD5}</li>
+ * <li>{@code SHA-1}</li>
+ * <li>{@code SHA-256}</li>
  * </ul>
  * These algorithms are described in the <a href=
  * "{@docRoot}/../technotes/guides/security/StandardNames.html#MessageDigest">
@@ -313,7 +313,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      * @param offset the offset to start from in the array of bytes.
      *
      * @param len the number of bytes to use, starting at
-     * <code>offset</code>.
+     * {@code offset}.
      */
     public void update(byte[] input, int offset, int len) {
         if (input == null) {
@@ -338,8 +338,8 @@ public abstract class MessageDigest extends MessageDigestSpi {
 
     /**
      * Update the digest using the specified ByteBuffer. The digest is
-     * updated using the <code>input.remaining()</code> bytes starting
-     * at <code>input.position()</code>.
+     * updated using the {@code input.remaining()} bytes starting
+     * at {@code input.position()}.
      * Upon return, the buffer's position will be equal to its limit;
      * its limit will not have changed.
      *
@@ -377,7 +377,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      *
      * @param len number of bytes within buf allotted for the digest
      *
-     * @return the number of bytes placed into <code>buf</code>
+     * @return the number of bytes placed into {@code buf}
      *
      * @exception DigestException if an error occurs.
      */
@@ -398,7 +398,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      * Performs a final update on the digest using the specified array
      * of bytes, then completes the digest computation. That is, this
      * method first calls {@link #update(byte[]) update(input)},
-     * passing the <i>input</i> array to the <code>update</code> method,
+     * passing the <i>input</i> array to the {@code update} method,
      * then calls {@link #digest() digest()}.
      *
      * @param input the input to be updated before the digest is
@@ -467,7 +467,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
     /**
      * Returns a string that identifies the algorithm, independent of
      * implementation details. The name should be a standard
-     * Java Security name (such as "SHA", "MD5", and so on).
+     * Java Security name (such as "SHA-256").
      * See the MessageDigest section in the <a href=
      * "{@docRoot}/../technotes/guides/security/StandardNames.html#MessageDigest">
      * Java Cryptography Architecture Standard Algorithm Name Documentation</a>
@@ -508,7 +508,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
      * @return a clone if the implementation is cloneable.
      *
      * @exception CloneNotSupportedException if this is called on an
-     * implementation that does not support <code>Cloneable</code>.
+     * implementation that does not support {@code Cloneable}.
      */
     public Object clone() throws CloneNotSupportedException {
         if (this instanceof Cloneable) {
@@ -552,7 +552,7 @@ public abstract class MessageDigest extends MessageDigestSpi {
          * @return a clone if the delegate is cloneable.
          *
          * @exception CloneNotSupportedException if this is called on a
-         * delegate that does not support <code>Cloneable</code>.
+         * delegate that does not support {@code Cloneable}.
          */
         public Object clone() throws CloneNotSupportedException {
             if (digestSpi instanceof Cloneable) {
