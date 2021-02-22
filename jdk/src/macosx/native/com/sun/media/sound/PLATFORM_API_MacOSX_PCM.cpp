@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -203,9 +203,13 @@ public:
     // (required only if Write() can override the buffer)
     bool Allocate(int requestedBufferSize, int extraBytes) {
         int fullBufferSize = requestedBufferSize + extraBytes;
-        int powerOfTwo = 1;
+        long powerOfTwo = 1;
         while (powerOfTwo < fullBufferSize) {
             powerOfTwo <<= 1;
+        }
+        if (powerOfTwo > INT_MAX || fullBufferSize < 0) {
+            ERROR0("RingBuffer::Allocate: REQUESTED MEMORY SIZE IS TOO BIG\n");
+            return false;
         }
         pBuffer = (Byte*)malloc(powerOfTwo);
         if (pBuffer == NULL) {

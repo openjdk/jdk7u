@@ -193,6 +193,8 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
                                      "\u897f\u975e\u590f\u4ee4\u65f6", "WAST"};
         String WET[] = new String[] {"\u897f\u6b27\u65f6\u95f4", "WET",
                                      "\u897f\u6b27\u590f\u4ee4\u65f6", "WEST"};
+        String WGT[] = new String[] {"\u897f\u683c\u6797\u5170\u5c9b\u65f6\u95f4", "WGT",
+                                     "\u897f\u683c\u6797\u5170\u5c9b\u590f\u4ee4\u65f6", "WGST"};
         String WIT[] = new String[] {"\u897f\u5370\u5ea6\u5c3c\u897f\u4e9a\u65f6\u95f4", "WIB",
                                      "\u897f\u5370\u5ea6\u5c3c\u897f\u4e9a\u590f\u4ee4\u65f6", "WIST"};
         String WST_AUS[] = new String[] {"\u897F\u90E8\u6807\u51C6\u65F6\u95F4 (\u6FB3\u5927\u5229\u4E9A)", "AWST",
@@ -347,7 +349,7 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
             {"America/Cuiaba", AMT},
             {"America/Curacao", AST},
             {"America/Danmarkshavn", GMT},
-            {"America/Dawson", PST},
+            {"America/Dawson", MST},
             {"America/Dawson_Creek", MST},
             {"America/Detroit", EST},
             {"America/Dominica", AST},
@@ -359,8 +361,7 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
             {"America/Fort_Wayne", EST},
             {"America/Fortaleza", BRT},
             {"America/Glace_Bay", AST},
-            {"America/Godthab", new String[] {"\u897f\u683c\u6797\u5170\u5c9b\u65f6\u95f4", "WGT",
-                                              "\u897f\u683c\u6797\u5170\u5c9b\u590f\u4ee4\u65f6", "WGST"}},
+            {"America/Godthab", WGT},
             {"America/Goose_Bay", AST},
             {"America/Grand_Turk", EST},
             {"America/Grenada", AST},
@@ -422,6 +423,7 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
             {"America/North_Dakota/Beulah", CST},
             {"America/North_Dakota/Center", CST},
             {"America/North_Dakota/New_Salem", CST},
+            {"America/Nuuk", WGT},
             {"America/Ojinaga", MST},
             {"America/Panama", EST},
             {"America/Pangnirtung", EST},
@@ -460,7 +462,7 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
             {"America/Tortola", AST},
             {"America/Vancouver", PST},
             {"America/Virgin", AST},
-            {"America/Whitehorse", PST},
+            {"America/Whitehorse", MST},
             {"America/Winnipeg", CST},
             {"America/Yakutat", AKST},
             {"America/Yellowknife", MST},
@@ -652,7 +654,7 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
             {"Canada/Mountain", MST},
             {"Canada/Newfoundland", NST},
             {"Canada/Pacific", PST},
-            {"Canada/Yukon", PST},
+            {"Canada/Yukon", MST},
             {"Canada/Saskatchewan", CST},
             {"CAT", CAT},
             {"CET", CET},

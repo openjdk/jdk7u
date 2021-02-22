@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -294,6 +294,7 @@ static ColorData *BufImg_SetupICM(JNIEnv *env,
         CHECK_NULL_RETURN(pRgb, (ColorData*)NULL);
         cData->img_clr_tbl = initCubemap(pRgb, bisdo->lutsize, 32);
         if (cData->img_clr_tbl == NULL) {
+            (*env)->ReleasePrimitiveArrayCritical(env, bisdo->lutarray, pRgb, JNI_ABORT);
             free(cData);
             return (ColorData*)NULL;
         }
