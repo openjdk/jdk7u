@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,7 +55,7 @@
 #endif
 
 // Note: This is a special bug reporting site for the JVM
-#define DEFAULT_VENDOR_URL_BUG "http://bugreport.sun.com/bugreport/crash.jsp"
+#define DEFAULT_VENDOR_URL_BUG "http://bugreport.java.com/bugreport/crash.jsp"
 #define DEFAULT_JAVA_LAUNCHER  "generic"
 
 char**  Arguments::_jvm_flags_array             = NULL;
@@ -266,6 +266,7 @@ static ObsoleteFlag obsolete_jvm_flags[] = {
   { "Tier1MaxInlineSize",  JDK_Version::jdk_update(7,40), JDK_Version::jdk(8) },
   { "Tier1LoopOptsCount",  JDK_Version::jdk_update(7,40), JDK_Version::jdk(8) },
   { "UseSpinning",         JDK_Version::jdk_update(7,40), JDK_Version::jdk(8) },
+  { "CompilationRepeat",   JDK_Version::jdk_update(7,80), JDK_Version::jdk(9) },
 #ifdef PRODUCT
   { "DesiredMethodLimit",
                            JDK_Version::jdk_update(7, 2), JDK_Version::jdk(8) },
@@ -1758,24 +1759,22 @@ static bool verify_serial_gc_flags() {
 // check if do gclog rotation
 // +UseGCLogFileRotation is a must,
 // no gc log rotation when log file not supplied or
-// NumberOfGCLogFiles is 0, or GCLogFileSize is 0
+// NumberOfGCLogFiles is 0
 void check_gclog_consistency() {
   if (UseGCLogFileRotation) {
-    if ((Arguments::gc_log_filename() == NULL) ||
-        (NumberOfGCLogFiles == 0)  ||
-        (GCLogFileSize == 0)) {
+    if ((Arguments::gc_log_filename() == NULL) || (NumberOfGCLogFiles == 0)) {
       jio_fprintf(defaultStream::output_stream(),
-                  "To enable GC log rotation, use -Xloggc:<filename> -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=<num_of_files> -XX:GCLogFileSize=<num_of_size>\n"
-                  "where num_of_file > 0 and num_of_size > 0\n"
+                  "To enable GC log rotation, use -Xloggc:<filename> -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=<num_of_files>\n"
+                  "where num_of_file > 0\n"
                   "GC log rotation is turned off\n");
       UseGCLogFileRotation = false;
     }
   }
 
-  if (UseGCLogFileRotation && GCLogFileSize < 8*K) {
-        FLAG_SET_CMDLINE(uintx, GCLogFileSize, 8*K);
-        jio_fprintf(defaultStream::output_stream(),
-                    "GCLogFileSize changed to minimum 8K\n");
+  if (UseGCLogFileRotation && (GCLogFileSize != 0) && (GCLogFileSize < 8*K)) {
+    FLAG_SET_CMDLINE(uintx, GCLogFileSize, 8*K);
+    jio_fprintf(defaultStream::output_stream(),
+                "GCLogFileSize changed to minimum 8K\n");
   }
 }
 
@@ -1805,6 +1804,51 @@ bool Arguments::verify_MaxHeapFreeRatio(FormatBuffer<80>& err_msg, uintx max_hea
     return false;
   }
   return true;
+}
+
+// This function is called for -Xloggc:<filename>, it can be used
+// to check if a given file name(or string) conforms to the following
+// specification:
+// A valid string only contains "[A-Z][a-z][0-9].-_%[p|t]"
+// %p and %t only allowed once. We only limit usage of filename not path
+bool is_filename_valid(const char *file_name) {
+  const char* p = file_name;
+  char file_sep = os::file_separator()[0];
+  const char* cp;
+  // skip prefix path
+  for (cp = file_name; *cp != '\0'; cp++) {
+    if (*cp == '/' || *cp == file_sep) {
+      p = cp + 1;
+    }
+  }
+
+  int count_p = 0;
+  int count_t = 0;
+  while (*p != '\0') {
+    if ((*p >= '0' && *p <= '9') ||
+        (*p >= 'A' && *p <= 'Z') ||
+        (*p >= 'a' && *p <= 'z') ||
+         *p == '-'               ||
+         *p == '_'               ||
+         *p == '.') {
+       p++;
+       continue;
+    }
+    if (*p == '%') {
+      if(*(p + 1) == 'p') {
+        p += 2;
+        count_p ++;
+        continue;
+      }
+      if (*(p + 1) == 't') {
+        p += 2;
+        count_t ++;
+        continue;
+      }
+    }
+    return false;
+  }
+  return count_p < 2 && count_t < 2;
 }
 
 // Check consistency of GC selection
@@ -2037,19 +2081,9 @@ bool Arguments::check_vm_args_consistency() {
                                      1, 100, "TLABWasteTargetPercent");
 
   status = status && verify_object_alignment();
-
-#ifdef SPARC
-  if (UseConcMarkSweepGC || UseG1GC) {
-    // Issue a stern warning if the user has explicitly set
-    // UseMemSetInBOT (it is known to cause issues), but allow
-    // use for experimentation and debugging.
-    if (VM_Version::is_sun4v() && UseMemSetInBOT) {
-      assert(!FLAG_IS_DEFAULT(UseMemSetInBOT), "Error");
-      warning("Experimental flag -XX:+UseMemSetInBOT is known to cause instability"
-          " on sun4v; please understand that you are using at your own risk!");
-    }
-  }
-#endif // SPARC
+#ifdef COMPILER1
+  status = status && verify_min_value(ValueMapInitialSize, 1, "ValueMapInitialSize");
+#endif
 
   // check native memory tracking flags
   if (PrintNMTStatistics && MemTracker::tracking_level() == MemTracker::NMT_off) {
@@ -2398,7 +2432,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
                                             (size_t)InitialCodeCacheSize);
       if (errcode != arg_in_range) {
         jio_fprintf(defaultStream::error_stream(),
-                    "Invalid maximum code cache size: %s. Should be greater than InitialCodeCacheSize=%dK\n",
+                    "Invalid maximum code cache size: %s. Should be greater than or equal to InitialCodeCacheSize=%dK\n",
                     option->optionString, InitialCodeCacheSize/K);
         describe_range_error(errcode);
         return JNI_EINVAL;
@@ -2452,6 +2486,23 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
 #endif
     // -D
     } else if (match_option(option, "-D", &tail)) {
+      if (CheckEndorsedAndExtDirs) {
+        if (match_option(option, "-Djava.endorsed.dirs=", &tail)) {
+          // abort if -Djava.endorsed.dirs is set
+          jio_fprintf(defaultStream::output_stream(),
+            "-Djava.endorsed.dirs will not be supported in a future release.\n"
+            "Refer to JEP 220 for details (http://openjdk.java.net/jeps/220).\n");
+          return JNI_EINVAL;
+        }
+        if (match_option(option, "-Djava.ext.dirs=", &tail)) {
+          // abort if -Djava.ext.dirs is set
+          jio_fprintf(defaultStream::output_stream(),
+            "-Djava.ext.dirs will not be supported in a future release.\n"
+            "Refer to JEP 220 for details (http://openjdk.java.net/jeps/220).\n");
+          return JNI_EINVAL;
+        }
+      }
+
       if (!add_property(tail)) {
         return JNI_ENOMEM;
       }
@@ -2524,6 +2575,13 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
       // ostream_init_log(), when called will use this filename
       // to initialize a fileStream.
       _gc_log_filename = strdup(tail);
+     if (!is_filename_valid(_gc_log_filename)) {
+       jio_fprintf(defaultStream::output_stream(),
+                  "Invalid file name for use with -Xloggc: Filename can only contain the "
+                  "characters [A-Z][a-z][0-9]-_.%%[p|t] but it has been %s\n"
+                  "Note %%p or %%t can only be used once\n", _gc_log_filename);
+        return JNI_EINVAL;
+      }
       FLAG_SET_CMDLINE(bool, PrintGC, true);
       FLAG_SET_CMDLINE(bool, PrintGCTimeStamps, true);
 
@@ -2834,6 +2892,146 @@ SOLARIS_ONLY(
   return JNI_OK;
 }
 
+static bool has_jar_files(const char* directory) {
+  DIR* dir = os::opendir(directory);
+  if (dir == NULL) return false;
+
+  struct dirent *entry;
+  char *dbuf = NEW_C_HEAP_ARRAY(char, os::readdir_buf_size(directory), mtInternal);
+  bool hasJarFile = false;
+  while (!hasJarFile && (entry = os::readdir(dir, (dirent *) dbuf)) != NULL) {
+    const char* name = entry->d_name;
+    const char* ext = name + strlen(name) - 4;
+    hasJarFile = ext > name && (os::file_name_strcmp(ext, ".jar") == 0);
+  }
+  FREE_C_HEAP_ARRAY(char, dbuf, mtInternal);
+  os::closedir(dir);
+  return hasJarFile ;
+}
+
+// returns the number of directories in the given path containing JAR files
+// If the skip argument is not NULL, it will skip that directory
+static int check_non_empty_dirs(const char* path, const char* type, const char* skip) {
+  const char separator = *os::path_separator();
+  const char* const end = path + strlen(path);
+  int nonEmptyDirs = 0;
+  while (path < end) {
+    const char* tmp_end = strchr(path, separator);
+    if (tmp_end == NULL) {
+      if ((skip == NULL || strcmp(path, skip) != 0) && has_jar_files(path)) {
+        nonEmptyDirs++;
+        jio_fprintf(defaultStream::output_stream(),
+          "Non-empty %s directory: %s\n", type, path);
+      }
+      path = end;
+    } else {
+      char* dirpath = NEW_C_HEAP_ARRAY(char, tmp_end - path + 1, mtInternal);
+      memcpy(dirpath, path, tmp_end - path);
+      dirpath[tmp_end - path] = '\0';
+      if ((skip == NULL || strcmp(dirpath, skip) != 0) && has_jar_files(dirpath)) {
+        nonEmptyDirs++;
+        jio_fprintf(defaultStream::output_stream(),
+          "Non-empty %s directory: %s\n", type, dirpath);
+      }
+      FREE_C_HEAP_ARRAY(char, dirpath, mtInternal);
+      path = tmp_end + 1;
+    }
+  }
+  return nonEmptyDirs;
+}
+
+// Returns true if endorsed standards override mechanism and extension mechanism
+// are not used.
+static bool check_endorsed_and_ext_dirs() {
+  if (!CheckEndorsedAndExtDirs)
+    return true;
+
+  char endorsedDir[JVM_MAXPATHLEN];
+  char extDir[JVM_MAXPATHLEN];
+  const char* fileSep = os::file_separator();
+  jio_snprintf(endorsedDir, sizeof(endorsedDir), "%s%slib%sendorsed",
+               Arguments::get_java_home(), fileSep, fileSep);
+  jio_snprintf(extDir, sizeof(extDir), "%s%slib%sext",
+               Arguments::get_java_home(), fileSep, fileSep);
+
+  // check endorsed directory
+  int nonEmptyDirs = check_non_empty_dirs(Arguments::get_endorsed_dir(), "endorsed", NULL);
+
+  // check the extension directories but skip the default lib/ext directory
+  nonEmptyDirs += check_non_empty_dirs(Arguments::get_ext_dirs(), "extension", extDir);
+
+  // List of JAR files installed in the default lib/ext directory.
+  // -XX:+CheckEndorsedAndExtDirs checks if any non-JDK file installed
+  static const char* jdk_ext_jars[] = {
+      "access-bridge-32.jar",
+      "access-bridge-64.jar",
+      "access-bridge.jar",
+      "cldrdata.jar",
+      "dnsns.jar",
+      "jaccess.jar",
+      "jfxrt.jar",
+      "localedata.jar",
+      "nashorn.jar",
+      "sunec.jar",
+      "sunjce_provider.jar",
+      "sunmscapi.jar",
+      "sunpkcs11.jar",
+      "ucrypto.jar",
+      "zipfs.jar",
+      NULL
+  };
+
+  // check if the default lib/ext directory has any non-JDK jar files; if so, error
+  DIR* dir = os::opendir(extDir);
+  if (dir != NULL) {
+    int num_ext_jars = 0;
+    struct dirent *entry;
+    char *dbuf = NEW_C_HEAP_ARRAY(char, os::readdir_buf_size(extDir), mtInternal);
+    while ((entry = os::readdir(dir, (dirent *) dbuf)) != NULL) {
+      const char* name = entry->d_name;
+      const char* ext = name + strlen(name) - 4;
+      if (ext > name && (os::file_name_strcmp(ext, ".jar") == 0)) {
+        bool is_jdk_jar = false;
+        const char* jarfile = NULL;
+        for (int i=0; (jarfile = jdk_ext_jars[i]) != NULL; i++) {
+          if (os::file_name_strcmp(name, jarfile) == 0) {
+            is_jdk_jar = true;
+            break;
+          }
+        }
+        if (!is_jdk_jar) {
+          jio_fprintf(defaultStream::output_stream(),
+            "%s installed in <JAVA_HOME>/lib/ext\n", name);
+          num_ext_jars++;
+        }
+      }
+    }
+    FREE_C_HEAP_ARRAY(char, dbuf, mtInternal);
+    os::closedir(dir);
+    if (num_ext_jars > 0) {
+      nonEmptyDirs += 1;
+    }
+  }
+
+  // check if the default lib/endorsed directory exists; if so, error
+  dir = os::opendir(endorsedDir);
+  if (dir != NULL) {
+    jio_fprintf(defaultStream::output_stream(), "<JAVA_HOME>/lib/endorsed exists\n");
+    os::closedir(dir);
+    nonEmptyDirs += 1;
+  }
+
+  if (nonEmptyDirs > 0) {
+    jio_fprintf(defaultStream::output_stream(),
+      "Endorsed standards override mechanism and extension mechanism "
+      "will not be supported in a future release.\n"
+      "Refer to JEP 220 for details (http://openjdk.java.net/jeps/220).\n");
+    return false;
+  }
+
+  return true;
+}
+
 jint Arguments::finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_required) {
   // This must be done after all -D arguments have been processed.
   scp_p->expand_endorsed();
@@ -2841,6 +3039,10 @@ jint Arguments::finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_req
   if (scp_assembly_required || scp_p->get_endorsed() != NULL) {
     // Assemble the bootclasspath elements into the final path.
     Arguments::set_sysclasspath(scp_p->combined_path());
+  }
+
+  if (!check_endorsed_and_ext_dirs()) {
+    return JNI_ERR;
   }
 
   // This must be done after all arguments have been processed.
@@ -3288,9 +3490,6 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
 #endif // CC_INTERP
 
 #ifdef COMPILER2
-  if (!UseBiasedLocking || EmitSync != 0) {
-    UseOptoBiasInlining = false;
-  }
   if (!EliminateLocks) {
     EliminateNestedLocks = false;
   }
@@ -3333,6 +3532,12 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
       UseBiasedLocking = false;
     }
   }
+
+#ifdef COMPILER2
+  if (!UseBiasedLocking || EmitSync != 0) {
+    UseOptoBiasInlining = false;
+  }
+#endif
 
   // set PauseAtExit if the gamma launcher was used and a debugger is attached
   // but only if not already set on the commandline

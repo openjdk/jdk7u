@@ -643,15 +643,18 @@ public class HttpClient extends NetworkClient {
             cachedHttpClient = false;
             if (!failedOnce && requests != null) {
                 failedOnce = true;
-                if (getRequestMethod().equals("CONNECT") ||
-                    (httpuc.getRequestMethod().equals("POST") &&
-                    (!retryPostProp || streaming))) {
+                if (getRequestMethod().equals("CONNECT")
+                    || streaming
+                    || (httpuc.getRequestMethod().equals("POST")
+                        && !retryPostProp)) {
                     // do not retry the request
                 }  else {
                     // try once more
                     openServer();
                     if (needsTunneling()) {
+                        MessageHeader origRequests = requests;
                         httpuc.doTunneling();
+                        requests = origRequests;
                     }
                     afterConnect();
                     writeRequests(requests, poster);
@@ -753,16 +756,19 @@ public class HttpClient extends NetworkClient {
             } else if (nread != 8) {
                 if (!failedOnce && requests != null) {
                     failedOnce = true;
-                    if (getRequestMethod().equals("CONNECT") ||
-                        (httpuc.getRequestMethod().equals("POST") &&
-                        (!retryPostProp || streaming))) {
+                    if (getRequestMethod().equals("CONNECT")
+                        || streaming
+                        || (httpuc.getRequestMethod().equals("POST")
+                            && !retryPostProp)) {
                         // do not retry the request
                     } else {
                         closeServer();
                         cachedHttpClient = false;
                         openServer();
                         if (needsTunneling()) {
+                            MessageHeader origRequests = requests;
                             httpuc.doTunneling();
+                            requests = origRequests;
                         }
                         afterConnect();
                         writeRequests(requests, poster);
