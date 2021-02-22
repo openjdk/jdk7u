@@ -226,7 +226,8 @@ class IdealKit: public StackObj {
               Node* val,
               BasicType bt,
               int adr_idx,
-              bool require_atomic_access = false);
+              bool require_atomic_access = false,
+              StoreNode::Sem sem = StoreNode::release);
 
   // Store a card mark ordered after store_oop
   Node* storeCM(Node* ctl,

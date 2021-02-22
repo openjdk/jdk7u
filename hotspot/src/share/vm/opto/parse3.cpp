@@ -199,8 +199,27 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   } else {
     type = Type::get_const_basic_type(bt);
   }
+#ifdef PPC64
+  // Support VolatileIRIWTest (Independent Reads of Independent Writes).
+  // Example: volatile x=0, y=0
+  //  __________    __________    __________    __________
+  // | Thread 0 |  | Thread 1 |  | Thread 2 |  | Thread 3 |
+  //
+  //   write(x=1)    read(x)       write(y=1)    read(y)
+  //                 read(y)                     read(x)
+  //
+  // Disallowed:     x=1, y=0                    y=1, x=0
+  // however, this case is observable on PPC64 (allowed by architecture)
+  //
+  // Solution: implement volatile read as fence-load-acquire
+  if (field->is_volatile()) {
+    insert_mem_bar(Op_MemBarVolatile);
+  }
+#endif
   // Build the load.
-  Node* ld = make_load(NULL, adr, type, bt, adr_type, is_vol);
+  //
+  LoadNode::Sem sem = is_vol ? LoadNode::acquire : LoadNode::unordered;
+  Node* ld = make_load(NULL, adr, type, bt, adr_type, is_vol, sem);
 
   // Adjust Java stack
   if (type2size[bt] == 1)
@@ -260,6 +279,16 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   // Round doubles before storing
   if (bt == T_DOUBLE)  val = dstore_rounding(val);
 
+  // Conservatively release stores of object references.
+  const StoreNode::Sem sem =
+    is_vol ?
+    // Volatile fields need releasing stores.
+    StoreNode::release :
+    // Non-volatile fields also need releasing stores if they hold an
+    // object reference, because the object reference might point to
+    // a freshly created object.
+    StoreNode::release_if_reference(bt);
+
   // Store the value.
   Node* store;
   if (bt == T_OBJECT) {
@@ -269,9 +298,9 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     } else {
       field_type = TypeOopPtr::make_from_klass(field->type()->as_klass());
     }
-    store = store_oop_to_object( control(), obj, adr, adr_type, val, field_type, bt);
+    store = store_oop_to_object(control(), obj, adr, adr_type, val, field_type, bt, sem);
   } else {
-    store = store_to_memory( control(), adr, val, bt, adr_type, is_vol );
+    store = store_to_memory(control(), adr, val, bt, adr_type, is_vol, sem);
   }
 
   // If reference is volatile, prevent following volatiles ops from
@@ -287,6 +316,13 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   if (is_field && field->is_final()) {
     set_wrote_final(true);
   }
+
+#ifdef PPC64
+  // Add MemBarRelease for constructors which write volatile field (PPC64).
+  if (is_field && is_vol) {
+    set_wrote_volatile(true);
+  }
+#endif
 }
 
 

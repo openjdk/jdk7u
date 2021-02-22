@@ -524,7 +524,7 @@ void CompiledStaticCall::set_to_interpreted(methodHandle callee, address entry) 
                   callee->name_and_sig_as_C_string());
   }
 
-  NativeMovConstReg* method_holder = nativeMovConstReg_at(stub);   // creation also verifies the object
+  NativeMovConstReg* method_holder = nativeMovConstReg_at(stub + comp_to_int_load_offset);   // creation also verifies the object
   NativeJump*        jump          = nativeJump_at(method_holder->next_instruction_address());
 
   assert(method_holder->data()    == 0           || method_holder->data()    == (intptr_t)callee(), "a) MT-unsafe modification of inline cache");
@@ -587,7 +587,7 @@ void CompiledStaticCall::set_stub_to_clean(static_stub_Relocation* static_stub) 
   // Reset stub
   address stub = static_stub->addr();
   assert(stub!=NULL, "stub not found");
-  NativeMovConstReg* method_holder = nativeMovConstReg_at(stub);   // creation also verifies the object
+  NativeMovConstReg* method_holder = nativeMovConstReg_at(stub + comp_to_int_load_offset);   // creation also verifies the object
   NativeJump*        jump          = nativeJump_at(method_holder->next_instruction_address());
   method_holder->set_data(0);
   jump->set_jump_destination((address)-1);
@@ -666,11 +666,16 @@ void CompiledStaticCall::verify() {
   // Verify stub
   address stub = find_stub();
   assert(stub != NULL, "no stub found for static call");
-  NativeMovConstReg* method_holder = nativeMovConstReg_at(stub);   // creation also verifies the object
+  NativeMovConstReg* method_holder = nativeMovConstReg_at(stub + comp_to_int_load_offset);   // creation also verifies the object
+
   NativeJump*        jump          = nativeJump_at(method_holder->next_instruction_address());
 
   // Verify state
   assert(is_clean() || is_call_to_compiled() || is_call_to_interpreted(), "sanity check");
 }
 
+#endif // !PRODUCT
+
+#ifndef COMPILER2
+const int CompiledStaticCall::comp_to_int_load_offset = 0;
 #endif

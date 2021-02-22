@@ -38,6 +38,10 @@
 # include "os_windows.inline.hpp"
 # include "thread_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
+# include "thread_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
 # include "thread_bsd.inline.hpp"

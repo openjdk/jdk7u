@@ -66,6 +66,10 @@ ifndef CC_INTERP
     FORCE_TIERED=1
   endif
 endif
+# C1 is not ported on ppc64, so we cannot build a tiered VM:
+ifeq ($(ARCH),ppc64)
+  FORCE_TIERED=0
+endif
 
 ifdef LP64
   ifeq ("$(filter $(LP64_ARCH),$(BUILDARCH))","")
@@ -208,7 +212,7 @@ TARGETS_ZERO      = $(addsuffix zero,$(TARGETS))
 TARGETS_SHARK     = $(addsuffix shark,$(TARGETS))
 
 BUILDTREE_MAKE    = $(GAMMADIR)/make/$(OSNAME)/makefiles/buildtree.make
-BUILDTREE_VARS    = GAMMADIR=$(GAMMADIR) OS_FAMILY=$(OSNAME) SRCARCH=$(SRCARCH) BUILDARCH=$(BUILDARCH) LIBARCH=$(LIBARCH)
+BUILDTREE_VARS    = GAMMADIR=$(GAMMADIR) OS_FAMILY=$(OSNAME) SRCARCH=$(SRCARCH) BUILDARCH=$(BUILDARCH) LIBARCH=$(LIBARCH) OPENJDK_TARGET_CPU_ENDIAN=$(OPENJDK_TARGET_CPU_ENDIAN)
 BUILDTREE_VARS   += HOTSPOT_RELEASE_VERSION=$(HOTSPOT_RELEASE_VERSION) HOTSPOT_BUILD_VERSION=$(HOTSPOT_BUILD_VERSION) JRE_RELEASE_VERSION=$(JRE_RELEASE_VERSION)
 BUILDTREE_VARS   += ENABLE_FULL_DEBUG_SYMBOLS=$(ENABLE_FULL_DEBUG_SYMBOLS) OBJCOPY=$(OBJCOPY) STRIP_POLICY=$(STRIP_POLICY) ZIP_DEBUGINFO_FILES=$(ZIP_DEBUGINFO_FILES) ZIPEXE=$(ZIPEXE)
 
@@ -288,42 +292,54 @@ platform_zero: $(GAMMADIR)/make/$(OSNAME)/platform_zero.in
 
 $(TARGETS_C2):  $(SUBDIRS_C2)
 	cd $(OSNAME)_$(BUILDARCH)_compiler2/$@ && $(MAKE) $(MFLAGS)
+ifeq ($(TEST_IN_BUILD),true)
 	cd $(OSNAME)_$(BUILDARCH)_compiler2/$@ && ./test_gamma
+endif
 ifdef INSTALL
 	cd $(OSNAME)_$(BUILDARCH)_compiler2/$@ && $(MAKE) $(MFLAGS) install
 endif
 
 $(TARGETS_TIERED):  $(SUBDIRS_TIERED)
 	cd $(OSNAME)_$(BUILDARCH)_tiered/$(patsubst %tiered,%,$@) && $(MAKE) $(MFLAGS)
+ifeq ($(TEST_IN_BUILD),true)
 	cd $(OSNAME)_$(BUILDARCH)_tiered/$(patsubst %tiered,%,$@) && ./test_gamma
+endif
 ifdef INSTALL
 	cd $(OSNAME)_$(BUILDARCH)_tiered/$(patsubst %tiered,%,$@) && $(MAKE) $(MFLAGS) install
 endif
 
 $(TARGETS_C1):  $(SUBDIRS_C1)
 	cd $(OSNAME)_$(BUILDARCH)_compiler1/$(patsubst %1,%,$@) && $(MAKE) $(MFLAGS)
+ifeq ($(TEST_IN_BUILD),true)
 	cd $(OSNAME)_$(BUILDARCH)_compiler1/$(patsubst %1,%,$@) && ./test_gamma
+endif
 ifdef INSTALL
 	cd $(OSNAME)_$(BUILDARCH)_compiler1/$(patsubst %1,%,$@) && $(MAKE) $(MFLAGS) install
 endif
 
 $(TARGETS_CORE):  $(SUBDIRS_CORE)
 	cd $(OSNAME)_$(BUILDARCH)_core/$(patsubst %core,%,$@) && $(MAKE) $(MFLAGS)
+ifeq ($(TEST_IN_BUILD),true)
 	cd $(OSNAME)_$(BUILDARCH)_core/$(patsubst %core,%,$@) && ./test_gamma
+endif
 ifdef INSTALL
 	cd $(OSNAME)_$(BUILDARCH)_core/$(patsubst %core,%,$@) && $(MAKE) $(MFLAGS) install
 endif
 
 $(TARGETS_ZERO):  $(SUBDIRS_ZERO)
 	cd $(OSNAME)_$(VARIANTARCH)_zero/$(patsubst %zero,%,$@) && $(MAKE) $(MFLAGS)
+ifeq ($(TEST_IN_BUILD),true)
 	cd $(OSNAME)_$(VARIANTARCH)_zero/$(patsubst %zero,%,$@) && ./test_gamma
+endif
 ifdef INSTALL
 	cd $(OSNAME)_$(VARIANTARCH)_zero/$(patsubst %zero,%,$@) && $(MAKE) $(MFLAGS) install
 endif
 
 $(TARGETS_SHARK):  $(SUBDIRS_SHARK)
 	cd $(OSNAME)_$(VARIANTARCH)_shark/$(patsubst %shark,%,$@) && $(MAKE) $(MFLAGS)
+ifeq ($(TEST_IN_BUILD),true)
 	cd $(OSNAME)_$(VARIANTARCH)_shark/$(patsubst %shark,%,$@) && ./test_gamma
+endif
 ifdef INSTALL
 	cd $(OSNAME)_$(VARIANTARCH)_shark/$(patsubst %shark,%,$@) && $(MAKE) $(MFLAGS) install
 endif

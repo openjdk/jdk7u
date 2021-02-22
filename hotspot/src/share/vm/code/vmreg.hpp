@@ -60,8 +60,11 @@
 #ifdef TARGET_ARCH_MODEL_arm
 # include "adfiles/adGlobals_arm.hpp"
 #endif
-#ifdef TARGET_ARCH_MODEL_ppc
-# include "adfiles/adGlobals_ppc.hpp"
+#ifdef TARGET_ARCH_MODEL_ppc_32
+# include "adfiles/adGlobals_ppc_32.hpp"
+#endif
+#ifdef TARGET_ARCH_MODEL_ppc_64
+# include "adfiles/adGlobals_ppc_64.hpp"
 #endif
 #endif
 
@@ -72,6 +75,14 @@
 // (in the VM).  Unwarped numbers represent stack indices, offsets from
 // the current stack pointer.  Warped numbers are required during compilation
 // when we do not yet know how big the frame will be.
+
+#ifdef AIX
+// BAD is defined in AIX system header sys/param.h.
+// It conflicts with the BAD enum further down.
+#ifdef BAD
+#undef BAD
+#endif
+#endif
 
 class VMRegImpl;
 typedef VMRegImpl* VMReg;

@@ -487,6 +487,11 @@ int Compile::ConstantTable::calculate_table_base_offset() const {
   return 0;  // absolute addressing, no offset
 }
 
+bool MachConstantBaseNode::requires_late_expand() const { return false; }
+void MachConstantBaseNode::lateExpand(GrowableArray <Node *> *nodes, PhaseRegAlloc *ra_) {
+  ShouldNotReachHere();
+}
+
 void MachConstantBaseNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const {
   // Empty encoding
 }
@@ -1258,6 +1263,10 @@ uint BoxLockNode::size(PhaseRegAlloc *ra_) const {
 
 //=============================================================================
 
+// Offset from start of compiled java to interpreter stub to the load
+// constant that loads the inline cache (IC) (0 on i486).
+const int CompiledStaticCall::comp_to_int_load_offset = 0;
+
 // emit call stub, compiled java to interpreter
 void emit_java_to_interp(CodeBuffer &cbuf ) {
   // Stub is fixed up when the corresponding call is converted from calling
@@ -1425,6 +1434,9 @@ const int Matcher::long_cmove_cost() { return 1; }
 
 // No CMOVF/CMOVD with SSE/SSE2
 const int Matcher::float_cmove_cost() { return (UseSSE>=1) ? ConditionalMoveLimit : 0; }
+
+// Does the CPU require late expand (see block.cpp for description of late expand)?
+const bool Matcher::require_late_expand = false;
 
 // Should the Matcher clone shifts on addressing modes, expecting them to
 // be subsumed into complex addressing expressions or compute them into
@@ -3798,7 +3810,7 @@ frame %{
   // automatically biased by the preserve_stack_slots field above.
   c_calling_convention %{
     // This is obviously always outgoing
-    (void) SharedRuntime::c_calling_convention(sig_bt, regs, length);
+    (void) SharedRuntime::c_calling_convention(sig_bt, regs, /*regs2=*/NULL, length);
   %}
 
   // Location of C & interpreter return values

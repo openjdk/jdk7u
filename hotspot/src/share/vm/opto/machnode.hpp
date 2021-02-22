@@ -31,6 +31,7 @@
 #include "opto/node.hpp"
 #include "opto/regmask.hpp"
 
+class BiasedLockingCounters;
 class BufferBlob;
 class CodeBuffer;
 class JVMState;
@@ -155,6 +156,14 @@ public:
   virtual void ext_format(PhaseRegAlloc *,const MachNode *node,int idx, outputStream *st) const=0;
 
   virtual void dump_spec(outputStream *st) const; // Print per-operand info
+
+  // Check whether o is a valid oper.
+  static bool notAnOper(const MachOper *o) {
+    if (o == NULL)                   return true;
+    if (((intptr_t)o & 1) != 0)      return true;
+    if (*(address*)o == badAddress)  return true;  // kill by Node::destruct
+    return false;
+  }
 #endif
 };
 
@@ -195,6 +204,7 @@ public:
 
   // First index in _in[] corresponding to operand, or -1 if there is none
   int  operand_index(uint operand) const;
+  int  operand_index(const MachOper *oper) const;
 
   // Register class input is expected in
   virtual const RegMask &in_RegMask(uint) const;
@@ -235,6 +245,9 @@ public:
 
   // Return number of relocatable values contained in this instruction
   virtual int   reloc() const { return 0; }
+
+  // Return number of words used for double constants in this instruction
+  virtual int   ins_num_consts() const { return 0; }
 
   // Hash and compare over operands.  Used to do GVN on machine Nodes.
   virtual uint  hash() const;
@@ -292,6 +305,15 @@ public:
   // Get the pipeline info
   static const Pipeline *pipeline_class();
   virtual const Pipeline *pipeline() const;
+
+  // Node is replaced by several nodes in late expand phase.
+  // Corresponding methods are generated for nodes if they specify
+  // lateExpand. See block.cpp for more documentation.
+  virtual bool requires_late_expand() const { return false; }
+
+  // Some nodes require that the MachTableBase node (toc) is added after matching.
+  // See compile_ppc.hpp.
+  virtual int ins_requires_toc() const { return 0; }
 
 #ifndef PRODUCT
   virtual const char *Name() const = 0; // Machine-specific name
@@ -356,6 +378,9 @@ public:
   virtual uint ideal_reg() const { return Op_RegP; }
   virtual uint oper_input_base() const { return 1; }
 
+  virtual bool requires_late_expand() const;
+  virtual void lateExpand(GrowableArray <Node *> *nodes, PhaseRegAlloc *ra_);
+
   virtual void emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const;
   virtual uint size(PhaseRegAlloc* ra_) const;
   virtual bool pinned() const { return UseRDPCForConstantTableBase; }
@@ -399,6 +424,9 @@ public:
 
   int  constant_offset();
   int  constant_offset() const { return ((MachConstantNode*) this)->constant_offset(); }
+  // Unchecked version to avoid assertions in debug output.
+  int  constant_offset_unchecked();
+  int  constant_offset_unchecked() const { return ((MachConstantNode*) this)->constant_offset_unchecked(); }
 };
 
 //------------------------------MachUEPNode-----------------------------------

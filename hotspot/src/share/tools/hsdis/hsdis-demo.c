@@ -62,7 +62,14 @@ int main(int ac, char** av) {
   if (!greeted)
     greet("world");
   printf("...And now for something completely different:\n");
-  disassemble((void*) &main, (void*) &end_of_file);
+  void *start = (void*) &main;
+  void *end = (void*) &end_of_file;
+#if defined(__ia64) || defined(__powerpc__)
+  /* On IA64 and PPC function pointers are pointers to function descriptors */
+  start = *((void**)start);
+  end = *((void**)end);
+#endif
+  disassemble(start, (end > start) ? end : start + 256);
   printf("Cheers!\n");
 }
 
