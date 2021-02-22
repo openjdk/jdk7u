@@ -245,7 +245,8 @@ public final class PropertyPermission extends BasicPermission {
             return mask;
         }
 
-        // Check against use of constants (used heavily within the JDK)
+        // Use object identity comparison against known-interned strings for
+        // performance benefit (these values are used heavily within the JDK).
         if (actions == SecurityConstants.PROPERTY_READ_ACTION) {
             return READ;
         } if (actions == SecurityConstants.PROPERTY_WRITE_ACTION) {
@@ -304,7 +305,7 @@ public final class PropertyPermission extends BasicPermission {
                 switch(a[i-matchlen]) {
                 case ',':
                     seencomma = true;
-                    /*FALLTHROUGH*/
+                    break;
                 case ' ': case '\r': case '\n':
                 case '\f': case '\t':
                     break;
@@ -441,7 +442,7 @@ implements Serializable
      * Key is property name; value is PropertyPermission.
      * Not serialized; see serialization section at end of class.
      */
-    private transient Map perms;
+    private transient Map<String, PropertyPermission> perms;
 
     /**
      * Boolean saying if "*" is in the collection.
@@ -457,7 +458,7 @@ implements Serializable
      */
 
     public PropertyPermissionCollection() {
-        perms = new HashMap(32);     // Capacity for default policy
+        perms = new HashMap<>(32);     // Capacity for default policy
         all_allowed = false;
     }
 
@@ -487,7 +488,7 @@ implements Serializable
         String propName = pp.getName();
 
         synchronized (this) {
-            PropertyPermission existing = (PropertyPermission) perms.get(propName);
+            PropertyPermission existing = perms.get(propName);
 
             if (existing != null) {
                 int oldMask = existing.getMask();
@@ -498,7 +499,7 @@ implements Serializable
                     perms.put(propName, new PropertyPermission(propName, actions));
                 }
             } else {
-                perms.put(propName, permission);
+                perms.put(propName, pp);
             }
         }
 
@@ -532,7 +533,7 @@ implements Serializable
         // short circuit if the "*" Permission was added
         if (all_allowed) {
             synchronized (this) {
-                x = (PropertyPermission) perms.get("*");
+                x = perms.get("*");
             }
             if (x != null) {
                 effective |= x.getMask();
@@ -549,7 +550,7 @@ implements Serializable
         //System.out.println("check "+name);
 
         synchronized (this) {
-            x = (PropertyPermission) perms.get(name);
+            x = perms.get(name);
         }
 
         if (x != null) {
@@ -569,7 +570,7 @@ implements Serializable
             name = name.substring(0, last+1) + "*";
             //System.out.println("check "+name);
             synchronized (this) {
-                x = (PropertyPermission) perms.get(name);
+                x = perms.get(name);
             }
 
             if (x != null) {
@@ -591,11 +592,15 @@ implements Serializable
      *
      * @return an enumeration of all the PropertyPermission objects.
      */
-
-    public Enumeration elements() {
+    @SuppressWarnings("unchecked")
+    public Enumeration<Permission> elements() {
         // Convert Iterator of Map values into an Enumeration
         synchronized (this) {
-            return Collections.enumeration(perms.values());
+            /**
+             * Casting to rawtype since Enumeration<PropertyPermission>
+             * cannot be directly cast to Enumeration<Permission>
+             */
+            return (Enumeration)Collections.enumeration(perms.values());
         }
     }
 
@@ -632,7 +637,8 @@ implements Serializable
         // Don't call out.defaultWriteObject()
 
         // Copy perms into a Hashtable
-        Hashtable permissions = new Hashtable(perms.size()*2);
+        Hashtable<String, Permission> permissions =
+            new Hashtable<>(perms.size()*2);
         synchronized (this) {
             permissions.putAll(perms);
         }
@@ -659,8 +665,10 @@ implements Serializable
         all_allowed = gfields.get("all_allowed", false);
 
         // Get permissions
-        Hashtable permissions = (Hashtable)gfields.get("permissions", null);
-        perms = new HashMap(permissions.size()*2);
+        @SuppressWarnings("unchecked")
+        Hashtable<String, PropertyPermission> permissions =
+            (Hashtable<String, PropertyPermission>)gfields.get("permissions", null);
+        perms = new HashMap<>(permissions.size()*2);
         perms.putAll(permissions);
     }
 }

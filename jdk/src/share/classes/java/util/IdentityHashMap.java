@@ -317,6 +317,7 @@ public class IdentityHashMap<K,V>
      *
      * @see #put(Object, Object)
      */
+    @SuppressWarnings("unchecked")
     public V get(Object key) {
         Object k = maskNull(key);
         Object[] tab = table;
@@ -522,7 +523,8 @@ public class IdentityHashMap<K,V>
             if (item == k) {
                 modCount++;
                 size--;
-                V oldValue = (V) tab[i + 1];
+                @SuppressWarnings("unchecked")
+                    V oldValue = (V) tab[i + 1];
                 tab[i + 1] = null;
                 tab[i] = null;
                 closeDeletion(i);
@@ -635,7 +637,7 @@ public class IdentityHashMap<K,V>
         if (o == this) {
             return true;
         } else if (o instanceof IdentityHashMap) {
-            IdentityHashMap m = (IdentityHashMap) o;
+            IdentityHashMap<?,?> m = (IdentityHashMap<?,?>) o;
             if (m.size() != size)
                 return false;
 
@@ -647,7 +649,7 @@ public class IdentityHashMap<K,V>
             }
             return true;
         } else if (o instanceof Map) {
-            Map m = (Map)o;
+            Map<?,?> m = (Map<?,?>)o;
             return entrySet().equals(m.entrySet());
         } else {
             return false;  // o is not a Map
@@ -695,7 +697,7 @@ public class IdentityHashMap<K,V>
      */
     public Object clone() {
         try {
-            IdentityHashMap<K,V> m = (IdentityHashMap<K,V>) super.clone();
+            IdentityHashMap<?,?> m = (IdentityHashMap<?,?>) super.clone();
             m.entrySet = null;
             m.table = table.clone();
             return m;
@@ -765,7 +767,7 @@ public class IdentityHashMap<K,V>
             int len = tab.length;
 
             int d = deletedSlot;
-            K key = (K) tab[d];
+            Object key = tab[d];
             tab[d] = null;        // vacate the slot
             tab[d + 1] = null;
 
@@ -815,12 +817,14 @@ public class IdentityHashMap<K,V>
     }
 
     private class KeyIterator extends IdentityHashMapIterator<K> {
+        @SuppressWarnings("unchecked")
         public K next() {
             return (K) unmaskNull(traversalTable[nextIndex()]);
         }
     }
 
     private class ValueIterator extends IdentityHashMapIterator<V> {
+        @SuppressWarnings("unchecked")
         public V next() {
             return (V) traversalTable[nextIndex() + 1];
         }
@@ -851,16 +855,19 @@ public class IdentityHashMap<K,V>
                 this.index = index;
             }
 
+            @SuppressWarnings("unchecked")
             public K getKey() {
                 checkIndexForEntryUse();
                 return (K) unmaskNull(traversalTable[index]);
             }
 
+            @SuppressWarnings("unchecked")
             public V getValue() {
                 checkIndexForEntryUse();
                 return (V) traversalTable[index+1];
             }
 
+            @SuppressWarnings("unchecked")
             public V setValue(V value) {
                 checkIndexForEntryUse();
                 V oldValue = (V) traversalTable[index+1];
@@ -877,7 +884,7 @@ public class IdentityHashMap<K,V>
 
                 if (!(o instanceof Map.Entry))
                     return false;
-                Map.Entry e = (Map.Entry)o;
+                Map.Entry<?,?> e = (Map.Entry<?,?>)o;
                 return (e.getKey() == unmaskNull(traversalTable[index]) &&
                        e.getValue() == traversalTable[index+1]);
             }
@@ -1106,13 +1113,13 @@ public class IdentityHashMap<K,V>
         public boolean contains(Object o) {
             if (!(o instanceof Map.Entry))
                 return false;
-            Map.Entry entry = (Map.Entry)o;
+            Map.Entry<?,?> entry = (Map.Entry<?,?>)o;
             return containsMapping(entry.getKey(), entry.getValue());
         }
         public boolean remove(Object o) {
             if (!(o instanceof Map.Entry))
                 return false;
-            Map.Entry entry = (Map.Entry)o;
+            Map.Entry<?,?> entry = (Map.Entry<?,?>)o;
             return removeMapping(entry.getKey(), entry.getValue());
         }
         public int size() {
@@ -1213,8 +1220,10 @@ public class IdentityHashMap<K,V>
 
         // Read the keys and values, and put the mappings in the table
         for (int i=0; i<size; i++) {
-            K key = (K) s.readObject();
-            V value = (V) s.readObject();
+            @SuppressWarnings("unchecked")
+                K key = (K) s.readObject();
+            @SuppressWarnings("unchecked")
+                V value = (V) s.readObject();
             putForCreate(key, value);
         }
     }
@@ -1226,7 +1235,7 @@ public class IdentityHashMap<K,V>
     private void putForCreate(K key, V value)
         throws java.io.StreamCorruptedException
     {
-        K k = (K)maskNull(key);
+        Object k = maskNull(key);
         Object[] tab = table;
         int len = tab.length;
         int i = hash(k, len);

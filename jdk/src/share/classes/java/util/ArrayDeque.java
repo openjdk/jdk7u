@@ -146,6 +146,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *
      * @param numElements  the number of elements to hold
      */
+    @SuppressWarnings("unchecked")
     private void allocateElements(int numElements) {
         elements = new Object[calculateSize(numElements)];
     }
@@ -162,10 +163,11 @@ public class ArrayDeque<E> extends AbstractCollection<E>
         int newCapacity = n << 1;
         if (newCapacity < 0)
             throw new IllegalStateException("Sorry, deque too big");
-        Object[] a = new Object[newCapacity];
+        @SuppressWarnings("unchecked")
+        E[] a = (E[]) new Object[newCapacity];
         System.arraycopy(elements, p, a, 0, r);
         System.arraycopy(elements, 0, a, r, p);
-        elements = (E[])a;
+        elements = a;
         head = 0;
         tail = n;
     }
@@ -192,6 +194,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      * Constructs an empty array deque with an initial capacity
      * sufficient to hold 16 elements.
      */
+    @SuppressWarnings("unchecked")
     public ArrayDeque() {
         elements = new Object[16];
     }
@@ -812,6 +815,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
      *         this deque
      * @throws NullPointerException if the specified array is null
      */
+    @SuppressWarnings("unchecked")
     public <T> T[] toArray(T[] a) {
         int size = size();
         if (a.length < size)
@@ -833,7 +837,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
     public ArrayDeque<E> clone() {
         try {
             @SuppressWarnings("unchecked")
-            ArrayDeque<E> result = (ArrayDeque<E>) super.clone();
+                ArrayDeque<E> result = (ArrayDeque<E>) super.clone();
             result.elements = Arrays.copyOf(elements, elements.length);
             return result;
         } catch (CloneNotSupportedException e) {
@@ -868,6 +872,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
     /**
      * Reconstitutes this deque from a stream (that is, deserializes it).
      */
+    @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream s)
             throws IOException, ClassNotFoundException {
         s.defaultReadObject();

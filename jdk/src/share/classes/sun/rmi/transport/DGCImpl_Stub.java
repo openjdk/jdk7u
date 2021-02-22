@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,15 @@
 
 package sun.rmi.transport;
 
-import java.io.ObjectInputStream;
+import sun.rmi.transport.tcp.TCPConnection;
+
+import java.io.IOException;
 import java.rmi.dgc.Lease;
 import java.rmi.dgc.VMID;
 import java.rmi.server.UID;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import java.util.ArrayList;
 
 import sun.misc.ObjectInputFilter;
-import sun.rmi.server.UnicastRef;
-import sun.rmi.transport.tcp.TCPConnection;
 
 /**
  * Stubs to invoke DGC remote methods.
@@ -57,6 +56,14 @@ public final class DGCImpl_Stub
     /** Registry maximum array size in remote invocations. **/
     private static int DGCCLIENT_MAX_ARRAY_SIZE = 10000;
 
+    /** Lease filter for passing to input checks **/
+    private static final class LeaseFilter implements ObjectInputFilter {
+        @Override
+        public Status checkInput(FilterInfo info) {
+            return DGCImpl_Stub.leaseFilter(info);
+        }
+    }
+
     // constructors
     public DGCImpl_Stub() {
         super();
@@ -72,7 +79,9 @@ public final class DGCImpl_Stub
     public void clean(java.rmi.server.ObjID[] $param_arrayOf_ObjID_1, long $param_long_2, java.rmi.dgc.VMID $param_VMID_3, boolean $param_boolean_4)
             throws java.rmi.RemoteException {
         try {
-            java.rmi.server.RemoteCall call = ref.newCall((java.rmi.server.RemoteObject) this, operations, 0, interfaceHash);
+            StreamRemoteCall call = (StreamRemoteCall)ref.newCall((java.rmi.server.RemoteObject) this,
+                    operations, 0, interfaceHash);
+            call.setObjectInputFilter(new LeaseFilter());
             try {
                 java.io.ObjectOutput out = call.getOutputStream();
                 out.writeObject($param_arrayOf_ObjID_1);
@@ -97,7 +106,10 @@ public final class DGCImpl_Stub
     public java.rmi.dgc.Lease dirty(java.rmi.server.ObjID[] $param_arrayOf_ObjID_1, long $param_long_2, java.rmi.dgc.Lease $param_Lease_3)
             throws java.rmi.RemoteException {
         try {
-            java.rmi.server.RemoteCall call = ref.newCall((java.rmi.server.RemoteObject) this, operations, 1, interfaceHash);
+            StreamRemoteCall call =
+                    (StreamRemoteCall)ref.newCall((java.rmi.server.RemoteObject) this,
+                            operations, 1, interfaceHash);
+            call.setObjectInputFilter(new LeaseFilter());
             try {
                 java.io.ObjectOutput out = call.getOutputStream();
                 out.writeObject($param_arrayOf_ObjID_1);
@@ -108,35 +120,17 @@ public final class DGCImpl_Stub
             }
             ref.invoke(call);
             java.rmi.dgc.Lease $result;
-            Connection connection = ((StreamRemoteCall) call).getConnection();
+            Connection connection = call.getConnection();
             try {
                 java.io.ObjectInput in = call.getInputStream();
 
-                if (in instanceof ObjectInputStream) {
-                    /**
-                     * Set a filter on the stream for the return value.
-                     */
-                    final ObjectInputStream ois = (ObjectInputStream) in;
-                    AccessController.doPrivileged(new PrivilegedAction<Void>() {
-                        @Override
-                        public Void run() {
-                            ObjectInputFilter.Config.setObjectInputFilter(ois,
-                                new ObjectInputFilter() {
-                                    @Override
-                                    public Status checkInput(FilterInfo info) {
-                                        return DGCImpl_Stub.leaseFilter(info);
-                                    }
-                                });
-                            return null;
-                        }
-                    });
-                }
                 $result = (java.rmi.dgc.Lease) in.readObject();
-            } catch (java.io.IOException | java.lang.ClassNotFoundException e) {
+            } catch (ClassCastException | IOException | ClassNotFoundException e) {
                 if (connection instanceof TCPConnection) {
                     // Modified to prevent re-use of the connection after an exception
                     ((TCPConnection) connection).getChannel().free(connection, false);
                 }
+                call.discardPendingRefs();
                 throw new java.rmi.UnmarshalException("error unmarshalling return", e);
             } finally {
                 ref.done(call);
@@ -155,6 +149,10 @@ public final class DGCImpl_Stub
      * ObjectInputFilter to filter DGCClient return value (a Lease).
      * The list of acceptable classes is very short and explicit.
      * The depth and array sizes are limited.
+     * <p>
+     * The filter must accept normal and exception returns.
+     * A DGC server may throw exceptions that may have a cause
+     * and suppressed exceptions.
      *
      * @param filterInfo access to class, arrayLength, etc.
      * @return  {@link ObjectInputFilter.Status#ALLOWED} if allowed,
@@ -181,7 +179,16 @@ public final class DGCImpl_Stub
             }
             return (clazz == UID.class ||
                     clazz == VMID.class ||
-                    clazz == Lease.class)
+                    clazz == Lease.class ||
+                    (Throwable.class.isAssignableFrom(clazz) &&
+                            clazz.getClassLoader() ==
+                            Object.class.getClassLoader()) ||
+                    clazz == StackTraceElement.class ||
+                    clazz == ArrayList.class ||     // for suppressed exceptions, if any
+                    clazz == Object.class ||
+                    clazz.getName().equals("java.util.Collections$UnmodifiableList") ||
+                    clazz.getName().equals("java.util.Collections$UnmodifiableCollection") ||
+                    clazz.getName().equals("java.util.Collections$UnmodifiableRandomAccessList"))
                     ? ObjectInputFilter.Status.ALLOWED
                     : ObjectInputFilter.Status.REJECTED;
         }

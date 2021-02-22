@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,16 @@
 
 package java.io;
 
+import java.net.URI;
+import java.nio.file.InvalidPathException;
 import java.security.*;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Vector;
 import java.util.Collections;
-import java.io.ObjectStreamField;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
-import java.io.IOException;
+
+import sun.nio.fs.DefaultFileSystemProvider;
 import sun.security.util.SecurityConstants;
 
 /**
@@ -156,6 +156,8 @@ public final class FilePermission extends Permission implements Serializable {
 
     private transient String cpath;
 
+    private transient boolean invalid;  // whether input path is invalid
+
     // static Strings used by init(int mask)
     private static final char RECURSIVE_CHAR = '-';
     private static final char WILD_CHAR = '*';
@@ -176,6 +178,14 @@ public final class FilePermission extends Permission implements Serializable {
 */
 
     private static final long serialVersionUID = 7930732926638008763L;
+
+    /**
+     * Always use the internal default file system, in case it was modified
+     * with java.nio.file.spi.DefaultFileSystemProvider.
+     */
+    private static final java.nio.file.FileSystem builtInFS =
+            DefaultFileSystemProvider.create()
+                    .getFileSystem(URI.create("file:///"));
 
     /**
      * initialize a FilePermission object. Common to all constructors.
@@ -203,6 +213,20 @@ public final class FilePermission extends Permission implements Serializable {
             recursive = true;
             cpath = "";
             return;
+        }
+
+        // Validate path by platform's default file system
+        // Note: this check does not apply during FilePermission
+        // class initialization.
+        if (builtInFS != null) {
+            try {
+                String name = cpath.endsWith("*") ?
+                        cpath.substring(0, cpath.length() - 1) + "-" : cpath;
+                builtInFS.getPath(new File(name).getPath());
+            } catch (InvalidPathException ipe) {
+                invalid = true;
+                return;
+            }
         }
 
         // store only the canonical cpath if possible
@@ -345,6 +369,12 @@ public final class FilePermission extends Permission implements Serializable {
      * @return the effective mask
      */
     boolean impliesIgnoreMask(FilePermission that) {
+        if (this == that) {
+            return true;
+        }
+        if (this.invalid || that.invalid) {
+            return false;
+        }
         if (this.directory) {
             if (this.recursive) {
                 // make sure that.path is longer then path so
@@ -405,6 +435,9 @@ public final class FilePermission extends Permission implements Serializable {
 
         FilePermission that = (FilePermission) obj;
 
+        if (this.invalid || that.invalid) {
+            return false;
+        }
         return (this.mask == that.mask) &&
             this.cpath.equals(that.cpath) &&
             (this.directory == that.directory) &&
@@ -424,7 +457,7 @@ public final class FilePermission extends Permission implements Serializable {
     /**
      * Converts an actions String to an actions mask.
      *
-     * @param action the action string.
+     * @param actions the action string.
      * @return the actions mask.
      */
     private static int getMask(String actions) {
@@ -435,7 +468,9 @@ public final class FilePermission extends Permission implements Serializable {
         if (actions == null) {
             return mask;
         }
-        // Check against use of constants (used heavily within the JDK)
+
+        // Use object identity comparison against known-interned strings for
+        // performance benefit (these values are used heavily within the JDK).
         if (actions == SecurityConstants.FILE_READ_ACTION) {
             return READ;
         } else if (actions == SecurityConstants.FILE_WRITE_ACTION) {
@@ -531,7 +566,7 @@ public final class FilePermission extends Permission implements Serializable {
                 switch(a[i-matchlen]) {
                 case ',':
                     seencomma = true;
-                    /*FALLTHROUGH*/
+                    break;
                 case ' ': case '\r': case '\n':
                 case '\f': case '\t':
                     break;
@@ -798,7 +833,7 @@ implements Serializable {
      * @return an enumeration of all the FilePermission objects.
      */
 
-    public Enumeration elements() {
+    public Enumeration<Permission> elements() {
         // Convert Iterator into Enumeration
         synchronized (this) {
             return Collections.enumeration(perms);
@@ -843,7 +878,6 @@ implements Serializable {
     /*
      * Reads in a Vector of FilePermissions and saves them in the perms field.
      */
-    @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream in) throws IOException,
     ClassNotFoundException {
         // Don't call defaultReadObject()
@@ -852,6 +886,7 @@ implements Serializable {
         ObjectInputStream.GetField gfields = in.readFields();
 
         // Get the one we want
+        @SuppressWarnings("unchecked")
         Vector<Permission> permissions = (Vector<Permission>)gfields.get("permissions", null);
         perms = new ArrayList<>(permissions.size());
         for (Permission perm : permissions) {
