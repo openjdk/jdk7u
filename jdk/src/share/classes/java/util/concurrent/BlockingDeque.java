@@ -50,7 +50,6 @@ import java.util.*;
  * and the fourth blocks for only a given maximum time limit before giving
  * up.  These methods are summarized in the following table:
  *
- * <p>
  * <table BORDER CELLPADDING=3 CELLSPACING=1>
  *  <tr>
  *    <td ALIGN=CENTER COLSPAN = 5> <b>First Element (Head)</b></td>
@@ -125,7 +124,6 @@ import java.util.*;
  * <tt>BlockingQueue</tt> interface are precisely equivalent to
  * <tt>BlockingDeque</tt> methods as indicated in the following table:
  *
- * <p>
  * <table BORDER CELLPADDING=3 CELLSPACING=1>
  *  <tr>
  *    <td ALIGN=CENTER> <b><tt>BlockingQueue</tt> Method</b></td>

@@ -58,7 +58,7 @@ import sun.management.ManagementFactoryHelper;
  * one or more <i>platform MXBeans</i> representing
  * the management interface of a component of the Java virtual
  * machine.
- * <p>
+ *
  * <h4><a name="MXBean">Platform MXBeans</a></h4>
  * <p>
  * A platform MXBean is a <i>managed bean</i> that

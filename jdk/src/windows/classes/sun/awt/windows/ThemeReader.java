@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,7 @@ public class ThemeReader {
     private static final Lock readLock = readWriteLock.readLock();
     private static final Lock writeLock = readWriteLock.writeLock();
     private static volatile boolean valid = false;
+    private static volatile boolean isThemed;
 
     static volatile boolean xpStyleEnabled;
 
@@ -66,7 +67,17 @@ public class ThemeReader {
         valid = false;
     }
 
-    public native static boolean isThemed();
+    private static native boolean initThemes();
+
+    public static boolean isThemed() {
+        writeLock.lock();
+        try {
+            isThemed = initThemes();
+            return isThemed;
+        } finally {
+            writeLock.unlock();
+        }
+    }
 
     public static boolean isXPStyleEnabled() {
         return xpStyleEnabled;
@@ -94,6 +105,9 @@ public class ThemeReader {
     // returns theme value
     // this method should be invoked with readLock locked
     private static Long getTheme(String widget) {
+        if (!isThemed) {
+            throw new IllegalStateException("Themes are not loaded");
+        }
         if (!valid) {
             readLock.unlock();
             writeLock.lock();

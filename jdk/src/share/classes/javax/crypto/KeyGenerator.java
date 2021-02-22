@@ -67,7 +67,6 @@ import sun.security.util.Debug;
  * algorithm-independent <code>init</code> methods, it is up to the
  * provider what to do about the algorithm-specific parameters (if any) to be
  * associated with each of the keys.
- * <p>
  *
  * <li><b>Algorithm-Specific Initialization</b>
  * <p>For situations where a set of algorithm-specific parameters already
