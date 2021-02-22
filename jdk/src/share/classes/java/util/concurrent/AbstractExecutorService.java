@@ -76,6 +76,7 @@ public abstract class AbstractExecutorService implements ExecutorService {
      *
      * @param runnable the runnable task being wrapped
      * @param value the default value for the returned future
+     * @param <T> the type of the given value
      * @return a <tt>RunnableFuture</tt> which when run will run the
      * underlying runnable and which, as a <tt>Future</tt>, will yield
      * the given value as its result and provide for cancellation of
@@ -90,6 +91,7 @@ public abstract class AbstractExecutorService implements ExecutorService {
      * Returns a <tt>RunnableFuture</tt> for the given callable task.
      *
      * @param callable the callable task being wrapped
+     * @param <T> the type of the callable's result
      * @return a <tt>RunnableFuture</tt> which when run will call the
      * underlying callable and which, as a <tt>Future</tt>, will yield
      * the callable's result as its result and provide for

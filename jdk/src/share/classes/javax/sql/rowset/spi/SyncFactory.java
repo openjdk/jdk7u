@@ -76,7 +76,7 @@ import sun.reflect.misc.ReflectUtil;
  *       <code>WebRowSet</code> objects
  * </UL>
  * Note that the JDBC RowSet Implementations include the <code>SyncProvider</code>
- * implemtations <code>RIOptimisticProvider</code> and <code>RIXmlProvider</code>,
+ * implementations <code>RIOptimisticProvider</code> and <code>RIXmlProvider</code>,
  * which satisfy this requirement.
  * <P>
  * The <code>SyncFactory</code> class provides accessor methods to assist
@@ -690,8 +690,6 @@ public class SyncFactory {
      * required
      * @throws java.lang.SecurityException if a security manager exists and its
      *   {@code checkPermission} method denies calling {@code setLogger}
-     * @throws java.util.logging.LoggingPermission if a security manager exists and its
-     *   {@code checkPermission} method denies calling {@code setLevel}
      * @throws NullPointerException if the logger is null
      * @see SecurityManager#checkPermission
      * @see LoggingPermission

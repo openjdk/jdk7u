@@ -78,6 +78,7 @@ public class BeanContextChildSupport implements BeanContextChild, BeanContextSer
      * construct a BeanContextChildSupport where the JavaBean component
      * itself implements BeanContextChild, and encapsulates this, delegating
      * that interface to this implementation
+     * @param bcc the underlying bean context child
      */
 
     public BeanContextChildSupport(BeanContextChild bcc) {
@@ -94,7 +95,7 @@ public class BeanContextChildSupport implements BeanContextChild, BeanContextSer
      * this <code>BeanContextChildSupport</code>.
      * @param bc the new value to be assigned to the <code>BeanContext</code>
      * property
-     * @throws <code>PropertyVetoException</code> if the change is rejected
+     * @throws PropertyVetoException if the change is rejected
      */
     public synchronized void setBeanContext(BeanContext bc) throws PropertyVetoException {
         if (bc == beanContext) return;
@@ -301,7 +302,7 @@ public class BeanContextChildSupport implements BeanContextChild, BeanContextSer
 
     /**
      * This method may be overridden by subclasses to provide their own
-     * initialization behaviors. When invoked any resources requried by the
+     * initialization behaviors. When invoked any resources required by the
      * BeanContextChild should be obtained from the current BeanContext.
      */
 
@@ -316,7 +317,7 @@ public class BeanContextChildSupport implements BeanContextChild, BeanContextSer
     private void writeObject(ObjectOutputStream oos) throws IOException {
 
         /*
-         * dont serialize if we are delegated and the delegator isnt also
+         * don't serialize if we are delegated and the delegator is not also
          * serializable.
          */
 
@@ -361,6 +362,9 @@ public class BeanContextChildSupport implements BeanContextChild, BeanContextSer
     */
     protected VetoableChangeSupport vcSupport;
 
+    /**
+     * The bean context.
+     */
     protected transient BeanContext           beanContext;
 
    /**

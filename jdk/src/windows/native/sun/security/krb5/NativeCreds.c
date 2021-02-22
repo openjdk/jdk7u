@@ -735,7 +735,7 @@ ConstructTicketRequest(UNICODE_STRING DomainName,
         return GetLastError();
 
     //
-    // Concatenate the target prefix with the previous reponse's
+    // Concatenate the target prefix with the previous response's
     // target domain.
     //
 

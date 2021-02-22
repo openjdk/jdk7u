@@ -145,6 +145,10 @@ public abstract class MenuComponent implements java.io.Serializable {
                 public Font getFont_NoClientCode(MenuComponent menuComp) {
                     return menuComp.getFont_NoClientCode();
                 }
+                @SuppressWarnings("unchecked")
+                public <T extends MenuComponentPeer> T getPeer(MenuComponent menuComp) {
+                    return (T) menuComp.peer;
+                }
             });
     }
 
@@ -402,7 +406,7 @@ public abstract class MenuComponent implements java.io.Serializable {
 
     /**
      * Gets this component's locking object (the object that owns the thread
-     * sychronization monitor) for AWT component-tree and layout
+     * synchronization monitor) for AWT component-tree and layout
      * operations.
      * @return this component's locking object
      */
@@ -686,7 +690,7 @@ public abstract class MenuComponent implements java.io.Serializable {
         /**
          * Gets the <code>Cursor</code> of this object.
          *
-         * @return the <code>Curso</code>, if supported, of the object;
+         * @return the <code>Cursor</code>, if supported, of the object;
          *     otherwise, <code>null</code>
          */
         public Cursor getCursor() {

@@ -32,11 +32,13 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Vector;
 import javax.naming.*;
 import javax.naming.directory.*;
+import javax.naming.ldap.Control;
 import javax.naming.spi.*;
 
 import com.sun.jndi.toolkit.ctx.Continuation;
 
-final class LdapBindingEnumeration extends LdapNamingEnumeration {
+final class LdapBindingEnumeration
+        extends AbstractLdapNamingEnumeration<Binding> {
 
     private final AccessControlContext acc = AccessController.getContext();
 
@@ -46,8 +48,9 @@ final class LdapBindingEnumeration extends LdapNamingEnumeration {
         super(homeCtx, answer, remain, cont);
     }
 
-    protected NameClassPair
-      createItem(String dn, final Attributes attrs, Vector respCtls)
+    @Override
+    protected Binding
+      createItem(String dn, final Attributes attrs, Vector<Control> respCtls)
         throws NamingException {
 
         Object obj = null;
@@ -100,9 +103,10 @@ final class LdapBindingEnumeration extends LdapNamingEnumeration {
         return binding;
     }
 
-    protected LdapNamingEnumeration
-    getReferredResults(LdapReferralContext refCtx) throws NamingException{
+    @Override
+    protected LdapBindingEnumeration getReferredResults(
+            LdapReferralContext refCtx) throws NamingException{
         // repeat the original operation at the new context
-        return (LdapNamingEnumeration) refCtx.listBindings(listArg);
+        return (LdapBindingEnumeration)refCtx.listBindings(listArg);
     }
 }

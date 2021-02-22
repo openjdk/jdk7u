@@ -57,7 +57,7 @@ import java.lang.ref.WeakReference;
  * choose a file.
  * For information about using <code>JFileChooser</code>, see
  * <a
- href="http://java.sun.com/docs/books/tutorial/uiswing/components/filechooser.html">How to Use File Choosers</a>,
+ href="https://docs.oracle.com/javase/tutorial/uiswing/components/filechooser.html">How to Use File Choosers</a>,
  * a section in <em>The Java Tutorial</em>.
  *
  * <p>
@@ -134,7 +134,7 @@ public class JFileChooser extends JComponent implements Accessible {
     public static final int APPROVE_OPTION = 0;
 
     /**
-     * Return value if an error occured.
+     * Return value if an error occurred.
      */
     public static final int ERROR_OPTION = -1;
 

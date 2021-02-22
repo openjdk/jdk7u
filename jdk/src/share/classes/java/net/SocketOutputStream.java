@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,8 +66,8 @@ class SocketOutputStream extends FileOutputStream
      * Returns the unique {@link java.nio.channels.FileChannel FileChannel}
      * object associated with this file output stream. </p>
      *
-     * The <code>getChannel</code> method of <code>SocketOutputStream</code>
-     * returns <code>null</code> since it is a socket based stream.</p>
+     * The {@code getChannel} method of {@code SocketOutputStream}
+     * returns {@code null} since it is a socket based stream.</p>
      *
      * @return  the file channel associated with this file output stream
      *
@@ -99,11 +99,13 @@ class SocketOutputStream extends FileOutputStream
      */
     private void socketWrite(byte b[], int off, int len) throws IOException {
 
-        if (len <= 0 || off < 0 || off + len > b.length) {
+
+        if (len <= 0 || off < 0 || len > b.length - off) {
             if (len == 0) {
                 return;
             }
-            throw new ArrayIndexOutOfBoundsException();
+            throw new ArrayIndexOutOfBoundsException("len == " + len
+                    + " off == " + off + " buffer length == " + b.length);
         }
 
         Object traceContext = IoTrace.socketWriteBegin();

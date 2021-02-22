@@ -44,6 +44,7 @@ import javax.security.auth.Subject;
 import sun.security.action.GetPropertyAction;
 import sun.security.util.KeyUtil;
 import sun.security.util.LegacyAlgorithmConstraints;
+import sun.security.util.Parsing;
 import sun.security.ssl.HandshakeMessage.*;
 import sun.security.ssl.CipherSuite.*;
 import sun.security.ssl.SignatureAndHashAlgorithm.*;
@@ -93,7 +94,8 @@ final class ServerHandshaker extends Handshaker {
     // we remember it for the RSA premaster secret version check
     private ProtocolVersion clientRequestedVersion;
 
-    private SupportedEllipticCurvesExtension supportedCurves;
+    // client supported elliptic curves
+    private SupportedEllipticCurvesExtension requestedCurves;
 
     // the preferable signature algorithm used by ServerKeyExchange message
     SignatureAndHashAlgorithm preferableSignatureAlgorithm;
@@ -135,7 +137,7 @@ final class ServerHandshaker extends Handshaker {
             useSmartEphemeralDHKeys = false;
 
             try {
-                customizedDHKeySize = parseUnsignedInt(property);
+                customizedDHKeySize = Parsing.parseUnsignedInt(property);
                 if (customizedDHKeySize < 1024 || customizedDHKeySize > 2048) {
                     throw new IllegalArgumentException(
                         "Customized DH key size should be positive integer " +
@@ -632,7 +634,7 @@ final class ServerHandshaker extends Handshaker {
                 throw new SSLException("Client did not resume a session");
             }
 
-            supportedCurves = (SupportedEllipticCurvesExtension)
+            requestedCurves = (SupportedEllipticCurvesExtension)
                         mesg.extensions.get(ExtensionType.EXT_ELLIPTIC_CURVES);
 
             // We only need to handle the "signature_algorithm" extension
@@ -956,11 +958,18 @@ final class ServerHandshaker extends Handshaker {
             if (trySetCipherSuite(suite) == false) {
                 continue;
             }
+
+            if (debug != null && Debug.isOn("handshake")) {
+                System.out.println("Standard ciphersuite chosen: " + suite);
+            }
             return;
         }
 
         for (CipherSuite suite : legacySuites) {
             if (trySetCipherSuite(suite)) {
+                if (debug != null && Debug.isOn("handshake")) {
+                    System.out.println("Legacy ciphersuite chosen: " + suite);
+                }
                 return;
             }
         }
@@ -1344,26 +1353,15 @@ final class ServerHandshaker extends Handshaker {
     // If we cannot continue because we do not support any of the curves that
     // the client requested, return false. Otherwise (all is well), return true.
     private boolean setupEphemeralECDHKeys() {
-        int index = -1;
-        if (supportedCurves != null) {
-            // if the client sent the supported curves extension, pick the
-            // first one that we support;
-            for (int curveId : supportedCurves.curveIds()) {
-                if (SupportedEllipticCurvesExtension.isSupported(curveId)) {
-                    index = curveId;
-                    break;
-                }
-            }
-            if (index < 0) {
-                // no match found, cannot use this ciphersuite
-                return false;
-            }
-        } else {
-            // pick our preference
-            index = SupportedEllipticCurvesExtension.DEFAULT.curveIds()[0];
+        int index = (requestedCurves != null) ?
+                requestedCurves.getPreferredCurve(algorithmConstraints) :
+                SupportedEllipticCurvesExtension.getActiveCurves(algorithmConstraints);
+        if (index < 0) {
+            // no match found, cannot use this ciphersuite
+            return false;
         }
-        String oid = SupportedEllipticCurvesExtension.getCurveOid(index);
-        ecdh = new ECDHCrypt(oid, sslContext.getSecureRandom());
+
+        ecdh = new ECDHCrypt(index, sslContext.getSecureRandom());
         return true;
     }
 
@@ -1412,11 +1410,9 @@ final class ServerHandshaker extends Handshaker {
                 return false;
             }
             ECParameterSpec params = ((ECPublicKey)publicKey).getParams();
-            int index = SupportedEllipticCurvesExtension.getCurveIndex(params);
-            if (SupportedEllipticCurvesExtension.isSupported(index) == false) {
-                return false;
-            }
-            if ((supportedCurves != null) && !supportedCurves.contains(index)) {
+            int id = SupportedEllipticCurvesExtension.getCurveIndex(params);
+            if ((id <= 0) || !SupportedEllipticCurvesExtension.isSupported(id) ||
+                ((requestedCurves != null) && !requestedCurves.contains(id))) {
                 return false;
             }
         }
@@ -1850,97 +1846,4 @@ final class ServerHandshaker extends Handshaker {
         session.setPeerCertificates(peerCerts);
     }
 
-    /**
-     * Parses the string argument as an unsigned integer in the radix
-     * specified by the second argument.  An unsigned integer maps the
-     * values usually associated with negative numbers to positive
-     * numbers larger than {@code MAX_VALUE}.
-     *
-     * The characters in the string must all be digits of the
-     * specified radix (as determined by whether {@link
-     * java.lang.Character#digit(char, int)} returns a nonnegative
-     * value), except that the first character may be an ASCII plus
-     * sign {@code '+'} ({@code '\u005Cu002B'}). The resulting
-     * integer value is returned.
-     *
-     * <p>An exception of type {@code NumberFormatException} is
-     * thrown if any of the following situations occurs:
-     * <ul>
-     * <li>The first argument is {@code null} or is a string of
-     * length zero.
-     *
-     * <li>The radix is either smaller than
-     * {@link java.lang.Character#MIN_RADIX} or
-     * larger than {@link java.lang.Character#MAX_RADIX}.
-     *
-     * <li>Any character of the string is not a digit of the specified
-     * radix, except that the first character may be a plus sign
-     * {@code '+'} ({@code '\u005Cu002B'}) provided that the
-     * string is longer than length 1.
-     *
-     * <li>The value represented by the string is larger than the
-     * largest unsigned {@code int}, 2<sup>32</sup>-1.
-     *
-     * </ul>
-     *
-     *
-     * @param      s   the {@code String} containing the unsigned integer
-     *                  representation to be parsed
-     * @param      radix   the radix to be used while parsing {@code s}.
-     * @return     the integer represented by the string argument in the
-     *             specified radix.
-     * @throws     NumberFormatException if the {@code String}
-     *             does not contain a parsable {@code int}.
-     */
-    private static int parseUnsignedInt(String s, int radix)
-                throws NumberFormatException {
-        if (s == null)  {
-            throw new NumberFormatException("null");
-        }
-
-        int len = s.length();
-        if (len > 0) {
-            char firstChar = s.charAt(0);
-            if (firstChar == '-') {
-                throw new
-                    NumberFormatException(String.format("Illegal leading minus sign " +
-                                                       "on unsigned string %s.", s));
-            } else {
-                if (len <= 5 || // Integer.MAX_VALUE in Character.MAX_RADIX is 6 digits
-                    (radix == 10 && len <= 9) ) { // Integer.MAX_VALUE in base 10 is 10 digits
-                    return Integer.parseInt(s, radix);
-                } else {
-                    long ell = Long.parseLong(s, radix);
-                    if ((ell & 0xffff_ffff_0000_0000L) == 0) {
-                        return (int) ell;
-                    } else {
-                        throw new
-                            NumberFormatException(String.format("String value %s exceeds " +
-                                                                "range of unsigned int.", s));
-                    }
-                }
-            }
-        } else {
-            throw new NumberFormatException("For input string: \"" + s + "\"");
-        }
-    }
-
-    /**
-     * Parses the string argument as an unsigned decimal integer. The
-     * characters in the string must all be decimal digits, except
-     * that the first character may be an an ASCII plus sign {@code
-     * '+'} ({@code '\u005Cu002B'}). The resulting integer value
-     * is returned, exactly as if the argument and the radix 10 were
-     * given as arguments to the {@link
-     * #parseUnsignedInt(java.lang.String, int)} method.
-     *
-     * @param s   a {@code String} containing the unsigned {@code int}
-     *            representation to be parsed
-     * @return    the unsigned integer value represented by the argument in decimal.
-     * @throws    NumberFormatException  if the string does not contain a
-     *            parsable unsigned integer.
-     */
-    private static int parseUnsignedInt(String s) throws NumberFormatException {
-        return parseUnsignedInt(s, 10);
-    }
 }

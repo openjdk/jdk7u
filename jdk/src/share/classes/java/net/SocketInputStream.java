@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,8 +68,8 @@ class SocketInputStream extends FileInputStream
      * Returns the unique {@link java.nio.channels.FileChannel FileChannel}
      * object associated with this file input stream.</p>
      *
-     * The <code>getChannel</code> method of <code>SocketInputStream</code>
-     * returns <code>null</code> since it is a socket based stream.</p>
+     * The {@code getChannel} method of {@code SocketInputStream}
+     * returns {@code null} since it is a socket based stream.</p>
      *
      * @return  the file channel associated with this file input stream
      *
@@ -136,11 +136,12 @@ class SocketInputStream extends FileInputStream
         }
 
         // bounds check
-        if (length <= 0 || off < 0 || off + length > b.length) {
+        if (length <= 0 || off < 0 || length > b.length - off) {
             if (length == 0) {
                 return 0;
             }
-            throw new ArrayIndexOutOfBoundsException();
+            throw new ArrayIndexOutOfBoundsException("length == " + length
+                    + " off == " + off + " buffer length == " + b.length);
         }
 
         boolean gotReset = false;

@@ -109,10 +109,10 @@ import javax.sql.rowset.serial.*;
  * <code>CachedRowSet</code><sup><font size=-2>TM</font></sup>
  * object <code>crs</code> might have its command property set.  Note that if a
  * tool is used to set properties, this is the code that the tool would use.
- * <PRE>
+ * <PRE>{@code
  *    crs.setCommand("SELECT FIRST_NAME, LAST_NAME, ADDRESS FROM CUSTOMERS" +
  *                   "WHERE CREDIT_LIMIT > ? AND REGION = ?");
- * </PRE>
+ * }</PRE>
  * <P>
  * In this example, the values for <code>CREDIT_LIMIT</code> and
  * <code>REGION</code> are placeholder parameters, which are indicated with a
@@ -129,16 +129,16 @@ import javax.sql.rowset.serial.*;
  * <P>
  * The following code fragment demonstrates
  * setting the two parameters in the query from the previous example.
- * <PRE>
+ * <PRE>{@code
  *    crs.setInt(1, 5000);
  *    crs.setString(2, "West");
- * </PRE>
+ * }</PRE>
  * If the <code>execute</code> method is called at this point, the query
  * sent to the DBMS will be:
- * <PRE>
+ * <PRE>{@code
  *    "SELECT FIRST_NAME, LAST_NAME, ADDRESS FROM CUSTOMERS" +
  *                   "WHERE CREDIT_LIMIT > 5000 AND REGION = 'West'"
- * </PRE>
+ * }</PRE>
  * NOTE: Setting <code>Array</code>, <code>Clob</code>, <code>Blob</code> and
  * <code>Ref</code> objects as a command parameter, stores these values as
  * <code>SerialArray</code>, <code>SerialClob</code>, <code>SerialBlob</code>
@@ -158,7 +158,7 @@ import javax.sql.rowset.serial.*;
  * When the method <code>execute</code> is called, the values in the
  * <code>Hashtable</code> object are substituted for the appropriate placeholder
  * parameters in the command.
- * <P)>
+ * <P>
  * A call to the method <code>getParams</code> returns the values stored in the
  * <code>Hashtable</code> object as an array of <code>Object</code> instances.
  * An element in this array may be a simple <code>Object</code> instance or an
@@ -211,7 +211,7 @@ import javax.sql.rowset.serial.*;
  * to the driver or the DBMS. For example, the methods <code>setDate</code>,
  * <code>setTime</code>, and <code>setTimestamp</code> can take a <code>Calendar</code>
  * object as their third parameter.  If the DBMS does not store time zone information,
- * the drivern uses the <code>Calendar</code> object to construct the <code>Date</code>,
+ * the driver uses the <code>Calendar</code> object to construct the <code>Date</code>,
  * <code>Time</code>, or <code>Timestamp</code> object being set. As is true with other
  * methods that provide additional information, the element in the array returned
  * by <code>getParams</code> is an array instead of a simple <code>Object</code> instance.
@@ -2535,7 +2535,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
      * specific abstract data types.
      * <P>
      * The parameter value set by this method is stored internally and
-     * will be supplied as the appropriate parameter in this <code>RowSet</code
+     * will be supplied as the appropriate parameter in this <code>RowSet</code>
      * object's command when the method <code>execute</code> is called.
      * Methods such as <code>execute</code> and <code>populate</code> must be
      * provided in any class that extends this class and implements one or
@@ -3162,7 +3162,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
      * @return an array of <code>Object</code> instances that includes the
      *         parameter values that may be set in this <code>RowSet</code> object's
      *         command; an empty array if no parameters have been set
-     * @throws SQLException if an error occurs retrieveing the object array of
+     * @throws SQLException if an error occurs retrieving the object array of
      *         parameters of this <code>RowSet</code> object or if not all parameters have
      *         been set
      */
@@ -3810,7 +3810,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
     * if parameterIndex does not correspond
     * to a parameter marker in the SQL statement,  if the length specified
     * is less than zero or if the number of bytes in the inputstream does not match
-    * the specfied length.
+    * the specified length.
     * @throws SQLFeatureNotSupportedException  if the JDBC driver does not support this method
     *
     * @since 1.6
@@ -3870,7 +3870,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
      * @throws SQLException  if parameterIndex does not correspond
      * to a parameter marker in the SQL statement,  or if the length specified
      * is less than zero; if the number of bytes in the inputstream does not match
-     * the specfied length; if a database access error occurs or
+     * the specified length; if a database access error occurs or
      * this method is called on a closed <code>CallableStatement</code>
      * @exception SQLFeatureNotSupportedException if the JDBC driver does not support
      * this method
@@ -4245,7 +4245,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
    }
 
  /**
-  * Sets the designated paramter to the given <code>String</code> object.
+  * Sets the designated parameter to the given <code>String</code> object.
   * The driver converts this to a SQL <code>NCHAR</code> or
   * <code>NVARCHAR</code> or <code>LONGNVARCHAR</code> value
   * (depending on the argument's
@@ -4265,7 +4265,7 @@ public abstract class BaseRowSet implements Serializable, Cloneable {
 
 
  /**
-  * Sets the designated paramter to the given <code>String</code> object.
+  * Sets the designated parameter to the given <code>String</code> object.
   * The driver converts this to a SQL <code>NCHAR</code> or
   * <code>NVARCHAR</code> or <code>LONGNVARCHAR</code>
   * @param parameterName the name of the column to be set
