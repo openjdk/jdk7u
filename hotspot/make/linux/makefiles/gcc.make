@@ -149,7 +149,6 @@ ACCEPTABLE_WARNINGS = -Wpointer-arith -Wsign-compare
 else
 ACCEPTABLE_WARNINGS = -Wpointer-arith -Wconversion -Wsign-compare
 endif
-ACCEPTABLE_WARNINGS += -Wno-deprecated-declarations
 
 CFLAGS_WARN/DEFAULT = $(WARNINGS_ARE_ERRORS) $(ACCEPTABLE_WARNINGS)
 # Special cases
