@@ -199,6 +199,7 @@ public final
      *     <cite>The Java&trade; Virtual Machine Specification</cite>
      * @since 1.5
      */
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public TypeVariable<Method>[] getTypeParameters() {
         if (getGenericSignature() != null)
             return (TypeVariable<Method>[])getGenericInfo().getTypeParameters();
@@ -257,7 +258,7 @@ public final
      * represents
      */
     public Class<?>[] getParameterTypes() {
-        return (Class<?>[]) parameterTypes.clone();
+        return parameterTypes.clone();
     }
 
     /**
@@ -306,7 +307,7 @@ public final
      * method this object represents
      */
     public Class<?>[] getExceptionTypes() {
-        return (Class<?>[]) exceptionTypes.clone();
+        return exceptionTypes.clone();
     }
 
     /**

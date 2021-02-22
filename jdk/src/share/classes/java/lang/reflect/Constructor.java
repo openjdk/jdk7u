@@ -28,15 +28,14 @@ package java.lang.reflect;
 import sun.reflect.CallerSensitive;
 import sun.reflect.ConstructorAccessor;
 import sun.reflect.Reflection;
+import sun.reflect.annotation.AnnotationParser;
 import sun.reflect.generics.repository.ConstructorRepository;
 import sun.reflect.generics.factory.CoreReflectionFactory;
 import sun.reflect.generics.factory.GenericsFactory;
 import sun.reflect.generics.scope.ConstructorScope;
 import java.lang.annotation.Annotation;
 import java.util.Map;
-import sun.reflect.annotation.AnnotationParser;
 import java.lang.annotation.AnnotationFormatError;
-import java.lang.reflect.Modifier;
 
 /**
  * {@code Constructor} provides information about, and access to, a single
@@ -191,6 +190,7 @@ public final
      *     <cite>The Java&trade; Virtual Machine Specification</cite>
      * @since 1.5
      */
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public TypeVariable<Constructor<T>>[] getTypeParameters() {
       if (getSignature() != null) {
         return (TypeVariable<Constructor<T>>[])getGenericInfo().getTypeParameters();
@@ -209,7 +209,7 @@ public final
      * represents
      */
     public Class<?>[] getParameterTypes() {
-        return (Class<?>[]) parameterTypes.clone();
+        return parameterTypes.clone();
     }
 
 
@@ -258,7 +258,7 @@ public final
      * constructor this object represents
      */
     public Class<?>[] getExceptionTypes() {
-        return (Class<?>[])exceptionTypes.clone();
+        return exceptionTypes.clone();
     }
 
 
@@ -523,7 +523,9 @@ public final
         if (ca == null) {
             ca = acquireConstructorAccessor();
         }
-        return (T) ca.newInstance(initargs);
+        @SuppressWarnings("unchecked")
+        T inst = (T) ca.newInstance(initargs);
+        return inst;
     }
 
     /**

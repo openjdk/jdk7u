@@ -216,6 +216,7 @@ public class AnnotationParser {
      * TypeNotPresentException if a referenced annotation type is not
      * available at runtime
      */
+    @SuppressWarnings("unchecked")
     private static Annotation parseAnnotation(ByteBuffer buf,
                                               ConstantPool constPool,
                                               Class<?> container,
@@ -238,7 +239,7 @@ public class AnnotationParser {
                 annotationClass = (Class<? extends Annotation>)parseSig(sig, container);
             } catch (IllegalArgumentException ex) {
                 // support obsolete early jsr175 format class files
-                annotationClass = constPool.getClassAt(typeIndex);
+                annotationClass = (Class<? extends Annotation>)constPool.getClassAt(typeIndex);
             }
         } catch (NoClassDefFoundError e) {
             if (exceptionOnMissingAnnotationClass)
@@ -298,7 +299,7 @@ public class AnnotationParser {
         Class<? extends Annotation> type, Map<String, Object> memberValues)
     {
         return (Annotation) Proxy.newProxyInstance(
-            type.getClassLoader(), new Class[] { type },
+            type.getClassLoader(), new Class<?>[] { type },
             new AnnotationInvocationHandler(type, memberValues));
     }
 
@@ -329,6 +330,7 @@ public class AnnotationParser {
      * The member must be of the indicated type. If it is not, this
      * method returns an AnnotationTypeMismatchExceptionProxy.
      */
+    @SuppressWarnings("unchecked")
     public static Object parseMemberValue(Class<?> memberType,
                                           ByteBuffer buf,
                                           ConstantPool constPool,
@@ -453,6 +455,7 @@ public class AnnotationParser {
      *           u2   const_name_index;
      *       } enum_const_value;
      */
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private static Object parseEnumValue(Class<? extends Enum> enumType, ByteBuffer buf,
                                          ConstantPool constPool,
                                          Class<?> container) {
@@ -475,7 +478,7 @@ public class AnnotationParser {
             return  Enum.valueOf(enumType, constName);
         } catch(IllegalArgumentException e) {
             return new EnumConstantNotPresentExceptionProxy(
-                (Class<? extends Enum>)enumType, constName);
+                (Class<? extends Enum<?>>)enumType, constName);
         }
     }
 
@@ -493,6 +496,7 @@ public class AnnotationParser {
      * If the array values do not match arrayType, an
      * AnnotationTypeMismatchExceptionProxy will be returned.
      */
+    @SuppressWarnings("unchecked")
     private static Object parseArray(Class<?> arrayType,
                                      ByteBuffer buf,
                                      ConstantPool constPool,
@@ -521,7 +525,7 @@ public class AnnotationParser {
         } else if (componentType == Class.class) {
             return parseClassArray(length, buf, constPool, container);
         } else if (componentType.isEnum()) {
-            return parseEnumArray(length, (Class<? extends Enum>)componentType, buf,
+            return parseEnumArray(length, (Class<? extends Enum<?>>)componentType, buf,
                                   constPool, container);
         } else {
             assert componentType.isAnnotation();
@@ -721,7 +725,7 @@ public class AnnotationParser {
         return typeMismatch ? exceptionProxy(tag) : result;
     }
 
-    private static Object parseEnumArray(int length, Class<? extends Enum> enumType,
+    private static Object parseEnumArray(int length, Class<? extends Enum<?>> enumType,
                                          ByteBuffer buf,
                                          ConstantPool constPool,
                                          Class<?> container) {

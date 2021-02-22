@@ -251,6 +251,7 @@ public class HashSet<E>
      *
      * @return a shallow copy of this set
      */
+    @SuppressWarnings("unchecked")
     public Object clone() {
         try {
             HashSet<E> newSet = (HashSet<E>) super.clone();
@@ -331,13 +332,14 @@ public class HashSet<E>
                      .checkArray(s, Map.Entry[].class, HashMap.roundUpToPowerOf2(capacity));
 
         // Create backing HashMap
-        map = (((HashSet)this) instanceof LinkedHashSet ?
+        map = (((HashSet<?>)this) instanceof LinkedHashSet ?
                new LinkedHashMap<E,Object>(capacity, loadFactor) :
                new HashMap<E,Object>(capacity, loadFactor));
 
         // Read in all elements in the proper order.
         for (int i=0; i<size; i++) {
-            E e = (E) s.readObject();
+            @SuppressWarnings("unchecked")
+                E e = (E) s.readObject();
             map.put(e, PRESENT);
         }
     }

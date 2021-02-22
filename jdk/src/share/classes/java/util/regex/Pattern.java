@@ -1334,7 +1334,11 @@ public final class Pattern
         localCount = 0;
 
         if (pattern.length() > 0) {
-            compile();
+            try {
+                compile();
+            } catch (StackOverflowError soe) {
+                throw error("Stack overflow during pattern compilation");
+            }
         } else {
             root = new Start(lastAccept);
             matchRoot = lastAccept;
@@ -1872,6 +1876,10 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         int ch = temp[cursor++];
         while (ch != 0 && !isLineSeparator(ch))
             ch = temp[cursor++];
+        if (ch == 0 && cursor > patternLength) {
+            cursor = patternLength;
+            ch = temp[cursor++];
+        }
         return ch;
     }
 
@@ -1882,6 +1890,10 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         int ch = temp[++cursor];
         while (ch != 0 && !isLineSeparator(ch))
             ch = temp[++cursor];
+        if (ch == 0 && cursor > patternLength) {
+            cursor = patternLength;
+            ch = temp[cursor];
+        }
         return ch;
     }
 
