@@ -304,6 +304,21 @@ JNU_NotifyAll(JNIEnv *env, jobject object);
         }                                       \
     } while (0)                                 \
 
+#ifdef __cplusplus
+#define JNU_CHECK_EXCEPTION(env)                \
+    do {                                        \
+        if ((env)->ExceptionCheck()) {          \
+            return;                             \
+        }                                       \
+    } while (0)                                 \
+
+#define JNU_CHECK_EXCEPTION_RETURN(env, y)      \
+    do {                                        \
+        if ((env)->ExceptionCheck()) {          \
+            return (y);                         \
+        }                                       \
+    } while (0)
+#else
 #define JNU_CHECK_EXCEPTION(env)                \
     do {                                        \
         if ((*env)->ExceptionCheck(env)) {      \
@@ -317,7 +332,7 @@ JNU_NotifyAll(JNIEnv *env, jobject object);
             return (y);                         \
         }                                       \
     } while (0)
-
+#endif /* __cplusplus */
 /************************************************************************
  * Debugging utilities
  */
