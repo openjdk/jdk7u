@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -268,7 +268,7 @@ class SymbolPropertyEntry : public HashtableEntry<Symbol*, mtSymbol> {
     }
     if (property_data() != NULL) {
       if (printed)  st->print(" and ");
-      st->print(INTPTR_FORMAT, property_data());
+      st->print(INTPTR_FORMAT, p2i(property_data()));
       printed = true;
     }
     st->print_cr(printed ? "" : "(empty)");

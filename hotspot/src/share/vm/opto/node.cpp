@@ -1659,7 +1659,7 @@ void Node::dump(const char* suffix, outputStream *st) const {
       }
     }
   }
-  if (suffix) st->print(suffix);
+  if (suffix) st->print("%s", suffix);
   C->_in_dump_cnt--;
 }
 
