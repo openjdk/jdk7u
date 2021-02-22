@@ -1178,17 +1178,20 @@ class java_security_AccessControlContext: AllStatic {
 class java_lang_ClassLoader : AllStatic {
  private:
   enum {
-   hc_parent_offset = 0
+   hc_parent_offset = 0,
+   hc_dependencies_offset = 1
   };
 
   static bool offsets_computed;
   static int parent_offset;
   static int parallelCapable_offset;
+  static int dependencies_offset;
 
   static void compute_offsets();
 
  public:
   static oop parent(oop loader);
+  static objArrayOop dependencies(oop loader);
   static bool isAncestor(oop loader, oop cl);
 
   // Support for parallelCapable field
