@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. and/or its affiliates.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. and/or its affiliates.
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -30,7 +30,7 @@
 
 class ClassLoaderDependencies {
 public:
-  static void record_dependency(KlassHandle from_klass, KlassHandle to_klass, TRAPS);
+  static void record_dependency(oop from_class_loader, oop to_class_loader, TRAPS);
 private:
   static void add(Handle from_class_loader_h, Handle dependency, TRAPS);
   static void locked_add(objArrayHandle list_head, objArrayHandle last_handle, objArrayHandle new_dependency, TRAPS);

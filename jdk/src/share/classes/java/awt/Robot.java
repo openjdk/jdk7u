@@ -395,6 +395,7 @@ public class Robot {
      * @return  Color of the pixel
      */
     public synchronized Color getPixelColor(int x, int y) {
+        checkScreenCaptureAllowed();
         Color color = new Color(peer.getRGBPixel(gdLoc.x + x, gdLoc.y + y));
         return color;
     }

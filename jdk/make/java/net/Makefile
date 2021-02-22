@@ -103,7 +103,7 @@ endif
 else
 ifeq ($(PLATFORM), windows)
   OTHER_LDLIBS = ws2_32.lib $(JVMLIB) \
-                 secur32.lib iphlpapi.lib delayimp.lib \
+                 secur32.lib iphlpapi.lib delayimp.lib urlmon.lib \
                  /DELAYLOAD:secur32.dll /DELAYLOAD:iphlpapi.dll
 else
   OTHER_LDLIBS = $(LIBSOCKET) $(LIBNSL) $(LIBDL) $(JVMLIB)
