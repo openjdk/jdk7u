@@ -291,7 +291,7 @@ struct band_init {
     cspec, ix }
 #endif
 
-const band_init all_band_inits[] = {
+const band_init all_band_inits[BAND_LIMIT+1] = {
 //BAND_INIT(archive_magic, BYTE1_spec, 0),
 //BAND_INIT(archive_header, UNSIGNED5_spec, 0),
 //BAND_INIT(band_headers, BYTE1_spec, 0),
@@ -439,13 +439,11 @@ const band_init all_band_inits[] = {
   BAND_INIT(file_options, UNSIGNED5_spec, 0),
 //BAND_INIT(file_bits, BYTE1_spec, 0),
 #ifndef PRODUCT
-  { 0, 0, 0, 0 }
+  { 0, NULL, 0, 0 }
 #else
   { 0, 0 }
 #endif
 };
-#define NUM_BAND_INITS \
-        (sizeof(all_band_inits)/sizeof(all_band_inits[0]))
 
 band* band::makeBands(unpacker* u) {
   band* tmp_all_bands = U_NEW(band, BAND_LIMIT);
