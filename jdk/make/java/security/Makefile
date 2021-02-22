@@ -1,5 +1,6 @@
 #
 # Copyright (c) 1996, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright 2017 Red Hat, Inc.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -82,6 +83,8 @@ endif
 
 FILES_class = $(FILES_java:%.java=$(CLASSBINDIR)/%.class)
 
+CRYPTOLEVEL_JARFILE = $(BUILDTOOLJARDIR)/cryptolevel.jar
+
 #
 # Rules
 #
@@ -107,8 +110,16 @@ blacklisted-certs: classes $(BLACKLISTED_CERTS_BUILD)
 
 trustedlibs: classes $(TRUSTEDLIBS_BUILD)
 
-$(PROPS_BUILD): $(PROPS_SRC)
-	$(install-file)
+$(PROPS_BUILD): $(PROPS_SRC) $(CRYPTOLEVEL_JARFILE)
+	$(prep-target)
+	$(RM) -f $@.tmp
+	$(CP) $< $@.tmp
+ifeq ($(UNLIMITED_CRYPTO), true)
+	  $(BOOT_JAVA_CMD) -jar $(CRYPTOLEVEL_JARFILE) \
+	    $@.tmp $@.tmp2 unlimited
+	  $(MV) $@.tmp2 $@.tmp
+endif
+	$(MV) $@.tmp $@
 
 $(POLICY_BUILD): $(POLICY_SRC)
 	$(install-file)

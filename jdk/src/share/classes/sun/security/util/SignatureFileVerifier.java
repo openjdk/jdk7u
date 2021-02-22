@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,25 +28,23 @@ package sun.security.util;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.CodeSigner;
-import java.security.CryptoPrimitive;
+import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
+import java.security.Timestamp;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarException;
 import java.util.jar.JarFile;
@@ -64,9 +62,6 @@ public class SignatureFileVerifier {
     /* Are we debugging ? */
     private static final Debug debug = Debug.getInstance("jar");
 
-    private static final Set<CryptoPrimitive> DIGEST_PRIMITIVE_SET =
-            Collections.unmodifiableSet(EnumSet.of(CryptoPrimitive.MESSAGE_DIGEST));
-
     private static final DisabledAlgorithmConstraints JAR_DISABLED_CHECK =
             new DisabledAlgorithmConstraints(
                     DisabledAlgorithmConstraints.PROPERTY_JAR_DISABLED_ALGS);
@@ -81,7 +76,7 @@ public class SignatureFileVerifier {
     private PKCS7 block;
 
     /** the raw bytes of the .SF file */
-    private byte sfBytes[];
+    private byte[] sfBytes;
 
     /** the name of the signature block file, uppercased and without
      *  the extension (.DSA/.RSA/.EC)
@@ -100,6 +95,14 @@ public class SignatureFileVerifier {
     /* for generating certpath objects */
     private CertificateFactory certificateFactory = null;
 
+    /** Algorithms that have been checked if they are weak. */
+    private Map<String, Boolean> permittedAlgs= new HashMap<>();
+
+    /** TSA timestamp of signed jar.  The newest timestamp is used.  If there
+     *  was no TSA timestamp used when signed, current time is used ("null").
+     */
+    private Timestamp timestamp = null;
+
     /**
      * Create the named SignatureFileVerifier.
      *
@@ -110,7 +113,7 @@ public class SignatureFileVerifier {
     public SignatureFileVerifier(ArrayList<CodeSigner[]> signerCache,
                                  ManifestDigester md,
                                  String name,
-                                 byte rawBytes[])
+                                 byte[] rawBytes)
         throws IOException, CertificateException
     {
         // new PKCS7() calls CertificateFactory.getInstance()
@@ -124,7 +127,7 @@ public class SignatureFileVerifier {
         } finally {
             Providers.stopJarVerification(obj);
         }
-        this.name = name.substring(0, name.lastIndexOf("."))
+        this.name = name.substring(0, name.lastIndexOf('.'))
                                                    .toUpperCase(Locale.ENGLISH);
         this.md = md;
         this.signerCache = signerCache;
@@ -155,7 +158,7 @@ public class SignatureFileVerifier {
      * used to set the raw bytes of the .SF file when it
      * is external to the signature block file.
      */
-    public void setSignatureFile(byte sfBytes[])
+    public void setSignatureFile(byte[] sfBytes)
     {
         this.sfBytes = sfBytes;
     }
@@ -171,11 +174,10 @@ public class SignatureFileVerifier {
      */
     public static boolean isBlockOrSF(String s) {
         // we currently only support DSA and RSA PKCS7 blocks
-        if (s.endsWith(".SF") || s.endsWith(".DSA") ||
-                s.endsWith(".RSA") || s.endsWith(".EC")) {
-            return true;
-        }
-        return false;
+        return s.endsWith(".SF")
+            || s.endsWith(".DSA")
+            || s.endsWith(".RSA")
+            || s.endsWith(".EC");
     }
 
     /**
@@ -185,7 +187,7 @@ public class SignatureFileVerifier {
      * unknown signature related files (those starting with SIG- with
      * an optional [A-Z0-9]{1,3} extension right inside META-INF).
      *
-     * @param s file name
+     * @param name file name
      * @return true if the input file name is signature related
      */
     public static boolean isSigningRelated(String name) {
@@ -201,7 +203,7 @@ public class SignatureFileVerifier {
             return true;
         } else if (name.startsWith("SIG-")) {
             // check filename extension
-            // see https://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html#Digital_Signatures
+            // see http://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html#Digital_Signatures
             // for what filename extensions are legal
             int extIndex = name.lastIndexOf('.');
             if (extIndex != -1) {
@@ -226,17 +228,10 @@ public class SignatureFileVerifier {
 
     /** get digest from cache */
 
-    private MessageDigest getDigest(String algorithm) throws SignatureException {
-        // check that algorithm is not restricted
-        if (!JAR_DISABLED_CHECK.permits(DIGEST_PRIMITIVE_SET, algorithm, null)) {
-            SignatureException e =
-                    new SignatureException("SignatureFile check failed. " +
-                            "Disabled algorithm used: " + algorithm);
-            throw e;
-        }
-
+    private MessageDigest getDigest(String algorithm)
+            throws SignatureException {
         if (createdDigests == null)
-            createdDigests = new HashMap<String, MessageDigest>();
+            createdDigests = new HashMap<>();
 
         MessageDigest digest = createdDigests.get(algorithm);
 
@@ -307,6 +302,27 @@ public class SignatureFileVerifier {
         if (newSigners == null)
             return;
 
+        /*
+         * Look for the latest timestamp in the signature block.  If an entry
+         * has no timestamp, use current time (aka null).
+         */
+        for (CodeSigner s: newSigners) {
+            if (debug != null) {
+                debug.println("Gathering timestamp for:  " + s.toString());
+            }
+            if (s.getTimestamp() == null) {
+                timestamp = null;
+                break;
+            } else if (timestamp == null) {
+                timestamp = s.getTimestamp();
+            } else {
+                if (timestamp.getTimestamp().before(
+                        s.getTimestamp().getTimestamp())) {
+                    timestamp = s.getTimestamp();
+                }
+            }
+        }
+
         Iterator<Map.Entry<String,Attributes>> entries =
                                 sf.getEntries().entrySet().iterator();
 
@@ -350,6 +366,68 @@ public class SignatureFileVerifier {
     }
 
     /**
+     * Check if algorithm is permitted using the permittedAlgs Map.
+     * If the algorithm is not in the map, check against disabled algorithms and
+     * store the result. If the algorithm is in the map use that result.
+     * False is returned for weak algorithm, true for good algorithms.
+     */
+    boolean permittedCheck(String key, String algorithm) {
+        Boolean permitted = permittedAlgs.get(algorithm);
+        if (permitted == null) {
+            try {
+                JAR_DISABLED_CHECK.permits(algorithm,
+                        new ConstraintsParameters(timestamp));
+            } catch(GeneralSecurityException e) {
+                permittedAlgs.put(algorithm, Boolean.FALSE);
+                permittedAlgs.put(key.toUpperCase(), Boolean.FALSE);
+                if (debug != null) {
+                    if (e.getMessage() != null) {
+                        debug.println(key + ":  " + e.getMessage());
+                    } else {
+                        debug.println(key + ":  " + algorithm +
+                                " was disabled, no exception msg given.");
+                        e.printStackTrace();
+                    }
+                }
+                return false;
+            }
+
+            permittedAlgs.put(algorithm, Boolean.TRUE);
+            return true;
+        }
+
+        // Algorithm has already been checked, return the value from map.
+        return permitted.booleanValue();
+    }
+
+    /**
+     * With a given header (*-DIGEST*), return a string that lists all the
+     * algorithms associated with the header.
+     * If there are none, return "Unknown Algorithm".
+     */
+    String getWeakAlgorithms(String header) {
+        String w = "";
+        try {
+            for (String key : permittedAlgs.keySet()) {
+                if (key.endsWith(header)) {
+                    w += key.substring(0, key.length() - header.length()) + " ";
+                }
+            }
+        } catch (RuntimeException e) {
+            w = "Unknown Algorithm(s).  Error processing " + header + ".  " +
+                    e.getMessage();
+        }
+
+        // This means we have an error in finding weak algorithms, run in
+        // debug mode to see permittedAlgs map's values.
+        if (w.length() == 0) {
+            return "Unknown Algorithm(s)";
+        }
+
+        return w;
+    }
+
+    /**
      * See if the whole manifest was signed.
      */
     private boolean verifyManifestHash(Manifest sf,
@@ -360,6 +438,10 @@ public class SignatureFileVerifier {
     {
         Attributes mattr = sf.getMainAttributes();
         boolean manifestSigned = false;
+        // If only weak algorithms are used.
+        boolean weakAlgs = true;
+        // If a "*-DIGEST-MANIFEST" entry is found.
+        boolean validEntry = false;
 
         // go through all the attributes and process *-Digest-Manifest entries
         for (Map.Entry<Object,Object> se : mattr.entrySet()) {
@@ -369,6 +451,16 @@ public class SignatureFileVerifier {
             if (key.toUpperCase(Locale.ENGLISH).endsWith("-DIGEST-MANIFEST")) {
                 // 16 is length of "-Digest-Manifest"
                 String algorithm = key.substring(0, key.length()-16);
+                validEntry = true;
+
+                // Check if this algorithm is permitted, skip if false.
+                if (!permittedCheck(key, algorithm)) {
+                    continue;
+                }
+
+                // A non-weak algorithm was used, any weak algorithms found do
+                // not need to be reported.
+                weakAlgs = false;
 
                 manifestDigests.add(key);
                 manifestDigests.add(se.getValue());
@@ -379,15 +471,14 @@ public class SignatureFileVerifier {
                         decoder.decodeBuffer((String)se.getValue());
 
                     if (debug != null) {
-                     debug.println("Signature File: Manifest digest " +
-                                          digest.getAlgorithm());
-                     debug.println( "  sigfile  " + toHex(expectedHash));
-                     debug.println( "  computed " + toHex(computedHash));
-                     debug.println();
+                        debug.println("Signature File: Manifest digest " +
+                                algorithm);
+                        debug.println( "  sigfile  " + toHex(expectedHash));
+                        debug.println( "  computed " + toHex(computedHash));
+                        debug.println();
                     }
 
-                    if (MessageDigest.isEqual(computedHash,
-                                              expectedHash)) {
+                    if (MessageDigest.isEqual(computedHash, expectedHash)) {
                         manifestSigned = true;
                     } else {
                         //XXX: we will continue and verify each section
@@ -395,16 +486,34 @@ public class SignatureFileVerifier {
                 }
             }
         }
+
+        if (debug != null) {
+            debug.println("PermittedAlgs mapping: ");
+            for (String key : permittedAlgs.keySet()) {
+                debug.println(key + " : " +
+                        permittedAlgs.get(key).toString());
+            }
+        }
+
+        // If there were only weak algorithms entries used, throw an exception.
+        if (validEntry && weakAlgs) {
+            throw new SignatureException("Manifest hash check failed " +
+                    "(DIGEST-MANIFEST). Disabled algorithm(s) used: " +
+                    getWeakAlgorithms("-DIGEST-MANIFEST"));
+        }
         return manifestSigned;
     }
 
-    private boolean verifyManifestMainAttrs(Manifest sf,
-                                        ManifestDigester md,
-                                        BASE64Decoder decoder)
+    private boolean verifyManifestMainAttrs(Manifest sf, ManifestDigester md,
+                                            BASE64Decoder decoder)
          throws IOException, SignatureException
     {
         Attributes mattr = sf.getMainAttributes();
         boolean attrsVerified = true;
+        // If only weak algorithms are used.
+        boolean weakAlgs = true;
+        // If a ATTR_DIGEST entry is found.
+        boolean validEntry = false;
 
         // go through all the attributes and process
         // digest entries for the manifest main attributes
@@ -414,6 +523,16 @@ public class SignatureFileVerifier {
             if (key.toUpperCase(Locale.ENGLISH).endsWith(ATTR_DIGEST)) {
                 String algorithm =
                         key.substring(0, key.length() - ATTR_DIGEST.length());
+                validEntry = true;
+
+                // Check if this algorithm is permitted, skip if false.
+                if (!permittedCheck(key, algorithm)) {
+                    continue;
+                }
+
+                // A non-weak algorithm was used, any weak algorithms found do
+                // not need to be reported.
+                weakAlgs = false;
 
                 MessageDigest digest = getDigest(algorithm);
                 if (digest != null) {
@@ -432,8 +551,7 @@ public class SignatureFileVerifier {
                      debug.println();
                     }
 
-                    if (MessageDigest.isEqual(computedHash,
-                                              expectedHash)) {
+                    if (MessageDigest.isEqual(computedHash, expectedHash)) {
                         // good
                     } else {
                         // we will *not* continue and verify each section
@@ -447,6 +565,22 @@ public class SignatureFileVerifier {
                     }
                 }
             }
+        }
+
+        if (debug != null) {
+            debug.println("PermittedAlgs mapping: ");
+            for (String key : permittedAlgs.keySet()) {
+                debug.println(key + " : " +
+                        permittedAlgs.get(key).toString());
+            }
+        }
+
+        // If there were only weak algorithms entries used, throw an exception.
+        if (validEntry && weakAlgs) {
+            throw new SignatureException("Manifest Main Attribute check " +
+                    "failed (" + ATTR_DIGEST + ").  " +
+                    "Disabled algorithm(s) used: " +
+                    getWeakAlgorithms(ATTR_DIGEST));
         }
 
         // this method returns 'true' if either:
@@ -472,6 +606,10 @@ public class SignatureFileVerifier {
     {
         boolean oneDigestVerified = false;
         ManifestDigester.Entry mde = md.get(name,block.isOldStyle());
+        // If only weak algorithms are used.
+        boolean weakAlgs = true;
+        // If a "*-DIGEST" entry is found.
+        boolean validEntry = false;
 
         if (mde == null) {
             throw new SecurityException(
@@ -479,8 +617,7 @@ public class SignatureFileVerifier {
         }
 
         if (sfAttr != null) {
-
-            //sun.misc.HexDumpEncoder hex = new sun.misc.HexDumpEncoder();
+            //sun.security.util.HexDumpEncoder hex = new sun.security.util.HexDumpEncoder();
             //hex.encodeBuffer(data, System.out);
 
             // go through all the attributes and process *-Digest entries
@@ -490,6 +627,16 @@ public class SignatureFileVerifier {
                 if (key.toUpperCase(Locale.ENGLISH).endsWith("-DIGEST")) {
                     // 7 is length of "-Digest"
                     String algorithm = key.substring(0, key.length()-7);
+                    validEntry = true;
+
+                    // Check if this algorithm is permitted, skip if false.
+                    if (!permittedCheck(key, algorithm)) {
+                        continue;
+                    }
+
+                    // A non-weak algorithm was used, any weak algorithms found do
+                    // not need to be reported.
+                    weakAlgs = false;
 
                     MessageDigest digest = getDigest(algorithm);
 
@@ -540,6 +687,22 @@ public class SignatureFileVerifier {
                 }
             }
         }
+
+        if (debug != null) {
+            debug.println("PermittedAlgs mapping: ");
+            for (String key : permittedAlgs.keySet()) {
+                debug.println(key + " : " +
+                        permittedAlgs.get(key).toString());
+            }
+        }
+
+        // If there were only weak algorithms entries used, throw an exception.
+        if (validEntry && weakAlgs) {
+            throw new SignatureException("Manifest Main Attribute check " +
+                    "failed (DIGEST).  Disabled algorithm(s) used: " +
+                    getWeakAlgorithms("DIGEST"));
+        }
+
         return oneDigestVerified;
     }
 
@@ -548,7 +711,7 @@ public class SignatureFileVerifier {
      * CodeSigner objects. We do this only *once* for a given
      * signature block file.
      */
-    private CodeSigner[] getSigners(SignerInfo infos[], PKCS7 block)
+    private CodeSigner[] getSigners(SignerInfo[] infos, PKCS7 block)
         throws IOException, NoSuchAlgorithmException, SignatureException,
             CertificateException {
 
@@ -560,7 +723,7 @@ public class SignatureFileVerifier {
             ArrayList<X509Certificate> chain = info.getCertificateChain(block);
             CertPath certChain = certificateFactory.generateCertPath(chain);
             if (signers == null) {
-                signers = new ArrayList<CodeSigner>();
+                signers = new ArrayList<>();
             }
             // Append the new code signer
             signers.add(new CodeSigner(certChain, info.getTimestamp()));
@@ -589,7 +752,7 @@ public class SignatureFileVerifier {
 
     static String toHex(byte[] data) {
 
-        StringBuffer sb = new StringBuffer(data.length*2);
+        StringBuilder sb = new StringBuilder(data.length*2);
 
         for (int i=0; i<data.length; i++) {
             sb.append(hexc[(data[i] >>4) & 0x0f]);
