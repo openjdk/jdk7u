@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,8 +35,13 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 
 import javax.naming.*;
+import sun.reflect.misc.ReflectUtil;
 
 /**
  * The Service Provider Interface (SPI) mechanism that generates <code>SyncProvider</code>
@@ -341,7 +346,7 @@ public class SyncFactory {
         // Local implementation class names and keys from Properties
         // file, translate names into Class objects using Class.forName
         // and store mappings
-        Properties properties = new Properties();
+        final Properties properties = new Properties();
 
         if (implementations == null) {
             implementations = new Hashtable();
@@ -362,7 +367,17 @@ public class SyncFactory {
                 /*
                  * Dependent on application
                  */
-                String strRowsetProperties = System.getProperty("rowset.properties");
+                String strRowsetProperties;
+                try {
+                    strRowsetProperties = AccessController.doPrivileged(new PrivilegedAction<String>() {
+                        public String run() {
+                            return System.getProperty("rowset.properties");
+                        }
+                    });
+                } catch (Exception ex) {
+                    System.out.println("errorget rowset.properties: " + ex);
+                    strRowsetProperties = null;
+                }
                 if (strRowsetProperties != null) {
                     // Load user's implementation of SyncProvider
                     // here. -Drowset.properties=/abc/def/pqr.txt
@@ -380,16 +395,33 @@ public class SyncFactory {
                         strFileSep + "rowset" + strFileSep +
                         "rowset.properties";
 
-                ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
-                try (InputStream stream =
-                         (cl == null) ? ClassLoader.getSystemResourceAsStream(ROWSET_PROPERTIES)
-                                      : cl.getResourceAsStream(ROWSET_PROPERTIES)) {
-                    if (stream == null) {
-                        throw new SyncFactoryException(
-                            "Resource " + ROWSET_PROPERTIES + " not found");
+                try {
+                    AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
+                        @Override
+                        public Void run()  throws SyncFactoryException, IOException, FileNotFoundException {
+                            try (InputStream stream  = (cl == null) ?
+                                    ClassLoader.getSystemResourceAsStream(ROWSET_PROPERTIES)
+                                    : cl.getResourceAsStream(ROWSET_PROPERTIES)) {
+                                if (stream == null) {
+                                    throw new SyncFactoryException("Resource " + ROWSET_PROPERTIES + " not found");
+                                }
+                                properties.load(stream);
+                            }
+                            return null;
+                        }
+
+                    });
+                } catch (PrivilegedActionException ex) {
+                    Throwable e = ex.getException();
+                    if (e instanceof SyncFactoryException) {
+                      throw (SyncFactoryException) e;
+                    } else {
+                        SyncFactoryException sfe = new SyncFactoryException();
+                        sfe.initCause(ex.getException());
+                        throw sfe;
                     }
-                    properties.load(stream);
                 }
 
                 parseProperties(properties);
@@ -407,7 +439,16 @@ public class SyncFactory {
              * load additional properties from -D command line
              */
             properties.clear();
-            String providerImpls = System.getProperty(ROWSET_SYNC_PROVIDER);
+            String providerImpls;
+            try {
+                providerImpls = AccessController.doPrivileged(new PrivilegedAction<String>() {
+                    public String run() {
+                        return System.getProperty(ROWSET_SYNC_PROVIDER);
+                    }
+                });
+            } catch (Exception ex) {
+                providerImpls = null;
+            }
 
             if (providerImpls != null) {
                 int i = 0;
@@ -540,6 +581,13 @@ public class SyncFactory {
             return new com.sun.rowset.providers.RIOptimisticProvider();
         }
 
+        try {
+            ReflectUtil.checkPackageAccess(providerID);
+        } catch (java.security.AccessControlException e) {
+            SyncFactoryException sfe = new SyncFactoryException();
+            sfe.initCause(e);
+            throw sfe;
+        }
         // Attempt to invoke classname from registered SyncProvider list
         Class c = null;
         try {
@@ -548,7 +596,7 @@ public class SyncFactory {
             /**
              * The SyncProvider implementation of the user will be in
              * the classpath. We need to find the ClassLoader which loads
-             * this SyncFactory and try to laod the SyncProvider class from
+             * this SyncFactory and try to load the SyncProvider class from
              * there.
              **/
             c = Class.forName(providerID, true, cl);
