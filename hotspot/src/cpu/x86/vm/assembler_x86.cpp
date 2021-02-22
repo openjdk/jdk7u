@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -538,11 +538,11 @@ address Assembler::locate_operand(address inst, WhichOperand which) {
     // these asserts are somewhat nonsensical
 #ifndef _LP64
     assert(which == imm_operand || which == disp32_operand,
-           err_msg("which %d is_64_bit %d ip " INTPTR_FORMAT, which, is_64bit, ip));
+           err_msg("which %d is_64_bit %d ip " INTPTR_FORMAT, which, is_64bit, p2i(ip)));
 #else
     assert((which == call32_operand || which == imm_operand) && is_64bit ||
            which == narrow_oop_operand && !is_64bit,
-           err_msg("which %d is_64_bit %d ip " INTPTR_FORMAT, which, is_64bit, ip));
+           err_msg("which %d is_64_bit %d ip " INTPTR_FORMAT, which, is_64bit, p2i(ip)));
 #endif // _LP64
     return ip;
 
@@ -4713,7 +4713,7 @@ void Assembler::adcq(Register dst, Address src) {
 }
 
 void Assembler::adcq(Register dst, Register src) {
-  (int) prefixq_and_encode(dst->encoding(), src->encoding());
+  (void) prefixq_and_encode(dst->encoding(), src->encoding());
   emit_arith(0x13, 0xC0, dst, src);
 }
 
@@ -4768,7 +4768,7 @@ void Assembler::andq(Register dst, Address src) {
 }
 
 void Assembler::andq(Register dst, Register src) {
-  (int) prefixq_and_encode(dst->encoding(), src->encoding());
+  (void) prefixq_and_encode(dst->encoding(), src->encoding());
   emit_arith(0x23, 0xC0, dst, src);
 }
 

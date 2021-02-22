@@ -225,7 +225,7 @@ inline oop oopDesc::unsafe_decode_heap_oop_not_null(oop v) { return v; }
 
 inline oop oopDesc::decode_heap_oop_not_null(narrowOop v) {
   oop result = unsafe_decode_heap_oop_not_null(v);
-  assert(check_obj_alignment(result), err_msg("address not aligned: " PTR_FORMAT, (void*) result));
+  assert(check_obj_alignment(result), err_msg("address not aligned: " INTPTR_FORMAT, p2i((void*) result)));
   return result;
 }
 

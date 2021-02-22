@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -262,7 +262,7 @@ bool ciInstanceKlass::is_in_package_impl(const char* packagename, int len) {
 // Implementation of the print method.
 void ciInstanceKlass::print_impl(outputStream* st) {
   ciKlass::print_impl(st);
-  GUARDED_VM_ENTRY(st->print(" loader=0x%x", (address)loader());)
+  GUARDED_VM_ENTRY(st->print(" loader=" INTPTR_FORMAT, p2i((address)loader()));)
   if (is_loaded()) {
     st->print(" loaded=true initialized=%s finalized=%s subklass=%s size=%d flags=",
               bool_to_str(is_initialized()),

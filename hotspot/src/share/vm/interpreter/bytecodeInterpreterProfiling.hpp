@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2012, 2014 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,11 +86,11 @@
                   " \t-> " PTR_FORMAT "(%d)",                                  \
                 (int) THREAD->osthread()->thread_id(),                         \
                 BCI(),                                                         \
-                MDX(),                                                         \
+                p2i(MDX()),                                                    \
                 (MDX() == NULL                                                 \
                  ? 0                                                           \
                  : istate->method()->method_data()->dp_to_di((address)MDX())), \
-                mdx,                                                           \
+                p2i(mdx),                                                      \
                 istate->method()->method_data()->dp_to_di((address)mdx)        \
                 );                                                             \
   };                                                                           \
@@ -108,6 +108,7 @@
     tty->cr();                                                                 \
     tty->print("method data at mdx " PTR_FORMAT "(0) for",                     \
                mdo->data_layout_at(mdo->bci_to_di(0)));                        \
+               p2i(mdo->data_layout_at(mdo->bci_to_di(0))));                   \
     istate->method()->print_short_name(tty);                                   \
     tty->cr();                                                                 \
     if (mdo != NULL) {                                                         \
@@ -115,7 +116,7 @@
       address mdx = (address) MDX();                                           \
       if (mdx != NULL) {                                                       \
         tty->print_cr("current mdx " PTR_FORMAT "(%d)",                        \
-                      mdx,                                                     \
+                      p2i(mdx),                                                \
                       istate->method()->method_data()->dp_to_di(mdx));         \
       }                                                                        \
     } else {                                                                   \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -119,7 +119,7 @@ ResourceObj::ResourceObj() { // default constructor
       // Operator new() was called and type was set.
       assert(!allocated_on_stack(),
              err_msg("not embedded or stack, this(" PTR_FORMAT ") type %d a[0]=(" PTR_FORMAT ") a[1]=(" PTR_FORMAT ")",
-                     this, get_allocation_type(), _allocation_t[0], _allocation_t[1]));
+                     p2i(this), get_allocation_type(), _allocation_t[0], _allocation_t[1]));
     } else {
       // Operator new() was not called.
       // Assume that it is embedded or stack object.
@@ -133,7 +133,7 @@ ResourceObj::ResourceObj(const ResourceObj& r) { // default copy constructor
     // Note: garbage may resembles valid value.
     assert(~(_allocation_t[0] | allocation_mask) != (uintptr_t)this || !is_type_set(),
            err_msg("embedded or stack only, this(" PTR_FORMAT ") type %d a[0]=(" PTR_FORMAT ") a[1]=(" PTR_FORMAT ")",
-                   this, get_allocation_type(), _allocation_t[0], _allocation_t[1]));
+                   p2i(this), get_allocation_type(), _allocation_t[0], _allocation_t[1]));
     set_allocation_type((address)this, STACK_OR_EMBEDDED);
     _allocation_t[1] = 0; // Zap verification value
 }
@@ -142,7 +142,7 @@ ResourceObj& ResourceObj::operator=(const ResourceObj& r) { // default copy assi
     // Used in InlineTree::ok_to_inline() for WarmCallInfo.
     assert(allocated_on_stack(),
            err_msg("copy only into local, this(" PTR_FORMAT ") type %d a[0]=(" PTR_FORMAT ") a[1]=(" PTR_FORMAT ")",
-                   this, get_allocation_type(), _allocation_t[0], _allocation_t[1]));
+                   p2i(this), get_allocation_type(), _allocation_t[0], _allocation_t[1]));
     // Keep current _allocation_t value;
     return *this;
 }
@@ -158,13 +158,13 @@ ResourceObj::~ResourceObj() {
 
 void trace_heap_malloc(size_t size, const char* name, void* p) {
   // A lock is not needed here - tty uses a lock internally
-  tty->print_cr("Heap malloc " INTPTR_FORMAT " " SIZE_FORMAT " %s", p, size, name == NULL ? "" : name);
+  tty->print_cr("Heap malloc " INTPTR_FORMAT " " SIZE_FORMAT " %s", p2i(p), size, name == NULL ? "" : name);
 }
 
 
 void trace_heap_free(void* p) {
   // A lock is not needed here - tty uses a lock internally
-  tty->print_cr("Heap free   " INTPTR_FORMAT, p);
+  tty->print_cr("Heap free   " INTPTR_FORMAT, p2i(p));
 }
 
 bool warn_new_operator = false; // see vm_main
@@ -637,11 +637,11 @@ void AllocatedObj::print() const       { print_on(tty); }
 void AllocatedObj::print_value() const { print_value_on(tty); }
 
 void AllocatedObj::print_on(outputStream* st) const {
-  st->print_cr("AllocatedObj(" INTPTR_FORMAT ")", this);
+  st->print_cr("AllocatedObj(" INTPTR_FORMAT ")", p2i(this));
 }
 
 void AllocatedObj::print_value_on(outputStream* st) const {
-  st->print("AllocatedObj(" INTPTR_FORMAT ")", this);
+  st->print("AllocatedObj(" INTPTR_FORMAT ")", p2i(this));
 }
 
 julong Arena::_bytes_allocated = 0;

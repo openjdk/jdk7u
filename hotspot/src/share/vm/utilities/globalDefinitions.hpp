@@ -1214,6 +1214,11 @@ inline int build_int_from_shorts( jushort low, jushort high ) {
   return ((int)((unsigned int)high << 16) | (unsigned int)low);
 }
 
+// Convert pointer to intptr_t, for use in printing pointers.
+inline intptr_t p2i(const void * p) {
+  return (intptr_t) p;
+}
+
 // Printf-style formatters for fixed- and variable-width types as pointers and
 // integers.  These are derived from the definitions in inttypes.h.  If the platform
 // doesn't provide appropriate definitions, they should be provided in
@@ -1232,6 +1237,7 @@ inline int build_int_from_shorts( jushort low, jushort high ) {
 // Format 64-bit quantities.
 #define INT64_FORMAT           "%" PRId64
 #define UINT64_FORMAT          "%" PRIu64
+#define UINT64_FORMAT_X        "%" PRIx64
 #define INT64_FORMAT_W(width)  "%" #width PRId64
 #define UINT64_FORMAT_W(width) "%" #width PRIu64
 
@@ -1253,6 +1259,8 @@ inline int build_int_from_shorts( jushort low, jushort high ) {
 #define INTPTR_FORMAT "0x%08"  PRIxPTR
 #define PTR_FORMAT    "0x%08"  PRIxPTR
 #endif  // _LP64
+
+#define INTPTR_FORMAT_W(width)   "%" #width PRIxPTR
 
 #define SSIZE_FORMAT          "%" PRIdPTR
 #define SIZE_FORMAT           "%" PRIuPTR

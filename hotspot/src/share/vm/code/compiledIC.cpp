@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,7 +56,7 @@ void CompiledIC::set_cached_oop(oop cache) {
   if (TraceCompiledIC) {
     tty->print("  ");
     print_compiled_ic();
-    tty->print_cr(" changing oop to " INTPTR_FORMAT, (address)cache);
+    tty->print_cr(" changing oop to " INTPTR_FORMAT, p2i((address)cache));
   }
 
   if (cache == NULL)  cache = (oop)Universe::non_oop_word();
@@ -162,7 +162,7 @@ void CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
   if (TraceICs) {
     ResourceMark rm;
     tty->print_cr ("IC@" INTPTR_FORMAT ": to megamorphic %s entry: " INTPTR_FORMAT,
-                   instruction_address(), method->print_value_string(), entry);
+                   p2i(instruction_address()), method->print_value_string(), p2i(entry));
   }
 
   // We can't check this anymore. With lazy deopt we could have already
@@ -246,7 +246,7 @@ bool CompiledIC::is_call_to_interpreted() const {
 void CompiledIC::set_to_clean() {
   assert(SafepointSynchronize::is_at_safepoint() || CompiledIC_lock->is_locked() , "MT-unsafe call");
   if (TraceInlineCacheClearing || TraceICs) {
-    tty->print_cr("IC@" INTPTR_FORMAT ": set to clean", instruction_address());
+    tty->print_cr("IC@" INTPTR_FORMAT ": set to clean", p2i(instruction_address()));
     print();
   }
 
@@ -325,7 +325,7 @@ void CompiledIC::set_to_monomorphic(const CompiledICInfo& info) {
       if (TraceICs) {
          ResourceMark rm(thread);
          tty->print_cr ("IC@" INTPTR_FORMAT ": monomorphic to interpreter: %s",
-           instruction_address(),
+           p2i(instruction_address()),
            method->print_value_string());
       }
     } else {
@@ -335,7 +335,7 @@ void CompiledIC::set_to_monomorphic(const CompiledICInfo& info) {
 
       if (TraceICs) {
          ResourceMark rm(thread);
-         tty->print_cr ("IC@" INTPTR_FORMAT ": monomorphic to interpreter via mkh", instruction_address());
+         tty->print_cr ("IC@" INTPTR_FORMAT ": monomorphic to interpreter via mkh", p2i(instruction_address()));
       }
     }
   } else {
@@ -362,7 +362,7 @@ void CompiledIC::set_to_monomorphic(const CompiledICInfo& info) {
       ResourceMark rm(thread);
       assert(info.cached_oop() == NULL || info.cached_oop()()->is_klass(), "must be");
       tty->print_cr ("IC@" INTPTR_FORMAT ": monomorphic to compiled (rcvr klass) %s: %s",
-        instruction_address(),
+        p2i(instruction_address()),
         ((klassOop)info.cached_oop()())->print_value_string(),
         (safe) ? "" : "via stub");
     }
@@ -520,7 +520,7 @@ void CompiledStaticCall::set_to_interpreted(methodHandle callee, address entry) 
   if (TraceICs) {
     ResourceMark rm;
     tty->print_cr("CompiledStaticCall@" INTPTR_FORMAT ": set_to_interpreted %s",
-                  instruction_address(),
+                  p2i(instruction_address()),
                   callee->name_and_sig_as_C_string());
   }
 
@@ -555,8 +555,8 @@ void CompiledStaticCall::set(const StaticCallInfo& info) {
     if (TraceICs) {
       ResourceMark rm;
       tty->print_cr("CompiledStaticCall@" INTPTR_FORMAT ": set_to_compiled " INTPTR_FORMAT,
-                    instruction_address(),
-                    info.entry());
+                    p2i(instruction_address()),
+                    p2i(info.entry()));
     }
     // Call to compiled code
     assert (CodeCache::contains(info.entry()), "wrong entry point");
@@ -640,12 +640,12 @@ void CompiledIC::print() {
 
 void CompiledIC::print_compiled_ic() {
   tty->print("Inline cache at " INTPTR_FORMAT ", calling %s " INTPTR_FORMAT,
-             instruction_address(), is_call_to_interpreted() ? "interpreted " : "", ic_destination());
+             p2i(instruction_address()), is_call_to_interpreted() ? "interpreted " : "", ic_destination());
 }
 
 
 void CompiledStaticCall::print() {
-  tty->print("static call at " INTPTR_FORMAT " -> ", instruction_address());
+  tty->print("static call at " INTPTR_FORMAT " -> ", p2i(instruction_address()));
   if (is_clean()) {
     tty->print("clean");
   } else if (is_call_to_compiled()) {
