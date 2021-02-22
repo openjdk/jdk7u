@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,7 +140,7 @@ abstract class AESCipher extends CipherSpi {
                 throw new InvalidKeyException("Key encoding must not be null");
             } else if (value.length != fixedKeySize) {
                 throw new InvalidKeyException("The key must be " +
-                    fixedKeySize*8 + " bits");
+                    fixedKeySize + " bytes");
             }
         }
     }
@@ -479,7 +479,7 @@ abstract class AESCipher extends CipherSpi {
             throw new InvalidKeyException("Invalid AES key length: " +
                                           encoded.length + " bytes");
         }
-        return encoded.length * 8;
+        return CipherCore.multiplyExact(encoded.length, 8);
     }
 
     /**

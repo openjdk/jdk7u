@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,8 @@ import java.security.spec.*;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.DHGenParameterSpec;
 
+import static sun.security.util.SecurityProviderConstants.DEF_DH_KEY_SIZE;
+
 /*
  * This class generates parameters for the Diffie-Hellman algorithm.
  * The parameters are a prime, a base, and optionally the length in bits of
@@ -37,7 +39,6 @@ import javax.crypto.spec.DHGenParameterSpec;
  *
  * <p>The Diffie-Hellman parameter generation accepts the size in bits of the
  * prime modulus and the size in bits of the random exponent as input.
- * The size of the prime modulus defaults to 1024 bits.
  *
  * @author Jan Luehe
  *
@@ -50,13 +51,23 @@ public final class DHParameterGenerator
 extends AlgorithmParameterGeneratorSpi {
 
     // The size in bits of the prime modulus
-    private int primeSize = 1024;
+    private int primeSize = DEF_DH_KEY_SIZE;
 
     // The size in bits of the random exponent (private value)
     private int exponentSize = 0;
 
     // The source of randomness
     private SecureRandom random = null;
+
+    private static void checkKeySize(int keysize)
+        throws InvalidAlgorithmParameterException {
+        if ((keysize != 2048) &&
+            ((keysize < 512) || (keysize > 1024) || (keysize % 64 != 0))) {
+            throw new InvalidAlgorithmParameterException(
+                "Keysize must be multiple of 64 ranging from "
+                + "512 to 1024 (inclusive), or 2048");
+        }
+    }
 
     /**
      * Initializes this parameter generator for a certain keysize
@@ -67,11 +78,11 @@ extends AlgorithmParameterGeneratorSpi {
      * @param random the source of randomness
      */
     protected void engineInit(int keysize, SecureRandom random) {
-        if ((keysize < 512) || (keysize > 2048) || (keysize % 64 != 0)) {
-            throw new InvalidParameterException("Keysize must be multiple "
-                                                + "of 64, and can only range "
-                                                + "from 512 to 2048 "
-                                                + "(inclusive)");
+        // Re-uses DSA parameters and thus have the same range
+        try {
+            checkKeySize(keysize);
+        } catch (InvalidAlgorithmParameterException ex) {
+            throw new InvalidParameterException(ex.getMessage());
         }
         this.primeSize = keysize;
         this.random = random;
@@ -91,31 +102,29 @@ extends AlgorithmParameterGeneratorSpi {
     protected void engineInit(AlgorithmParameterSpec genParamSpec,
                               SecureRandom random)
         throws InvalidAlgorithmParameterException {
-            if (!(genParamSpec instanceof DHGenParameterSpec)) {
-                throw new InvalidAlgorithmParameterException
-                    ("Inappropriate parameter type");
-            }
+        if (!(genParamSpec instanceof DHGenParameterSpec)) {
+            throw new InvalidAlgorithmParameterException
+                ("Inappropriate parameter type");
+        }
 
-            DHGenParameterSpec dhParamSpec = (DHGenParameterSpec)genParamSpec;
+        DHGenParameterSpec dhParamSpec = (DHGenParameterSpec)genParamSpec;
 
-            primeSize = dhParamSpec.getPrimeSize();
-            if ((primeSize<512) || (primeSize>2048) || (primeSize%64 != 0)) {
-                throw new InvalidAlgorithmParameterException
-                    ("Modulus size must be multiple of 64, and can only range "
-                     + "from 512 to 2048 (inclusive)");
-            }
+        primeSize = dhParamSpec.getPrimeSize();
 
-            exponentSize = dhParamSpec.getExponentSize();
-            if (exponentSize <= 0) {
-                throw new InvalidAlgorithmParameterException
-                    ("Exponent size must be greater than zero");
-            }
+        // Re-uses DSA parameters and thus have the same range
+        checkKeySize(primeSize);
 
-            // Require exponentSize < primeSize
-            if (exponentSize >= primeSize) {
-                throw new InvalidAlgorithmParameterException
-                    ("Exponent size must be less than modulus size");
-            }
+        exponentSize = dhParamSpec.getExponentSize();
+        if (exponentSize <= 0) {
+            throw new InvalidAlgorithmParameterException
+                ("Exponent size must be greater than zero");
+        }
+
+        // Require exponentSize < primeSize
+        if (exponentSize >= primeSize) {
+            throw new InvalidAlgorithmParameterException
+                ("Exponent size must be less than modulus size");
+        }
     }
 
     /**

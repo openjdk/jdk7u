@@ -45,7 +45,7 @@ MS_RUNTIME_STATIC = true
 include $(BUILDDIR)/common/Defs.gmk
 
 ifneq ($(SYSTEM_ZLIB),true)
-  ZIP_SRC = $(SHARE_SRC)/native/java/util/zip/zlib-$(ZLIB_VERSION)
+  ZIP_SRC = $(SHARE_SRC)/native/java/util/zip/zlib
 else # SYSTEM_ZLIB
   OTHER_CFLAGS += $(ZLIB_CFLAGS)
 endif #SYSTEM_ZLIB
