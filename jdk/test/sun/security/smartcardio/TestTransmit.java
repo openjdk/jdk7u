@@ -26,9 +26,10 @@
  * @bug 6293769 6294527
  * @summary test transmit() works
  * @author Andreas Sterbenz
- * @ignore requires special hardware
  * @run main/manual TestTransmit
  */
+
+// This test requires special hardware.
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -16,27 +16,27 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
  */
 
 /*
  * @test
- * @bug 7118809
- * @run main/othervm ReplayCache
- * @summary rcache deadlock
+ * @bug 7152176 8201627
+ * @summary More krb5 tests
+ * @compile -XDignore.symbol.file Basic.java
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock
+ *      -Dsun.security.krb5.acceptor.sequence.number.nonmutual=zero
+ *      Basic
  */
 
-import org.ietf.jgss.GSSException;
 import sun.security.jgss.GSSUtil;
-import sun.security.krb5.KrbException;
-import sun.security.krb5.internal.Krb5;
 
-public class ReplayCache {
+// The basic krb5 test skeleton you can copy from
+public class Basic {
 
-    public static void main(String[] args)
-            throws Exception {
+    public static void main(String[] args) throws Exception {
 
         new OneKDC(null).writeJAASConf();
 
@@ -45,20 +45,15 @@ public class ReplayCache {
         s = Context.fromJAAS("server");
 
         c.startAsClient(OneKDC.SERVER, GSSUtil.GSS_KRB5_MECH_OID);
+        c.x().requestMutualAuth(false);
         s.startAsServer(GSSUtil.GSS_KRB5_MECH_OID);
 
-        byte[] first = c.take(new byte[0]);
-        s.take(first);
+        Context.handshake(c, s);
 
-        s.startAsServer(GSSUtil.GSS_KRB5_MECH_OID);
-        try {
-            s.take(first);  // Replay the last token sent
-            throw new Exception("This method should fail");
-        } catch (GSSException gsse) {
-            KrbException ke = (KrbException)gsse.getCause();
-            if (ke.returnCode() != Krb5.KRB_AP_ERR_REPEAT) {
-                throw gsse;
-            }
-        }
+        Context.transmit("i say high --", c, s);
+        Context.transmit("   you say low", s, c);
+
+        s.dispose();
+        c.dispose();
     }
 }

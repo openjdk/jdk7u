@@ -444,7 +444,9 @@ uint CastIINode::size_of() const {
 }
 
 uint CastIINode::cmp(const Node &n) const {
-  return TypeNode::cmp(n) && ((CastIINode&)n)._carry_dependency == _carry_dependency;
+  return TypeNode::cmp(n) &&
+         ((CastIINode&)n)._carry_dependency == _carry_dependency &&
+         ((CastIINode&)n)._range_check_dependency == _range_check_dependency;
 }
 
 Node *CastIINode::Identity(PhaseTransform *phase) {
@@ -521,7 +523,7 @@ const Type *CastIINode::Value(PhaseTransform *phase) const {
 }
 
 Node *CastIINode::Ideal_DU_postCCP(PhaseCCP *ccp) {
-  if (_carry_dependency) {
+  if (_carry_dependency || _range_check_dependency) {
     return NULL;
   }
   return ConstraintCastNode::Ideal_DU_postCCP(ccp);
@@ -532,6 +534,9 @@ void CastIINode::dump_spec(outputStream *st) const {
   TypeNode::dump_spec(st);
   if (_carry_dependency) {
     st->print(" carry dependency");
+  }
+  if (_range_check_dependency) {
+    st->print(" range check dependency");
   }
 }
 #endif
@@ -974,7 +979,7 @@ Node *ConvI2LNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 
 #ifdef _LP64
-  // Convert ConvI2L(AddI(x, y)) to AddL(ConvI2L(x), ConvI2L(y)) ,
+  // Convert ConvI2L(AddI(x, y)) to AddL(ConvI2L(x), ConvI2L(y))
   // but only if x and y have subranges that cannot cause 32-bit overflow,
   // under the assumption that x+y is in my own subrange this->type().
 
@@ -1055,9 +1060,10 @@ Node *ConvI2LNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       rylo = -ryhi;
       ryhi = -rylo0;
     }
-
-    Node* cx = phase->transform( new (phase->C) ConvI2LNode(x, TypeLong::make(rxlo, rxhi, widen)) );
-    Node* cy = phase->transform( new (phase->C) ConvI2LNode(y, TypeLong::make(rylo, ryhi, widen)) );
+    assert(rxlo == (int)rxlo && rxhi == (int)rxhi, "x should not overflow");
+    assert(rylo == (int)rylo && ryhi == (int)ryhi, "y should not overflow");
+    Node* cx = phase->C->constrained_convI2L(phase, x, TypeInt::make(rxlo, rxhi, widen), NULL);
+    Node* cy = phase->C->constrained_convI2L(phase, y, TypeInt::make(rylo, ryhi, widen), NULL);
     switch (op) {
     case Op_AddI:  return new (phase->C) AddLNode(cx, cy);
     case Op_SubI:  return new (phase->C) SubLNode(cx, cy);

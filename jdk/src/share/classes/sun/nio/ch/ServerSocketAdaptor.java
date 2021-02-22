@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,20 @@
 
 package sun.nio.ch;
 
-import java.io.*;
-import java.net.*;
-import java.nio.channels.*;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.net.StandardSocketOptions;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.IllegalBlockingModeException;
+import java.nio.channels.NotYetBoundException;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 
 
 // Make a server-socket channel look like a server socket.
@@ -37,7 +48,7 @@ import java.nio.channels.*;
 // class.
 //
 
-public class ServerSocketAdaptor                        // package-private
+class ServerSocketAdaptor                        // package-private
     extends ServerSocket
 {
 
@@ -97,45 +108,38 @@ public class ServerSocketAdaptor                        // package-private
                 throw new IllegalBlockingModeException();
             try {
                 if (timeout == 0) {
+                    // for compatibility reasons: accept connection if available
+                    // when configured non-blocking
                     SocketChannel sc = ssc.accept();
                     if (sc == null && !ssc.isBlocking())
                         throw new IllegalBlockingModeException();
                     return sc.socket();
                 }
 
-                // Implement timeout with a selector
-                SelectionKey sk = null;
-                Selector sel = null;
+                if (!ssc.isBlocking())
+                    throw new IllegalBlockingModeException();
                 ssc.configureBlocking(false);
                 try {
                     SocketChannel sc;
                     if ((sc = ssc.accept()) != null)
                         return sc.socket();
-                    sel = Util.getTemporarySelector(ssc);
-                    sk = ssc.register(sel, SelectionKey.OP_ACCEPT);
                     long to = timeout;
                     for (;;) {
                         if (!ssc.isOpen())
                             throw new ClosedChannelException();
                         long st = System.currentTimeMillis();
-                        int ns = sel.select(to);
-                        if (ns > 0 &&
-                            sk.isAcceptable() && ((sc = ssc.accept()) != null))
+                        int result = ssc.poll(Net.POLLIN, to);
+                        if (result > 0 && ((sc = ssc.accept()) != null))
                             return sc.socket();
-                        sel.selectedKeys().remove(sk);
                         to -= System.currentTimeMillis() - st;
                         if (to <= 0)
                             throw new SocketTimeoutException();
                     }
                 } finally {
-                    if (sk != null)
-                        sk.cancel();
-                    if (ssc.isOpen())
+                    try {
                         ssc.configureBlocking(true);
-                    if (sel != null)
-                        Util.releaseTemporarySelector(sel);
+                    } catch (ClosedChannelException e) { }
                 }
-
             } catch (Exception x) {
                 Net.translateException(x);
                 assert false;
@@ -189,8 +193,7 @@ public class ServerSocketAdaptor                        // package-private
         if (!isBound())
             return "ServerSocket[unbound]";
         return "ServerSocket[addr=" + getInetAddress() +
-            //          ",port=" + getPort() +
-                ",localport=" + getLocalPort()  + "]";
+               ",localport=" + getLocalPort()  + "]";
     }
 
     public void setReceiveBufferSize(int size) throws SocketException {

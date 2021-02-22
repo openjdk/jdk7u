@@ -114,6 +114,9 @@
 
 # jdk_awt
 
+# 8221305
+java/awt/FontMetrics/MaxAdvanceIsMax.java             solaris-all,macosx-all
+
 ############################################################################
 
 # jdk_beans
@@ -232,6 +235,9 @@ javax/management/MBeanServer/OldMBeanServerTest.java            aix-all
 
 # 8026393
 sun/security/tools/jarsigner/warnings/BadKeyUsageTest.java      generic-all
+
+# 8158827
+sun/security/krb5/auto/tools/KinitConfPlusProps.java                       windows-all
 
 ############################################################################
 
