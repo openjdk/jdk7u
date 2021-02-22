@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ import sun.security.action.LoadLibraryAction;
 
 import static sun.awt.shell.Win32ShellFolder2.*;
 import sun.awt.OSInfo;
+import sun.misc.ThreadGroupUtils;
 
 // NOTE: This class supersedes Win32ShellFolderManager, which was removed
 //       from distribution after version 1.4.2.
@@ -137,6 +138,8 @@ public class Win32ShellFolderManager2 extends ShellFolderManager {
         if (desktop == null) {
             try {
                 desktop = new Win32ShellFolder2(DESKTOP);
+            } catch (SecurityException e) {
+                // Ignore error
             } catch (IOException e) {
                 // Ignore error
             } catch (InterruptedException e) {
@@ -150,6 +153,8 @@ public class Win32ShellFolderManager2 extends ShellFolderManager {
         if (drives == null) {
             try {
                 drives = new Win32ShellFolder2(DRIVES);
+            } catch (SecurityException e) {
+                // Ignore error
             } catch (IOException e) {
                 // Ignore error
             } catch (InterruptedException e) {
@@ -166,6 +171,8 @@ public class Win32ShellFolderManager2 extends ShellFolderManager {
                 if (path != null) {
                     recent = createShellFolder(getDesktop(), new File(path));
                 }
+            } catch (SecurityException e) {
+                // Ignore error
             } catch (InterruptedException e) {
                 // Ignore error
             } catch (IOException e) {
@@ -179,6 +186,8 @@ public class Win32ShellFolderManager2 extends ShellFolderManager {
         if (network == null) {
             try {
                 network = new Win32ShellFolder2(NETWORK);
+            } catch (SecurityException e) {
+                // Ignore error
             } catch (IOException e) {
                 // Ignore error
             } catch (InterruptedException e) {
@@ -202,6 +211,8 @@ public class Win32ShellFolderManager2 extends ShellFolderManager {
                         personal.setIsPersonal();
                     }
                 }
+            } catch (SecurityException e) {
+                // Ignore error
             } catch (InterruptedException e) {
                 // Ignore error
             } catch (IOException e) {
@@ -505,23 +516,19 @@ public class Win32ShellFolderManager2 extends ShellFolderManager {
                     }
                 }
             };
-            comThread =
-                AccessController.doPrivileged(
-                    new PrivilegedAction<Thread>() {
-                        public Thread run() {
+            comThread =  AccessController.doPrivileged(new PrivilegedAction<Thread>() {
+                @Override
+                public Thread run() {
                             /* The thread must be a member of a thread group
                              * which will not get GCed before VM exit.
                              * Make its parent the top-level thread group.
                              */
-                            ThreadGroup tg = Thread.currentThread().getThreadGroup();
-                            for (ThreadGroup tgn = tg;
-                                 tgn != null;
-                                 tg = tgn, tgn = tg.getParent());
-                            Thread thread = new Thread(tg, comRun, "Swing-Shell");
-                            thread.setDaemon(true);
-                            return thread;
-                        }
-                    }
+                    ThreadGroup rootTG = ThreadGroupUtils.getRootThreadGroup();
+                    Thread thread = new Thread(rootTG, comRun, "Swing-Shell");
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            }
                 );
             return comThread;
         }
