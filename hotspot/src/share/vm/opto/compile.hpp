@@ -789,7 +789,9 @@ class Compile : public Phase {
 
   // Decide how to build a call.
   // The profile factor is a discount to apply to this site's interp. profile.
-  CallGenerator*    call_generator(ciMethod* call_method, int vtable_index, bool call_does_dispatch, JVMState* jvms, bool allow_inline, float profile_factor, bool allow_intrinsics = true, bool delayed_forbidden = false);
+  CallGenerator*    call_generator(ciMethod* call_method, int vtable_index, bool call_does_dispatch,
+                                   JVMState* jvms, bool allow_inline, float profile_factor, bool allow_intrinsics = true,
+                                   bool delayed_forbidden = false);
   bool should_delay_inlining(ciMethod* call_method, JVMState* jvms);
 
   // Helper functions to identify inlining potential at call-site

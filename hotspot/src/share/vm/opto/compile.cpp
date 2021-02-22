@@ -399,6 +399,11 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
   uint next = 0;
   while (next < useful.size()) {
     Node *n = useful.at(next++);
+    if (n->is_SafePoint()) {
+      // We're done with a parsing phase. Replaced nodes are not valid
+      // beyond that point.
+      n->as_SafePoint()->delete_replaced_nodes();
+    }
     // Use raw traversal of out edges since this code removes out edges
     int max = n->outcnt();
     for (int j = 0; j < max; ++j) {
@@ -1895,8 +1900,8 @@ void Compile::inline_incrementally(PhaseIterGVN& igvn) {
     if (live_nodes() > (uint)LiveNodeCountInliningCutoff) {
       if (low_live_nodes < (uint)LiveNodeCountInliningCutoff * 8 / 10) {
         // PhaseIdealLoop is expensive so we only try it once we are
-        // out of loop and we only try it again if the previous helped
-        // got the number of nodes down significantly
+        // out of live nodes and we only try it again if the previous
+        // helped got the number of nodes down significantly
         PhaseIdealLoop ideal_loop( igvn, false, true );
         if (failing())  return;
         low_live_nodes = live_nodes();

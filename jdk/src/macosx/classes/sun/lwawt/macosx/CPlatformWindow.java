@@ -272,16 +272,21 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         contentView.execute(new CFNativeAction() {
             @Override
             public void run(final long viewPtr) {
+                boolean hasOwnerPtr = false;
+
                 if (owner != null) {
-                    owner.execute(new CFNativeAction() {
+                    hasOwnerPtr = 0L != owner.executeGet(new CFNativeActionGet() {
                         @Override
-                        public void run(long ownerPtr) {
+                        public long run(long ownerPtr) {
                             ref.set(nativeCreateNSWindow(viewPtr, ownerPtr, styleBits,
-                                                         bounds.x, bounds.y,
-                                                         bounds.width, bounds.height));
+                                                    bounds.x, bounds.y,
+                                                    bounds.width, bounds.height));
+                            return 1;
                         }
                     });
-                } else {
+            }
+
+            if (!hasOwnerPtr) {
                     ref.set(nativeCreateNSWindow(viewPtr, 0,
                                                  styleBits, bounds.x, bounds.y,
                                                  bounds.width, bounds.height));

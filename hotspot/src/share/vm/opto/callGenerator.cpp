@@ -395,7 +395,7 @@ void LateInlineCallGenerator::do_late_inline() {
   C->env()->notice_inlined_method(_inline_cg->method());
   C->set_inlining_progress(true);
 
-  kit.replace_call(call, result);
+  kit.replace_call(call, result, true);
 }
 
 
@@ -614,6 +614,10 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     return kit.transfer_exceptions_into_jvms();
   }
 
+  // Make a copy of the replaced nodes in case we need to restore them
+  ReplacedNodes replaced_nodes = kit.map()->replaced_nodes();
+  replaced_nodes.clone();
+
   Node* exact_receiver = receiver;  // will get updated in place...
   Node* slow_ctl = kit.type_check_receiver(receiver,
                                            _predicted_receiver, _hit_prob,
@@ -666,6 +670,11 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     kit.set_jvms(slow_jvms);
     return kit.transfer_exceptions_into_jvms();
   }
+
+  // There are 2 branches and the replaced nodes are only valid on
+  // one: restore the replaced nodes to what they were before the
+  // branch.
+  kit.map()->set_replaced_nodes(replaced_nodes);
 
   // Finish the diamond.
   kit.C->set_has_split_ifs(true); // Has chance for split-if optimization
