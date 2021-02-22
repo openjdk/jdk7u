@@ -151,8 +151,8 @@ public:
       if(isEmpty()) {
         //err = LE_MISSING_FONT_TABLE_ERROR;
         clear(); // it's just empty. Not an error.
-      } else if(offset >= fParent->fLength) {
-        LE_DEBUG_TR3("offset out of range: (%p) +%d", NULL, offset);
+      } else if(offset >= fParent->fLength || (offset & 0x01)) {
+        LE_DEBUG_TR3("offset out of range or odd alignment: (%p) +%d", NULL, offset);
         err = LE_INDEX_OUT_OF_BOUNDS_ERROR;
         clear();
       } else {
@@ -189,7 +189,7 @@ public:
 
   void addOffset(size_t offset, LEErrorCode &success) {
     if(hasBounds()) {
-      if(offset > fLength) {
+      if(offset >= fLength) {
         LE_DEBUG_TR("addOffset off end");
         success = LE_INDEX_OUT_OF_BOUNDS_ERROR;
         return;
@@ -204,7 +204,7 @@ public:
     if(atPtr==NULL) return 0;
     if(LE_FAILURE(success)) return LE_UINTPTR_MAX;
     if((atPtr < fStart) ||
-       (hasBounds() && (atPtr > fStart+fLength))) {
+       (hasBounds() && (atPtr >= fStart+fLength))) {
       LE_DEBUG_TR3("ptrToOffset args out of range: %p", atPtr, 0);
       success = LE_INDEX_OUT_OF_BOUNDS_ERROR;
       return LE_UINTPTR_MAX;
@@ -238,6 +238,18 @@ public:
 #endif
     }
     return fLength;
+  }
+
+  /**
+  * Throw an error if size*count overflows
+  */
+  size_t verifyLength(size_t offset, size_t size, le_uint32 count, LEErrorCode &success) {
+    if(count!=0 && size>LE_UINT32_MAX/count) {
+      LE_DEBUG_TR3("verifyLength failed size=%u, count=%u", size, count);
+      success = LE_INDEX_OUT_OF_BOUNDS_ERROR;
+      return 0;
+    }
+    return verifyLength(offset, size*count, success);
   }
 
   /**
@@ -425,7 +437,7 @@ public:
       if(fCount == LE_UNBOUNDED_ARRAY) { // not a known length
         fCount = getLength()/LETableVarSizer<T>::getSize(); // fit to max size
       }
-      LETableReference::verifyLength(0, LETableVarSizer<T>::getSize()*fCount, success);
+      LETableReference::verifyLength(0, LETableVarSizer<T>::getSize(), fCount, success);
     }
     if(LE_FAILURE(success)) {
       fCount=0;
@@ -440,7 +452,7 @@ _TRTRACE("INFO: new RTAO")
       if(fCount == LE_UNBOUNDED_ARRAY) { // not a known length
         fCount = getLength()/LETableVarSizer<T>::getSize(); // fit to max size
       }
-      LETableReference::verifyLength(0, LETableVarSizer<T>::getSize()*fCount, success);
+      LETableReference::verifyLength(0, LETableVarSizer<T>::getSize(), fCount, success);
     }
     if(LE_FAILURE(success)) clear();
   }
@@ -451,7 +463,7 @@ _TRTRACE("INFO: new RTAO")
       if(fCount == LE_UNBOUNDED_ARRAY) { // not a known length
         fCount = getLength()/LETableVarSizer<T>::getSize(); // fit to max size
       }
-      LETableReference::verifyLength(0, LETableVarSizer<T>::getSize()*fCount, success);
+      LETableReference::verifyLength(0, LETableVarSizer<T>::getSize(), fCount, success);
     }
     if(LE_FAILURE(success)) clear();
   }
