@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,7 @@
 
 /*
  * @test
- * @bug 4474255
- * @test 1.1 01/06/27
- * @bug 4484246
+ * @bug 4474255 4484246
  * @summary When an application enables anonymous SSL cipher suite,
  *        Hostname verification is not required
  * @run main/othervm ComHostnameVerifier
@@ -39,6 +37,7 @@
 import java.io.*;
 import java.net.*;
 import javax.net.ssl.*;
+import java.security.Security;
 import javax.security.cert.*;
 import com.sun.net.ssl.HostnameVerifier;
 import com.sun.net.ssl.HttpsURLConnection;
@@ -251,6 +250,8 @@ public class ComHostnameVerifier {
     volatile Exception clientException = null;
 
     public static void main(String[] args) throws Exception {
+        // re-enable 3DES
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
 
         if (debug)
             System.setProperty("javax.net.debug", "all");

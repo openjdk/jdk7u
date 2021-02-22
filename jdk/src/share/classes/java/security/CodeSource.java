@@ -234,7 +234,7 @@ public class CodeSource implements java.io.Serializable {
      * Returns true if this CodeSource object "implies" the specified CodeSource.
      * <P>
      * More specifically, this method makes the following checks, in order.
-     * If any fail, it returns false. If they all succeed, it returns true.<p>
+     * If any fail, it returns false. If they all succeed, it returns true.
      * <ol>
      * <li> <i>codesource</i> must not be null.
      * <li> If this object's certificates are not null, then all
@@ -242,7 +242,7 @@ public class CodeSource implements java.io.Serializable {
      * certificates.
      * <li> If this object's location (getLocation()) is not null, then the
      * following checks are made against this object's location and
-     * <i>codesource</i>'s:<p>
+     * <i>codesource</i>'s:
      *   <ol>
      *     <li>  <i>codesource</i>'s location must not be null.
      *
@@ -480,13 +480,13 @@ public class CodeSource implements java.io.Serializable {
     /**
      * Writes this object out to a stream (i.e., serializes it).
      *
-     * @serialData An initial <code>URL</code> is followed by an
-     * <code>int</code> indicating the number of certificates to follow
+     * @serialData An initial {@code URL} is followed by an
+     * {@code int} indicating the number of certificates to follow
      * (a value of "zero" denotes that there are no certificates associated
      * with this object).
-     * Each certificate is written out starting with a <code>String</code>
+     * Each certificate is written out starting with a {@code String}
      * denoting the certificate type, followed by an
-     * <code>int</code> specifying the length of the certificate encoding,
+     * {@code int} specifying the length of the certificate encoding,
      * followed by the certificate encoding itself which is written out as an
      * array of bytes. Finally, if any code signers are present then the array
      * of code signers is serialized and written out too.

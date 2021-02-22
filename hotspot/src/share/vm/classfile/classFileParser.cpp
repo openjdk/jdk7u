@@ -1779,8 +1779,7 @@ ClassFileParser::AnnotationCollector::ID ClassFileParser::AnnotationCollector::a
   vmSymbols::SID sid = vmSymbols::find_sid(name);
   // Privileged code can use all annotations.  Other code silently drops some.
   const bool privileged = class_loader.is_null() || is_anonymous ||
-                          class_loader()->klass()->klass_part()->name() ==
-                            vmSymbols::sun_misc_Launcher_ExtClassLoader();
+                          SystemDictionary::is_ext_class_loader(class_loader);
   switch (sid) {
   case vmSymbols::VM_SYMBOL_ENUM_NAME(java_lang_invoke_ForceInline_signature):
     if (_location != _in_method)  break;  // only allow for methods

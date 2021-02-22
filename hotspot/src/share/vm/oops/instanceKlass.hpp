@@ -494,12 +494,29 @@ class instanceKlass: public Klass {
   methodOop find_method(Symbol* name, Symbol* signature) const;
   static methodOop find_method(objArrayOop methods, Symbol* name, Symbol* signature);
 
+  // find a local method, but skip static methods
+  methodOop find_instance_method(Symbol* name, Symbol* signature);
+  static methodOop find_instance_method(objArrayOop methods, Symbol* name, Symbol* signature);
+
+  // true if method matches signature and conforms to skipping_X conditions.
+  static bool method_matches(methodOop m, Symbol* signature, bool skipping_static);
+
+  // find a local method index in default_methods (returns -1 if not found)
+  static int find_method_index(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static);
+
   // lookup operation (returns NULL if not found)
   methodOop uncached_lookup_method(Symbol* name, Symbol* signature) const;
 
   // lookup a method in all the interfaces that this class implements
   // (returns NULL if not found)
   methodOop lookup_method_in_all_interfaces(Symbol* name, Symbol* signature) const;
+
+  // Find method indices by name.  If a method with the specified name is
+  // found the index to the first method is returned, and 'end' is filled in
+  // with the index of first non-name-matching method.  If no method is found
+  // -1 is returned.
+  int find_method_by_name(Symbol* name, int* end);
+  static int find_method_by_name(objArrayOop methods, Symbol* name, int* end);
 
   // constant pool
   constantPoolOop constants() const        { return _constants; }
@@ -967,6 +984,9 @@ private:
 
   // Returns the array class with this class as element type
   klassOop array_klass_impl(bool or_null, TRAPS);
+
+  // find a local method (returns NULL if not found)
+  static methodOop find_method_impl(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static);
 
 public:
   // sharing support
