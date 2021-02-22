@@ -27,6 +27,7 @@ BUILDDIR = ../..
 PACKAGE = sun.net
 PRODUCT = sun
 SUBDIRS_MAKEFLAGS += JAVAC_MAX_WARNINGS=true
+SUBDIRS_MAKEFLAGS += JAVAC_LINT_OPTIONS=-Xlint:all,-deprecation,-path
 include $(BUILDDIR)/common/Defs.gmk
 
 SUBDIRS = others spi

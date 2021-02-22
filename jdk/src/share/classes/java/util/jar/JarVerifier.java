@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -91,7 +91,7 @@ class JarVerifier {
     private Object csdomain = new Object();
 
     /** collect -DIGEST-MANIFEST values for blacklist */
-    private List manifestDigests;
+    private List<Object> manifestDigests;
 
     public JarVerifier(byte rawBytes[]) {
         manifestRawBytes = rawBytes;
@@ -100,7 +100,7 @@ class JarVerifier {
         sigFileData = new Hashtable<>(11);
         pendingBlocks = new ArrayList<>();
         baos = new ByteArrayOutputStream();
-        manifestDigests = new ArrayList();
+        manifestDigests = new ArrayList<>();
     }
 
     /**
@@ -871,11 +871,31 @@ class JarVerifier {
         eagerValidation = eager;
     }
 
-    public synchronized List getManifestDigests() {
+    public synchronized List<Object> getManifestDigests() {
         return Collections.unmodifiableList(manifestDigests);
     }
 
     static CodeSource getUnsignedCS(URL url) {
         return new VerifierCodeSource(null, url, (java.security.cert.Certificate[]) null);
+    }
+
+    /**
+     * Returns whether the name is trusted. Used by
+     * {@link Manifest#getTrustedAttributes(String)}.
+     */
+    boolean isTrustedManifestEntry(String name) {
+        // How many signers? MANIFEST.MF is always verified
+        CodeSigner[] forMan = verifiedSigners.get(JarFile.MANIFEST_NAME);
+        if (forMan == null) {
+            return true;
+        }
+        // Check sigFileSigners first, because we are mainly dealing with
+        // non-file entries which will stay in sigFileSigners forever.
+        CodeSigner[] forName = sigFileSigners.get(name);
+        if (forName == null) {
+            forName = verifiedSigners.get(name);
+        }
+        // Returns trusted if all signers sign the entry
+        return forName != null && forName.length == forMan.length;
     }
 }

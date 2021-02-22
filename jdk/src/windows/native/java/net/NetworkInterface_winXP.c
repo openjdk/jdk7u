@@ -428,22 +428,29 @@ static jobject createNetworkInterfaceXP(JNIEnv *env, netif *ifs)
     jobjectArray addrArr, bindsArr, childArr;
     netaddr *addrs;
     jint addr_index;
-    int netaddrCount=ifs->naddrs;
-    netaddr *netaddrP=ifs->addrs;
+    int netaddrCount = ifs->naddrs;
+    netaddr *netaddrP = ifs->addrs;
+    netaddr *netaddrPToFree = NULL;
     jint bind_index;
 
     /*
      * Create a NetworkInterface object and populate it
      */
     netifObj = (*env)->NewObject(env, ni_class, ni_ctor);
+    if (netifObj == NULL) {
+        return NULL;
+    }
     name = (*env)->NewStringUTF(env, ifs->name);
+    if (name == NULL) {
+        return NULL;
+    }
     if (ifs->dNameIsUnicode) {
         displayName = (*env)->NewString(env, (PWCHAR)ifs->displayName,
                                         (jsize)wcslen ((PWCHAR)ifs->displayName));
     } else {
         displayName = (*env)->NewStringUTF(env, ifs->displayName);
     }
-    if (netifObj == NULL || name == NULL || displayName == NULL) {
+    if (displayName == NULL) {
         return NULL;
     }
     (*env)->SetObjectField(env, netifObj, ni_nameID, name);
@@ -454,21 +461,23 @@ static jobject createNetworkInterfaceXP(JNIEnv *env, netif *ifs)
      * Note that 0 is a valid number of addresses.
      */
     if (netaddrCount < 0) {
-        netaddrCount = enumAddresses_win(env, ifs, &netaddrP);
+        netaddrCount = enumAddresses_win(env, ifs, &netaddrPToFree);
         if (netaddrCount == -1) {
             return NULL;
         }
+        netaddrP = netaddrPToFree;
     }
 
     addrArr = (*env)->NewObjectArray(env, netaddrCount, ni_iacls, NULL);
     if (addrArr == NULL) {
+        free_netaddr(netaddrPToFree);
         return NULL;
     }
 
     bindsArr = (*env)->NewObjectArray(env, netaddrCount, ni_ibcls, NULL);
     if (bindsArr == NULL) {
-      free_netaddr(netaddrP);
-      return NULL;
+        free_netaddr(netaddrPToFree);
+        return NULL;
     }
 
     addrs = netaddrP;
@@ -480,51 +489,62 @@ static jobject createNetworkInterfaceXP(JNIEnv *env, netif *ifs)
         if (addrs->addr.him.sa_family == AF_INET) {
             iaObj = (*env)->NewObject(env, ni_ia4cls, ni_ia4Ctor);
             if (iaObj == NULL) {
+                free_netaddr(netaddrPToFree);
                 return NULL;
             }
             /* default ctor will set family to AF_INET */
 
             setInetAddress_addr(env, iaObj, ntohl(addrs->addr.him4.sin_addr.s_addr));
 
-            JNU_CHECK_EXCEPTION_RETURN(env, NULL);
+            if ((*env)->ExceptionCheck(env)) {
+                free_netaddr(netaddrPToFree);
+                return NULL;
+            }
             ibObj = (*env)->NewObject(env, ni_ibcls, ni_ibctrID);
             if (ibObj == NULL) {
-              free_netaddr(netaddrP);
-              return NULL;
+                free_netaddr(netaddrPToFree);
+                return NULL;
             }
             (*env)->SetObjectField(env, ibObj, ni_ibaddressID, iaObj);
             ia2Obj = (*env)->NewObject(env, ni_ia4cls, ni_ia4Ctor);
             if (ia2Obj == NULL) {
-              free_netaddr(netaddrP);
-              return NULL;
+                free_netaddr(netaddrPToFree);
+                return NULL;
             }
             setInetAddress_addr(env, ia2Obj, ntohl(addrs->brdcast.him4.sin_addr.s_addr));
-            JNU_CHECK_EXCEPTION_RETURN(env, NULL);
+            if ((*env)->ExceptionCheck(env)) {
+                free_netaddr(netaddrPToFree);
+                return NULL;
+            }
             (*env)->SetObjectField(env, ibObj, ni_ibbroadcastID, ia2Obj);
             (*env)->SetShortField(env, ibObj, ni_ibmaskID, addrs->mask);
             (*env)->SetObjectArrayElement(env, bindsArr, bind_index++, ibObj);
         } else /* AF_INET6 */ {
             int scope;
+            int ret;
             iaObj = (*env)->NewObject(env, ni_ia6cls, ni_ia6ctrID);
-            if (iaObj) {
-                int ret = setInet6Address_ipaddress(env, iaObj, (jbyte *)&(addrs->addr.him6.sin6_addr.s6_addr));
-                if (ret == JNI_FALSE) {
-                    return NULL;
-                }
-                scope = addrs->addr.him6.sin6_scope_id;
-                if (scope != 0) { /* zero is default value, no need to set */
-                    setInet6Address_scopeid(env, iaObj, scope);
-                    setInet6Address_scopeifname(env, iaObj, netifObj);
-                }
-                ibObj = (*env)->NewObject(env, ni_ibcls, ni_ibctrID);
-                if (ibObj == NULL) {
-                  free_netaddr(netaddrP);
-                  return NULL;
-                }
-                (*env)->SetObjectField(env, ibObj, ni_ibaddressID, iaObj);
-                (*env)->SetShortField(env, ibObj, ni_ibmaskID, addrs->mask);
-                (*env)->SetObjectArrayElement(env, bindsArr, bind_index++, ibObj);
+            if (iaObj == NULL) {
+                free_netaddr(netaddrPToFree);
+                return NULL;
             }
+            ret = setInet6Address_ipaddress(env, iaObj, (jbyte *)&(addrs->addr.him6.sin6_addr.s6_addr));
+            if (ret == JNI_FALSE) {
+                free_netaddr(netaddrPToFree);
+                return NULL;
+            }
+            scope = addrs->addr.him6.sin6_scope_id;
+            if (scope != 0) { /* zero is default value, no need to set */
+                setInet6Address_scopeid(env, iaObj, scope);
+                setInet6Address_scopeifname(env, iaObj, netifObj);
+            }
+            ibObj = (*env)->NewObject(env, ni_ibcls, ni_ibctrID);
+            if (ibObj == NULL) {
+                free_netaddr(netaddrPToFree);
+                return NULL;
+            }
+            (*env)->SetObjectField(env, ibObj, ni_ibaddressID, iaObj);
+            (*env)->SetShortField(env, ibObj, ni_ibmaskID, addrs->mask);
+            (*env)->SetObjectArrayElement(env, bindsArr, bind_index++, ibObj);
         }
         (*env)->SetObjectArrayElement(env, addrArr, addr_index, iaObj);
         addrs = addrs->next;
@@ -532,6 +552,8 @@ static jobject createNetworkInterfaceXP(JNIEnv *env, netif *ifs)
     }
     (*env)->SetObjectField(env, netifObj, ni_addrsID, addrArr);
     (*env)->SetObjectField(env, netifObj, ni_bindsID, bindsArr);
+
+    free_netaddr(netaddrPToFree);
 
     /*
      * Windows doesn't have virtual interfaces, so child array
@@ -572,7 +594,7 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByName0_XP
     }
 
     /* if found create a NetworkInterface */
-    if (curr != NULL) {;
+    if (curr != NULL) {
         netifObj = createNetworkInterfaceXP(env, curr);
     }
 
@@ -699,6 +721,7 @@ JNIEXPORT jobjectArray JNICALL Java_java_net_NetworkInterface_getAll_XP
     /* allocate a NetworkInterface array */
     netIFArr = (*env)->NewObjectArray(env, count, cls, NULL);
     if (netIFArr == NULL) {
+        free_netif(ifList);
         return NULL;
     }
 
@@ -713,6 +736,7 @@ JNIEXPORT jobjectArray JNICALL Java_java_net_NetworkInterface_getAll_XP
 
         netifObj = createNetworkInterfaceXP(env, curr);
         if (netifObj == NULL) {
+            free_netif(ifList);
             return NULL;
         }
 

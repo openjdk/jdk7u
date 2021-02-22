@@ -363,10 +363,10 @@ class Util {
                     try {
                         Class<?> cl = Class.forName("java.nio.DirectByteBuffer");
                         Constructor ctor = cl.getDeclaredConstructor(
-                            new Class[] { int.class,
-                                          long.class,
-                                          FileDescriptor.class,
-                                          Runnable.class });
+                            new Class<?>[] { int.class,
+                                             long.class,
+                                             FileDescriptor.class,
+                                             Runnable.class });
                         ctor.setAccessible(true);
                         directByteBufferConstructor = ctor;
                     } catch (ClassNotFoundException x) {
@@ -413,10 +413,10 @@ class Util {
                     try {
                         Class<?> cl = Class.forName("java.nio.DirectByteBufferR");
                         Constructor ctor = cl.getDeclaredConstructor(
-                            new Class[] { int.class,
-                                          long.class,
-                                          FileDescriptor.class,
-                                          Runnable.class });
+                            new Class<?>[] { int.class,
+                                             long.class,
+                                             FileDescriptor.class,
+                                             Runnable.class });
                         ctor.setAccessible(true);
                         directByteBufferRConstructor = ctor;
                     } catch (ClassNotFoundException x) {
