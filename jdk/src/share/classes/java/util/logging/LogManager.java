@@ -257,6 +257,11 @@ public class LogManager {
      * retrieved by calling Logmanager.getLogManager.
      */
     protected LogManager() {
+        this(checkSubclassPermissions());
+    }
+
+    private LogManager(Void checked) {
+
         // Add a shutdown hook to close the global handlers.
         try {
             Runtime.getRuntime().addShutdownHook(new Cleaner());
@@ -264,6 +269,19 @@ public class LogManager {
             // If the VM is already shutting down,
             // We do not need to register shutdownHook.
         }
+    }
+
+    private static Void checkSubclassPermissions() {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            // These permission will be checked in the LogManager constructor,
+            // in order to register the Cleaner() thread as a shutdown hook.
+            // Check them here to avoid the penalty of constructing the object
+            // etc...
+            sm.checkPermission(new RuntimePermission("shutdownHooks"));
+            sm.checkPermission(new RuntimePermission("setContextClassLoader"));
+        }
+        return null;
     }
 
     /**
@@ -345,6 +363,9 @@ public class LogManager {
         changes.removePropertyChangeListener(l);
     }
 
+    // LoggerContext maps from AppContext
+    private static WeakHashMap<Object, LoggerContext> contextsMap = null;
+
     // Returns the LoggerContext for the user code (i.e. application or AppContext).
     // Loggers are isolated from each AppContext.
     private LoggerContext getUserContext() {
@@ -353,33 +374,28 @@ public class LogManager {
         SecurityManager sm = System.getSecurityManager();
         JavaAWTAccess javaAwtAccess = SharedSecrets.getJavaAWTAccess();
         if (sm != null && javaAwtAccess != null) {
+            // for each applet, it has its own LoggerContext isolated from others
             synchronized (javaAwtAccess) {
-                // AppContext.getAppContext() returns the system AppContext if called
-                // from a system thread but Logger.getLogger might be called from
-                // an applet code. Instead, find the AppContext of the applet code
-                // from the execution stack.
-                Object ecx = javaAwtAccess.getExecutionContext();
-                if (ecx == null) {
-                    // fall back to thread group seach of AppContext
-                    ecx = javaAwtAccess.getContext();
-                }
+                // find the AppContext of the applet code
+                // will be null if we are in the main app context.
+                final Object ecx = javaAwtAccess.getAppletContext();
                 if (ecx != null) {
-                    context = (LoggerContext)javaAwtAccess.get(ecx, LoggerContext.class);
+                    if (contextsMap == null) {
+                        contextsMap = new WeakHashMap<>();
+                    }
+                    context = contextsMap.get(ecx);
                     if (context == null) {
-                        if (javaAwtAccess.isMainAppContext()) {
-                            context = userContext;
-                        } else {
-                            // Create a new LoggerContext for the applet.
-                            // The new logger context has its requiresDefaultLoggers
-                            // flag set to true - so that these loggers will be
-                            // lazily added when the context is firt accessed.
-                            context = new LoggerContext(true);
-                        }
-                        javaAwtAccess.put(ecx, LoggerContext.class, context);
+                        // Create a new LoggerContext for the applet.
+                        // The new logger context has its requiresDefaultLoggers
+                        // flag set to true - so that these loggers will be
+                        // lazily added when the context is firt accessed.
+                        context = new LoggerContext(true);
+                        contextsMap.put(ecx, context);
                     }
                 }
             }
         }
+        // for standalone app, return userContext
         return context != null ? context : userContext;
     }
 
@@ -406,7 +422,7 @@ public class LogManager {
         Logger result = getLogger(name);
         if (result == null) {
             // only allocate the new logger once
-            Logger newLogger = new Logger(name, resourceBundleName, caller);
+            Logger newLogger = new Logger(name, resourceBundleName, caller, false);
             do {
                 if (addLogger(newLogger)) {
                     // We successfully added the new Logger that we
@@ -453,12 +469,12 @@ public class LogManager {
         } while (logger == null);
 
         // LogManager will set the sysLogger's handlers via LogManager.addLogger method.
-        if (logger != sysLogger && sysLogger.getHandlers().length == 0) {
+        if (logger != sysLogger && sysLogger.accessCheckedHandlers().length == 0) {
             // if logger already exists but handlers not set
             final Logger l = logger;
             AccessController.doPrivileged(new PrivilegedAction<Void>() {
                 public Void run() {
-                    for (Handler hdl : l.getHandlers()) {
+                    for (Handler hdl : l.accessCheckedHandlers()) {
                         sysLogger.addHandler(hdl);
                     }
                     return null;
@@ -742,7 +758,7 @@ public class LogManager {
             Logger result = findLogger(name);
             if (result == null) {
                 // only allocate the new system logger once
-                Logger newLogger = new Logger(name, resourceBundleName);
+                Logger newLogger = new Logger(name, resourceBundleName, null, true);
                 do {
                     if (addLocalLogger(newLogger)) {
                         // We successfully added the new Logger that we
@@ -1407,31 +1423,35 @@ public class LogManager {
     // We use a subclass of Logger for the root logger, so
     // that we only instantiate the global handlers when they
     // are first needed.
-    private class RootLogger extends Logger {
+    private final class RootLogger extends Logger {
         private RootLogger() {
-            super("", null);
+            super("", null, null, true);
             setLevel(defaultLevel);
         }
 
+        @Override
         public void log(LogRecord record) {
             // Make sure that the global handlers have been instantiated.
             initializeGlobalHandlers();
             super.log(record);
         }
 
+        @Override
         public void addHandler(Handler h) {
             initializeGlobalHandlers();
             super.addHandler(h);
         }
 
+        @Override
         public void removeHandler(Handler h) {
             initializeGlobalHandlers();
             super.removeHandler(h);
         }
 
-        public Handler[] getHandlers() {
+        @Override
+        Handler[] accessCheckedHandlers() {
             initializeGlobalHandlers();
-            return super.getHandlers();
+            return super.accessCheckedHandlers();
         }
     }
 
