@@ -305,10 +305,18 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
     jboolean match = JNI_FALSE;
 
 #ifdef AF_INET6
-    int family = (getInetAddress_family(env, iaObj) == IPv4) ? AF_INET : AF_INET6;
+    int family = getInetAddress_family(env, iaObj);
     JNU_CHECK_EXCEPTION_RETURN(env, NULL);
+
+    if (family == IPv4) {
+        family = AF_INET;
+    } else if (family == IPv6) {
+        family = AF_INET6;
+    } else {
+        return NULL; // Invalid family
+    }
 #else
-    int family =  AF_INET;
+    int family = AF_INET;
 #endif
 
     ifs = enumInterfaces(env);
@@ -329,7 +337,9 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
                 if (family == AF_INET) {
                     int address1 = htonl(((struct sockaddr_in*)addrP->addr)->sin_addr.s_addr);
                     int address2 = getInetAddress_addr(env, iaObj);
-                    JNU_CHECK_EXCEPTION_RETURN(env, NULL);
+                    if ((*env)->ExceptionCheck(env)) {
+                        goto cleanup;
+                    }
                     if (address1 == address2) {
                         match = JNI_TRUE;
                         break;
@@ -375,6 +385,8 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
         obj = createNetworkInterface(env, curr);
     }
 
+cleanup:
+    // release the interface list
     freeif(ifs);
     return obj;
 }

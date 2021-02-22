@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -582,6 +582,37 @@ void LinkResolver::check_field_accessability(KlassHandle ref_klass,
   }
 }
 
+void LinkResolver::check_field_loader_constraints(KlassHandle ref_klass,
+                                                  KlassHandle sel_klass,
+                                                  Symbol* name,
+                                                  Symbol* sig, TRAPS) {
+  HandleMark hm(THREAD);
+  Handle ref_loader (THREAD, instanceKlass::cast(ref_klass())->class_loader());
+  Handle sel_loader (THREAD, instanceKlass::cast(sel_klass())->class_loader());
+  {
+    ResourceMark rm(THREAD);
+    char* failed_type_name =
+      SystemDictionary::check_signature_loaders(sig, ref_loader, sel_loader,
+                                                false, CHECK);
+    if (failed_type_name != NULL) {
+      const char* msg = "loader constraint violation: when resolving field"
+        " \"%s\" the class loader (instance of %s) of the referring class, "
+        "%s, and the class loader (instance of %s) for the field's resolved "
+        "type, %s, have different Class objects for that type";
+      char* field_name = name->as_C_string();
+      const char* loader1 = SystemDictionary::loader_name(ref_loader());
+      char* sel = instanceKlass::cast(sel_klass())->name()->as_C_string();
+      const char* loader2 = SystemDictionary::loader_name(sel_loader());
+      size_t buflen = strlen(msg) + strlen(field_name) + strlen(loader1) +
+        strlen(sel) + strlen(loader2) + strlen(failed_type_name);
+      char* buf = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, buflen);
+      jio_snprintf(buf, buflen, msg, field_name, loader1, sel, loader2,
+                   failed_type_name);
+      THROW_MSG(vmSymbols::java_lang_LinkageError(), buf);
+    }
+  }
+}
+
 void LinkResolver::resolve_field(FieldAccessInfo& result, constantPoolHandle pool, int index, Bytecodes::Code byte, bool check_only, TRAPS) {
   resolve_field(result, pool, index, byte, check_only, true, CHECK);
 }
@@ -644,37 +675,7 @@ void LinkResolver::resolve_field(FieldAccessInfo& result, constantPoolHandle poo
   if (is_static && !check_only) {
     sel_klass->initialize(CHECK);
   }
-
-  {
-    HandleMark hm(THREAD);
-    Handle ref_loader (THREAD, instanceKlass::cast(ref_klass())->class_loader());
-    Handle sel_loader (THREAD, instanceKlass::cast(sel_klass())->class_loader());
-    Symbol*  signature_ref  = pool->signature_ref_at(index);
-    {
-      ResourceMark rm(THREAD);
-      char* failed_type_name =
-        SystemDictionary::check_signature_loaders(signature_ref,
-                                                  ref_loader, sel_loader,
-                                                  false,
-                                                  CHECK);
-      if (failed_type_name != NULL) {
-        const char* msg = "loader constraint violation: when resolving field"
-          " \"%s\" the class loader (instance of %s) of the referring class, "
-          "%s, and the class loader (instance of %s) for the field's resolved "
-          "type, %s, have different Class objects for that type";
-        char* field_name = field->as_C_string();
-        const char* loader1 = SystemDictionary::loader_name(ref_loader());
-        char* sel = instanceKlass::cast(sel_klass())->name()->as_C_string();
-        const char* loader2 = SystemDictionary::loader_name(sel_loader());
-        size_t buflen = strlen(msg) + strlen(field_name) + strlen(loader1) +
-          strlen(sel) + strlen(loader2) + strlen(failed_type_name);
-        char* buf = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, buflen);
-        jio_snprintf(buf, buflen, msg, field_name, loader1, sel, loader2,
-                     failed_type_name);
-        THROW_MSG(vmSymbols::java_lang_LinkageError(), buf);
-      }
-    }
-  }
+  LinkResolver::check_field_loader_constraints(ref_klass, sel_klass, field, sig, CHECK);
 
   // return information. note that the klass is set to the actual klass containing the
   // field, otherwise access of static fields in superclasses will not work.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -544,13 +544,14 @@ JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* t
     thread->set_exception_oop(NULL);
     thread->set_exception_pc(NULL);
 
-    continuation = SharedRuntime::compute_compiled_exc_handler(nm, pc, exception, false, false);
+    bool recursive_exception = false;
+    continuation = SharedRuntime::compute_compiled_exc_handler(nm, pc, exception, false, false, recursive_exception);
     // If an exception was thrown during exception dispatch, the exception oop may have changed
     thread->set_exception_oop(exception());
     thread->set_exception_pc(pc);
 
     // the exception cache is used only by non-implicit exceptions
-    if (continuation != NULL) {
+    if (continuation != NULL && !recursive_exception) {
       nm->add_handler_for_exception_and_pc(exception, pc, continuation);
     }
   }

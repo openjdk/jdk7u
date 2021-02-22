@@ -97,7 +97,7 @@ public class ScriptEngineManager  {
     }
 
     private List<ScriptEngineFactory> initEngines(final ClassLoader loader) {
-        Iterator itr = null;
+        Iterator<ScriptEngineFactory> itr = null;
         try {
             if (loader != null) {
                 itr = Service.providers(ScriptEngineFactory.class, loader);
@@ -120,7 +120,7 @@ public class ScriptEngineManager  {
         try {
             while (itr.hasNext()) {
                 try {
-                    ScriptEngineFactory fact = (ScriptEngineFactory) itr.next();
+                    ScriptEngineFactory fact = itr.next();
                     facList.add(fact);
                 } catch (ServiceConfigurationError err) {
                     System.err.println("ScriptEngineManager providers.next(): "
