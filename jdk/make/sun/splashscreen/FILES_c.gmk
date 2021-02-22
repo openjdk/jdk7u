@@ -45,6 +45,7 @@ FILES_c = \
 	dgif_lib.c \
 	gif_err.c \
 	gifalloc.c \
+	openbsd-reallocarray.c \
 	jcomapi.c \
 	jdapimin.c \
 	jdapistd.c \
