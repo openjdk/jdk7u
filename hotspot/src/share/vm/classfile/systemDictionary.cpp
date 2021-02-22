@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderDependencies.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/loaderConstraints.hpp"
@@ -813,7 +814,17 @@ klassOop SystemDictionary::resolve_instance_class_or_null(Symbol* name, Handle c
         check_constraints(d_index, d_hash, k, class_loader, false, THREAD);
 
         // Need to check for a PENDING_EXCEPTION again; check_constraints
-        // can throw and doesn't use the CHECK macro.
+        // can throw but we may have to remove entry from the placeholder table below.
+        if (!HAS_PENDING_EXCEPTION) {
+            // Record dependency for non-parent delegation.
+            // This recording keeps the defining class loader of the klass (k) found
+            // from being unloaded while the initiating class loader is loaded
+            // even if the reference to the defining class loader is dropped
+            // before references to the initiating class loader.
+            ClassLoaderDependencies::record_dependency(class_loader(),
+                    k->class_loader(), THREAD);
+        }
+
         if (!HAS_PENDING_EXCEPTION) {
           { // Grabbing the Compile_lock prevents systemDictionary updates
             // during compilations.
