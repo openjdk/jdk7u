@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,6 +78,7 @@ volatile int32_t* os::_mem_serialize_page = NULL;
 uintptr_t         os::_serialize_page_mask = 0;
 long              os::_rand_seed          = 1;
 int               os::_processor_count    = 0;
+int               os::_initial_active_processor_count = 0;
 size_t            os::_page_sizes[os::page_sizes_max];
 
 #ifndef PRODUCT
@@ -313,6 +314,12 @@ static void signal_thread_entry(JavaThread* thread, TRAPS) {
   }
 }
 
+void os::init_before_ergo() {
+  initialize_initial_active_processor_count();
+  // We need to initialize large page support here because ergonomics takes some
+  // decisions depending on large page support and the calculated large page size.
+  large_page_init();
+}
 
 void os::signal_init() {
   if (!ReduceSignalUsage) {
@@ -815,7 +822,11 @@ void os::print_cpu_info(outputStream* st) {
   st->print("CPU:");
   st->print("total %d", os::processor_count());
   // It's not safe to query number of active processors after crash
-  // st->print("(active %d)", os::active_processor_count());
+  // st->print("(active %d)", os::active_processor_count()); but we can
+  // print the initial number of active processors.
+  // We access the raw value here because the assert in the accessor will
+  // fail if the crash occurs before initialization of this value.
+  st->print(" (initial active %d)", _initial_active_processor_count);
   st->print(" %s", VM_Version::cpu_features());
   st->cr();
   pd_print_cpu_info(st);
@@ -996,15 +1007,28 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
 // if C stack is walkable beyond current frame. The check for fp() is not
 // necessary on Sparc, but it's harmless.
 bool os::is_first_C_frame(frame* fr) {
-#if (defined(IA64) && !defined(AIX))
-  // In order to walk native frames on Itanium, we need to access the unwind
-  // table, which is inside ELF. We don't want to parse ELF after fatal error,
-  // so return true for IA64. If we need to support C stack walking on IA64,
-  // this function needs to be moved to CPU specific files, as fp() on IA64
-  // is register stack, which grows towards higher memory address.
+#if (defined(IA64) && !defined(_WIN32) && !defined(AIX))
+  // On IA64 we have to check if the callers bsp is still valid
+  // (i.e. within the register stack bounds).
+  // Notice: this only works for threads created by the VM and only if
+  // we walk the current stack!!! If we want to be able to walk
+  // arbitrary other threads, we'll have to somehow store the thread
+  // object in the frame.
+  Thread *thread = Thread::current();
+  if ((address)fr->fp() <=
+      thread->register_stack_base() HPUX_ONLY(+ 0x0) LINUX_ONLY(+ 0x50)) {
+    // This check is a little hacky, because on Linux the first C
+    // frame's ('start_thread') register stack frame starts at
+    // "register_stack_base + 0x48" while on HPUX, the first C frame's
+    // ('__pthread_bound_body') register stack frame seems to really
+    // start at "register_stack_base".
+    return true;
+  } else {
+    return false;
+  }
+#elif defined(IA64) && defined(_WIN32)
   return true;
-#endif
-
+#else
   // Load up sp, fp, sender sp and sender fp, check for reasonable values.
   // Check usp first, because if that's bad the other accessors may fault
   // on some architectures.  Ditto ufp second, etc.
@@ -1034,6 +1058,7 @@ bool os::is_first_C_frame(frame* fr) {
   if (old_fp - ufp > 64 * K) return true;
 
   return false;
+#endif
 }
 
 #ifdef ASSERT
@@ -1403,6 +1428,11 @@ int os::get_line_chars(int fd, char* buf, const size_t bsize){
   // If we reached EOF, it will be returned on next call.
 
   return (int) i;
+}
+
+void os::initialize_initial_active_processor_count() {
+  assert(_initial_active_processor_count == 0, "Initial active processor count already set.");
+  _initial_active_processor_count = active_processor_count();
 }
 
 void os::SuspendedThreadTask::run() {

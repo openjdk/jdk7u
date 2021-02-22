@@ -226,20 +226,6 @@ julong os::physical_memory() {
   return Linux::physical_memory();
 }
 
-julong os::allocatable_physical_memory(julong size) {
-#ifdef _LP64
-  return size;
-#else
-  julong result = MIN2(size, (julong)3800*M);
-   if (!is_allocatable(result)) {
-     // See comments under solaris for alignment considerations
-     julong reasonable_size = (julong)2*G - 2 * os::vm_page_size();
-     result =  MIN2(size, reasonable_size);
-   }
-   return result;
-#endif // _LP64
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // environment support
 
@@ -1186,32 +1172,29 @@ static bool find_vma(address addr, address* vma_low, address* vma_high) {
 
 // Locate initial thread stack. This special handling of initial thread stack
 // is needed because pthread_getattr_np() on most (all?) Linux distros returns
-// bogus value for initial thread.
+// bogus value for the primordial process thread. While the launcher has created
+// the VM in a new thread since JDK 6, we still have to allow for the use of the
+// JNI invocation API from a primordial thread.
 void os::Linux::capture_initial_stack(size_t max_size) {
-  // stack size is the easy part, get it from RLIMIT_STACK
-  size_t stack_size;
+
+  // max_size is either 0 (which means accept OS default for thread stacks) or
+  // a user-specified value known to be at least the minimum needed. If we
+  // are actually on the primordial thread we can make it appear that we have a
+  // smaller max_size stack by inserting the guard pages at that location. But we
+  // cannot do anything to emulate a larger stack than what has been provided by
+  // the OS or threading library. In fact if we try to use a stack greater than
+  // what is set by rlimit then we will crash the hosting process.
+
+  // Maximum stack size is the easy part, get it from RLIMIT_STACK.
+  // If this is "unlimited" then it will be a huge value.
   struct rlimit rlim;
   getrlimit(RLIMIT_STACK, &rlim);
-  stack_size = rlim.rlim_cur;
+  size_t stack_size = rlim.rlim_cur;
 
   // 6308388: a bug in ld.so will relocate its own .data section to the
   //   lower end of primordial stack; reduce ulimit -s value a little bit
   //   so we won't install guard page on ld.so's data section.
   stack_size -= 2 * page_size();
-
-  // 4441425: avoid crash with "unlimited" stack size on SuSE 7.1 or Redhat
-  //   7.1, in both cases we will get 2G in return value.
-  // 4466587: glibc 2.2.x compiled w/o "--enable-kernel=2.4.0" (RH 7.0,
-  //   SuSE 7.2, Debian) can not handle alternate signal stack correctly
-  //   for initial thread if its stack size exceeds 6M. Cap it at 2M,
-  //   in case other parts in glibc still assumes 2M max stack size.
-  // FIXME: alt signal stack is gone, maybe we can relax this constraint?
-#ifndef IA64
-  if (stack_size > 2 * K * K) stack_size = 2 * K * K;
-#else
-  // Problem still exists RH7.2 (IA64 anyway) but 2MB is a little small
-  if (stack_size > 4 * K * K) stack_size = 4 * K * K;
-#endif
 
   // Try to figure out where the stack base (top) is. This is harder.
   //
@@ -1372,14 +1355,18 @@ void os::Linux::capture_initial_stack(size_t max_size) {
   // stack_top could be partially down the page so align it
   stack_top = align_size_up(stack_top, page_size());
 
-  if (max_size && stack_size > max_size) {
-     _initial_thread_stack_size = max_size;
+  // Allowed stack value is minimum of max_size and what we derived from rlimit
+  if (max_size > 0) {
+    _initial_thread_stack_size = MIN2(max_size, stack_size);
   } else {
-     _initial_thread_stack_size = stack_size;
+    // Accept the rlimit max, but if stack is unlimited then it will be huge, so
+    // clamp it at 8MB as we do on Solaris
+    _initial_thread_stack_size = MIN2(stack_size, 8*M);
   }
 
   _initial_thread_stack_size = align_size_down(_initial_thread_stack_size, page_size());
   _initial_thread_stack_bottom = (address)stack_top - _initial_thread_stack_size;
+  assert(_initial_thread_stack_bottom < (address)stack_top, "overflow!");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4854,8 +4841,6 @@ jint os::init_2(void)
 #endif
   }
 
-  os::large_page_init();
-
   // initialize suspend/resume support - must do this before signal_sets_init()
   if (SR_initialize() != 0) {
     perror("SR_initialize failed");
@@ -5080,16 +5065,12 @@ int os::Linux::safe_cond_timedwait(pthread_cond_t *_cond, pthread_mutex_t *_mute
    if (is_NPTL()) {
       return pthread_cond_timedwait(_cond, _mutex, _abstime);
    } else {
-#ifndef IA64
       // 6292965: LinuxThreads pthread_cond_timedwait() resets FPU control
       // word back to default 64bit precision if condvar is signaled. Java
       // wants 53bit precision.  Save and restore current value.
       int fpu = get_fpu_control_word();
-#endif // IA64
       int status = pthread_cond_timedwait(_cond, _mutex, _abstime);
-#ifndef IA64
       set_fpu_control_word(fpu);
-#endif // IA64
       return status;
    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,44 @@
  * questions.
  */
 
-package sun.lwawt;
+import java.awt.Dimension;
+import java.awt.Frame;
+import java.awt.TextArea;
+import java.awt.Toolkit;
 
-/*
- * Every time the TextField (or TextArea) change selection, every other text components
- * must immediately clear their selections.
+import sun.awt.SunToolkit;
+
+/**
+ * @test
+ * @bug 7160627
+ * @summary We shouldn't get different frame size when we call Frame.pack()
+ * twice.
+ * @author Sergey Bylokhov
  */
-interface SelectionClearListener {
-   void clearSelection();
+public final class TextAreaTwicePack {
+
+    public static void main(final String[] args) {
+        final Frame frame = new Frame();
+        final TextArea ta = new TextArea();
+        frame.add(ta);
+        frame.pack();
+        frame.setVisible(true);
+        sleep();
+        final Dimension before = frame.getSize();
+        frame.pack();
+        final Dimension after = frame.getSize();
+        if (!after.equals(before)) {
+            throw new RuntimeException(
+                    "Expected size: " + before + ", actual size: " + after);
+        }
+        frame.dispose();
+    }
+
+    private static void sleep() {
+        ((SunToolkit) Toolkit.getDefaultToolkit()).realSync();
+        try {
+            Thread.sleep(500L);
+        } catch (InterruptedException ignored) {
+        }
+    }
 }

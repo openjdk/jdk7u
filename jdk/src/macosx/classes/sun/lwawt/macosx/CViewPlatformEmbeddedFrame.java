@@ -78,13 +78,23 @@ public class CViewPlatformEmbeddedFrame implements PlatformWindow {
 
     @Override
     public void dispose() {
-        CWrapper.NSView.removeFromSuperview(view.getAWTView());
+        view.execute(new CFRetainedResource.CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CWrapper.NSView.removeFromSuperview(ptr);
+            }
+        });
         view.dispose();
     }
 
     @Override
-    public void setVisible(boolean visible) {
-        CWrapper.NSView.setHidden(view.getAWTView(), !visible);
+    public void setVisible(final boolean visible) {
+        view.execute(new CFRetainedResource.CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CWrapper.NSView.setHidden(ptr, !visible);
+            }
+        });
     }
 
     @Override
@@ -145,11 +155,6 @@ public class CViewPlatformEmbeddedFrame implements PlatformWindow {
 
     @Override
     public void setAlwaysOnTop(boolean value) {
-    }
-
-    @Override
-    public PlatformWindow getTopmostPlatformWindowUnderMouse() {
-        return null;
     }
 
     @Override
@@ -216,15 +221,5 @@ public class CViewPlatformEmbeddedFrame implements PlatformWindow {
     @Override
     public boolean isUnderMouse() {
         return view.isUnderMouse();
-    }
-
-    @Override
-    public Image createBackBuffer() {
-        return view.createBackBuffer();
-    }
-
-    @Override
-    public void flip(int x1, int y1, int x2, int y2, FlipContents flipAction) {
-        throw new RuntimeException("Not implemented");
     }
 }

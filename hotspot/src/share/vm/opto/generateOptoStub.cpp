@@ -92,12 +92,12 @@ void GraphKit::gen_stub(address C_function,
                                             thread,
                                             in_bytes(JavaThread::frame_anchor_offset()) +
                                             in_bytes(JavaFrameAnchor::last_Java_pc_offset()));
-#if defined(SPARC) || (defined(IA64) && !defined(AIX))
+#if defined(SPARC)
   Node* adr_flags = basic_plus_adr(top(),
                                    thread,
                                    in_bytes(JavaThread::frame_anchor_offset()) +
                                    in_bytes(JavaFrameAnchor::flags_offset()));
-#endif
+#endif /* defined(SPARC) */
 
 
   // Drop in the last_Java_sp.  last_Java_fp is not touched.
@@ -106,10 +106,8 @@ void GraphKit::gen_stub(address C_function,
   // users will look at the other fields.
   //
   Node *adr_sp = basic_plus_adr(top(), thread, in_bytes(JavaThread::last_Java_sp_offset()));
-#if !defined(IA64) || defined(AIX)
   Node *last_sp = basic_plus_adr(top(), frameptr(), (intptr_t) STACK_BIAS);
   store_to_memory(NULL, adr_sp, last_sp, T_ADDRESS, NoAlias);
-#endif
 
   // Set _thread_in_native
   // The order of stores into TLS is critical!  Setting _thread_in_native MUST
@@ -232,9 +230,9 @@ void GraphKit::gen_stub(address C_function,
   store_to_memory(NULL, adr_sp, null(), T_ADDRESS, NoAlias);
   // Clear last_Java_pc and (optionally)_flags0.
   store_to_memory(NULL, adr_last_Java_pc, null(), T_ADDRESS, NoAlias);
-#if defined(SPARC) || (defined(IA64) && !defined(AIX))
+#if defined(SPARC)
   store_to_memory(NULL, adr_flags, intcon(0), T_INT, NoAlias);
-#endif
+#endif /* defined(SPARC) */
 #if (defined(IA64) && !defined(AIX))
   Node* adr_last_Java_fp = basic_plus_adr(top(), thread, in_bytes(JavaThread::last_Java_fp_offset()));
   store_to_memory(NULL, adr_last_Java_fp, null(), T_ADDRESS, NoAlias);

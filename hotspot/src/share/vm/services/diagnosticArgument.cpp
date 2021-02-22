@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,7 +89,7 @@ template <> void DCmdArgument<jlong>::parse_value(const char* str,
                                                   size_t len, TRAPS) {
   int scanned = -1;
   if (str == NULL
-      || sscanf(str, INT64_FORMAT"%n", &_value, &scanned) != 1
+      || sscanf(str, JLONG_FORMAT"%n", &_value, &scanned) != 1
       || (size_t)scanned != len)
   {
     ResourceMark rm;
@@ -186,7 +186,7 @@ template <> void DCmdArgument<NanoTimeArgument>::parse_value(const char* str,
               "Integer parsing error nanotime value: syntax error, value is null");
   }
 
-  int argc = sscanf(str, INT64_FORMAT , &_value._time);
+  int argc = sscanf(str, JLONG_FORMAT, &_value._time);
   if (argc != 1) {
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
               "Integer parsing error nanotime value: syntax error");

@@ -108,7 +108,12 @@ public class CGLLayer extends CFRetainedResource {
         OGLRenderQueue rq = OGLRenderQueue.getInstance();
         rq.lock();
         try {
-            validate(getPointer(), cglsd);
+            execute(new CFNativeAction() {
+                @Override
+                public void run(long ptr) {
+                    validate(ptr, cglsd);
+                }
+            });
         } finally {
             rq.unlock();
         }
@@ -124,7 +129,12 @@ public class CGLLayer extends CFRetainedResource {
     private void setScale(final int _scale) {
         if (scale != _scale) {
             scale = _scale;
-            nativeSetScale(getPointer(), scale);
+            execute(new CFNativeAction() {
+                @Override
+                public void run(long ptr) {
+                    nativeSetScale(ptr, scale);
+                }
+            });
         }
     }
 
@@ -138,7 +148,12 @@ public class CGLLayer extends CFRetainedResource {
         OGLRenderQueue rq = OGLRenderQueue.getInstance();
         rq.lock();
         try {
-            blitTexture(getPointer());
+            execute(new CFNativeAction() {
+                @Override
+                public void run(long ptr) {
+                    blitTexture(ptr);
+                }
+            });
         } finally {
             rq.unlock();
         }

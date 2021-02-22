@@ -1403,8 +1403,8 @@ void WatcherThread::print_on(outputStream* st) const {
 void JavaThread::initialize() {
   // Initialize fields
 
-  // Set the claimed par_id to -1 (ie not claiming any par_ids)
-  set_claimed_par_id(-1);
+  // Set the claimed par_id to UINT_MAX (ie not claiming any par_ids)
+  set_claimed_par_id(UINT_MAX);
 
   set_saved_exception_pc(NULL);
   set_threadObj(NULL);
@@ -3296,6 +3296,11 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // Parse arguments
   jint parse_result = Arguments::parse(args);
   if (parse_result != JNI_OK) return parse_result;
+
+  os::init_before_ergo();
+
+  jint ergo_result = Arguments::apply_ergo();
+  if (ergo_result != JNI_OK) return ergo_result;
 
   if (PauseAtStartup) {
     os::pause();

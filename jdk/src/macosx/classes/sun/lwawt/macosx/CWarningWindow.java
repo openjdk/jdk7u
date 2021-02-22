@@ -119,7 +119,7 @@ public final class CWarningWindow extends CPlatformWindow
         setBounds((int)point.getX(), (int)point.getY(), getWidth(), getHeight());
     }
 
-    public void setVisible(boolean visible, boolean doSchedule) {
+    public void setVisible(final boolean visible, boolean doSchedule) {
         synchronized (scheduler) {
             if (showingTaskHandle != null) {
                 showingTaskHandle.cancel(false);
@@ -217,40 +217,42 @@ public final class CWarningWindow extends CPlatformWindow
     }
 
     @Override
-    public void setVisible(boolean visible) {
+    public void setVisible(final boolean visible) {
         synchronized (lock) {
-            final long nsWindowPtr = getNSWindowPtr();
-
-            // Process parent-child relationship when hiding
-            if (!visible) {
-                // Unparent myself
-                if (owner != null && owner.isVisible()) {
-                    CWrapper.NSWindow.removeChildWindow(
-                            owner.getNSWindowPtr(), nsWindowPtr);
+            execute(new CFNativeAction() {
+                @Override
+                public void run(long ptr) {
+                    // Actually show or hide the window
+                    if (visible) {
+                        CWrapper.NSWindow.orderFront(ptr);
+                    } else {
+                        CWrapper.NSWindow.orderOut(ptr);
+                    }
                 }
-            }
-
-            // Actually show or hide the window
-            if (visible) {
-                CWrapper.NSWindow.orderFront(nsWindowPtr);
-            } else {
-                CWrapper.NSWindow.orderOut(nsWindowPtr);
-            }
+            });
 
             this.visible = visible;
 
             // Manage parent-child relationship when showing
             if (visible) {
-                // Add myself as a child
+                // Order myself above my parent
                 if (owner != null && owner.isVisible()) {
-                    CWrapper.NSWindow.addChildWindow(owner.getNSWindowPtr(),
-                            nsWindowPtr, CWrapper.NSWindow.NSWindowAbove);
+                    owner.execute(new CFNativeAction() {
+                        @Override
+                        public void run(final long ownerPtr) {
+                            execute(new CFNativeAction() {
+                                @Override
+                                public void run(long ptr) {
+                                    CWrapper.NSWindow.orderWindow(ptr,
+                                                                  CWrapper.NSWindow.NSWindowAbove,
+                                                                  ownerPtr);
+                                }
+                            });
+                        }
+                    });
 
                     // do not allow security warning to be obscured by other windows
-                    if (ownerWindow.isAlwaysOnTop()) {
-                        CWrapper.NSWindow.setLevel(nsWindowPtr,
-                                CWrapper.NSWindow.NSFloatingWindowLevel);
-                    }
+                    applyWindowLevel(ownerWindow);
                 }
             }
         }

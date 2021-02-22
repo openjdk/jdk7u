@@ -109,7 +109,6 @@ FILES_export = \
         sun/lwawt/LWToolkit.java \
         sun/lwawt/LWWindowPeer.java \
         sun/lwawt/PlatformWindow.java \
-        sun/lwawt/SelectionClearListener.java \
         sun/lwawt/macosx/CPrinterDevice.java \
         sun/lwawt/macosx/CPrinterDialog.java \
         sun/lwawt/macosx/CPrinterDialogPeer.java \
@@ -122,7 +121,6 @@ FILES_export = \
         sun/lwawt/macosx/CTextPipe.java \
         sun/lwawt/macosx/CDesktopPeer.java \
         sun/java2d/CRenderer.java \
-        sun/lwawt/macosx/EventDispatchAccess.java \
         sun/lwawt/macosx/NSPrintInfo.java \
         sun/lwawt/macosx/CAccessibility.java \
         sun/lwawt/macosx/CAccessible.java \

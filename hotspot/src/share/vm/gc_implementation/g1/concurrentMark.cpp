@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -545,11 +545,10 @@ ConcurrentMark::ConcurrentMark(ReservedSpace rs, uint max_regions) :
       double overall_cm_overhead =
         (double) MaxGCPauseMillis * marking_overhead /
         (double) GCPauseIntervalMillis;
-      double cpu_ratio = 1.0 / (double) os::processor_count();
+      double cpu_ratio = 1.0 / os::initial_active_processor_count();
       double marking_thread_num = ceil(overall_cm_overhead / cpu_ratio);
       double marking_task_overhead =
-        overall_cm_overhead / marking_thread_num *
-                                                (double) os::processor_count();
+        overall_cm_overhead / marking_thread_num * os::initial_active_processor_count();
       double sleep_factor =
                          (1.0 - marking_task_overhead) / marking_task_overhead;
 
@@ -1680,7 +1679,6 @@ class G1ParNoteEndTask;
 
 class G1NoteEndOfConcMarkClosure : public HeapRegionClosure {
   G1CollectedHeap* _g1;
-  int _worker_num;
   size_t _max_live_bytes;
   uint _regions_claimed;
   size_t _freed_bytes;
@@ -1693,12 +1691,11 @@ class G1NoteEndOfConcMarkClosure : public HeapRegionClosure {
 
 public:
   G1NoteEndOfConcMarkClosure(G1CollectedHeap* g1,
-                             int worker_num,
                              FreeRegionList* local_cleanup_list,
                              OldRegionSet* old_proxy_set,
                              HumongousRegionSet* humongous_proxy_set,
                              HRRSCleanupTask* hrrs_cleanup_task) :
-    _g1(g1), _worker_num(worker_num),
+    _g1(g1),
     _max_live_bytes(0), _regions_claimed(0),
     _freed_bytes(0),
     _claimed_region_time(0.0), _max_region_time(0.0),
@@ -1762,7 +1759,7 @@ public:
     OldRegionSet old_proxy_set("Local Cleanup Old Proxy Set");
     HumongousRegionSet humongous_proxy_set("Local Cleanup Humongous Proxy Set");
     HRRSCleanupTask hrrs_cleanup_task;
-    G1NoteEndOfConcMarkClosure g1_note_end(_g1h, worker_id, &local_cleanup_list,
+    G1NoteEndOfConcMarkClosure g1_note_end(_g1h, &local_cleanup_list,
                                            &old_proxy_set,
                                            &humongous_proxy_set,
                                            &hrrs_cleanup_task);

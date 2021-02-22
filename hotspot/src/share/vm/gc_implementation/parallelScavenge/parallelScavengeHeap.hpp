@@ -90,6 +90,11 @@ class ParallelScavengeHeap : public CollectedHeap {
     set_alignment(_old_gen_alignment, intra_heap_alignment());
   }
 
+  // Return the (conservative) maximum heap alignment
+  static size_t conservative_max_heap_alignment() {
+    return intra_heap_alignment();
+  }
+
   // For use by VM operations
   enum CollectionType {
     Scavenge,
@@ -129,7 +134,7 @@ CollectorPolicy* collector_policy() const { return (CollectorPolicy*) _collector
 
   // The alignment used for eden and survivors within the young gen
   // and for boundary between young gen and old gen.
-  size_t intra_heap_alignment() const { return 64 * K * HeapWordSize; }
+  static size_t intra_heap_alignment() { return 64 * K * HeapWordSize; }
 
   size_t capacity() const;
   size_t used() const;

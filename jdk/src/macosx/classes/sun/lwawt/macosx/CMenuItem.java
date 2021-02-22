@@ -124,11 +124,20 @@ public class CMenuItem extends CMenuComponent implements MenuItemPeer {
     public final void setImage(final java.awt.Image img) {
         final CImage cimg = CImage.getCreator().createFromImage(img);
         execute(new CFNativeAction() {
-                @Override
-                public void run(long ptr) {
-                    nativeSetImage(ptr, cimg == null ? 0L : cimg.ptr);
+            @Override
+            public void run(final long ptr) {
+                if (cimg == null) {
+                    nativeSetImage(ptr, 0L);
+                } else {
+                    cimg.execute(new CFNativeAction() {
+                        @Override
+                        public void run(long imgPtr) {
+                            nativeSetImage(ptr, imgPtr);
+                        }
+                    });
                 }
-            });
+            }
+        });
     }
 
     /**

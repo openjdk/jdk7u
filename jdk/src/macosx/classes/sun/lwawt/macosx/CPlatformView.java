@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,9 @@ package sun.lwawt.macosx;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.Rectangle2D;
-import java.awt.image.VolatileImage;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import sun.awt.CGraphicsConfig;
 import sun.awt.CGraphicsEnvironment;
@@ -80,8 +82,13 @@ public class CPlatformView extends CFRetainedResource {
      * All coordinates passed to the method should be based on the origin being in the bottom-left corner (standard
      * Cocoa coordinates).
      */
-    public void setBounds(int x, int y, int width, int height) {
-        CWrapper.NSView.setFrame(ptr, x, y, width, height);
+    public void setBounds(final int x, final int y, final int width, final int height) {
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CWrapper.NSView.setFrame(ptr, x, y, width, height);
+            }
+        });
     }
 
     // REMIND: CGLSurfaceData expects top-level's size
@@ -93,33 +100,18 @@ public class CPlatformView extends CFRetainedResource {
         return peer;
     }
 
-    public void setToolTip(String msg) {
-        CWrapper.NSView.setToolTip(ptr, msg);
+    public void setToolTip(final String msg) {
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                CWrapper.NSView.setToolTip(ptr, msg);
+            }
+        });
     }
 
     // ----------------------------------------------------------------------
     // PAINTING METHODS
     // ----------------------------------------------------------------------
-
-    public void drawImageOnPeer(VolatileImage xBackBuffer, int x1, int y1, int x2, int y2) {
-        Graphics g = peer.getGraphics();
-        try {
-            g.drawImage(xBackBuffer, x1, y1, x2, y2, x1, y1, x2, y2, null);
-        } finally {
-            g.dispose();
-        }
-    }
-
-    public Image createBackBuffer() {
-        Rectangle r = getBounds();
-        Image im = null;
-        if (!r.isEmpty()) {
-            int transparency = (isOpaque() ? Transparency.OPAQUE : Transparency.TRANSLUCENT);
-            im = getGraphicsConfiguration().createCompatibleImage(r.width, r.height, transparency);
-        }
-        return im;
-    }
-
     public SurfaceData replaceSurfaceData() {
         if (!LWCToolkit.getSunAwtDisableCALayers()) {
             surfaceData = windowLayer.replaceSurfaceData();
@@ -164,19 +156,37 @@ public class CPlatformView extends CFRetainedResource {
         }
     }
 
-    public void setAutoResizable(boolean toResize) {
-        nativeSetAutoResizable(this.getAWTView(), toResize);
+    public void setAutoResizable(final boolean toResize) {
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                nativeSetAutoResizable(ptr, toResize);
+            }
+        });
     }
 
     public boolean isUnderMouse() {
-        return nativeIsViewUnderMouse(getAWTView());
+        final AtomicBoolean ref = new AtomicBoolean();
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                ref.set(nativeIsViewUnderMouse(ptr));
+            }
+        });
+        return ref.get();
     }
 
     public GraphicsDevice getGraphicsDevice() {
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
         CGraphicsEnvironment cge = (CGraphicsEnvironment)ge;
-        int displayID = nativeGetNSViewDisplayID(getAWTView());
-        GraphicsDevice gd = cge.getScreenDevice(displayID);
+        final AtomicInteger ref = new AtomicInteger();
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                ref.set(nativeGetNSViewDisplayID(ptr));
+            }
+        });
+        GraphicsDevice gd = cge.getScreenDevice(ref.get());
         if (gd == null) {
             // this could possibly happen during device removal
             // use the default screen device in this case
@@ -186,8 +196,18 @@ public class CPlatformView extends CFRetainedResource {
     }
 
     public Point getLocationOnScreen() {
-        Rectangle r = nativeGetLocationOnScreen(this.getAWTView()).getBounds();
-        return new Point(r.x, r.y);
+        final AtomicReference<Rectangle> ref = new AtomicReference<>();
+        execute(new CFNativeAction() {
+            @Override
+            public void run(long ptr) {
+                ref.set(nativeGetLocationOnScreen(ptr).getBounds());
+            }
+        });
+        Rectangle r = ref.get();
+        if (r != null) {
+            return new Point(r.x, r.y);
+        }
+        return new Point(0, 0);
     }
 
     // ----------------------------------------------------------------------
