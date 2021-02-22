@@ -85,6 +85,8 @@ endif
 
 ifneq ($(OS_VENDOR), Darwin)
 SA_LFLAGS = $(MAPFLAG:FILENAME=$(SAMAPFILE))
+# Create a RELRO section for memory segments that should be read-only after relocation
+SA_LFLAGS += -Xlinker -z -Xlinker relro
 endif
 SA_LFLAGS += $(LDFLAGS_HASH_STYLE)
 

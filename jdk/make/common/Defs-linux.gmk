@@ -260,6 +260,12 @@ ifeq ($(ARCH), amd64)
  CFLAGS_COMMON += -pipe
 endif
 
+# Add buffer overflow protection, if available
+_HAS_STACK_PROTECTOR:=$(shell $(CC) -dumpspecs | $(GREP) -- 'fstack-protector')
+ifneq ($(_HAS_STACK_PROTECTOR),)
+  CFLAGS_COMMON += -fstack-protector
+endif
+
 # Linux 64bit machines use Dwarf2, which can be HUGE, have fastdebug use -g1
 DEBUG_FLAG = -g
 ifeq ($(FASTDEBUG), true)
@@ -356,6 +362,9 @@ EXTRA_LIBS += -lc
 
 LDFLAGS_DEFS_OPTION  = -Xlinker -z -Xlinker defs
 LDFLAGS_COMMON  += $(LDFLAGS_DEFS_OPTION)
+
+LDFLAGS_RELRO_OPTION = -Xlinker -z -Xlinker relro
+LDFLAGS_COMMON  += $(LDFLAGS_RELRO_OPTION)
 
 #
 # -L paths for finding and -ljava
