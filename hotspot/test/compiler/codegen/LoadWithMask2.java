@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,35 @@
  * questions.
  */
 
-interface InterprocessMessages {
-    final static int EXECUTION_IS_SUCCESSFULL = 0;
-    final static int DATA_IS_CORRUPTED = 212;
-    final static int NO_DROP_HAPPENED = 112;
-}
+/*
+ * @test
+ * @bug 8031743
+ * @summary loadI2L_immI broken for negative memory values
+ * @run main/othervm -server -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,*.foo* LoadWithMask2
+ *
+ */
+public class LoadWithMask2 {
+  static int x;
+  static long foo1() {
+    return x & 0xfffffffe;
+  }
+  static long foo2() {
+    return x & 0xff000000;
+  }
+  static long foo3() {
+    return x & 0x8abcdef1;
+  }
 
+  public static void main(String[] args) {
+    x = -1;
+    long l = 0;
+    for (int i = 0; i < 100000; ++i) {
+      l = foo1() & foo2() & foo3();
+    }
+    if (l > 0) {
+      System.out.println("FAILED");
+      System.exit(97);
+    }
+    System.out.println("PASSED");
+  }
+}
