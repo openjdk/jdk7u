@@ -915,6 +915,8 @@ JVM_ENTRY(jclass, JVM_FindClassFromClass(JNIEnv *env, const char *name,
                                                h_prot, true, thread);
 
   if (result != NULL) {
+    from_class_oop = JNIHandles::resolve(from);
+    from_class = java_lang_Class::as_klassOop(from_class_oop);
     oop mirror = JNIHandles::resolve_non_null(result);
     klassOop to_class = java_lang_Class::as_klassOop(mirror);
     ClassLoaderDependencies::record_dependency(from_class, to_class, CHECK_NULL);
