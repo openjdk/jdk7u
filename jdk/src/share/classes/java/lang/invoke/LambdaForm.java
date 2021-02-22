@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -918,10 +918,10 @@ class LambdaForm {
         System.arraycopy(names, skip+outArgs, names2, skip+inTypes, bodyLength);
         int arity2 = names2.length - bodyLength;
         int result2 = result;
-        if (result2 >= 0) {
+        if (result2 >= skip) {
             if (result2 < skip+outArgs) {
                 // return the corresponding inArg
-                result2 = reorder[result2-skip];
+                result2 = reorder[result2 - skip] + skip;
             } else {
                 result2 = result2 - outArgs + inTypes;
             }
