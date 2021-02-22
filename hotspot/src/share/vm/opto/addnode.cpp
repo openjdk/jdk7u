@@ -344,8 +344,8 @@ Node *AddINode::Identity( PhaseTransform *phase ) {
 const Type *AddINode::add_ring( const Type *t0, const Type *t1 ) const {
   const TypeInt *r0 = t0->is_int(); // Handy access
   const TypeInt *r1 = t1->is_int();
-  int lo = r0->_lo + r1->_lo;
-  int hi = r0->_hi + r1->_hi;
+  int lo = java_add(r0->_lo, r1->_lo);
+  int hi = java_add(r0->_hi, r1->_hi);
   if( !(r0->is_con() && r1->is_con()) ) {
     // Not both constants, compute approximate result
     if( (r0->_lo & r1->_lo) < 0 && lo >= 0 ) {
@@ -462,8 +462,8 @@ Node *AddLNode::Identity( PhaseTransform *phase ) {
 const Type *AddLNode::add_ring( const Type *t0, const Type *t1 ) const {
   const TypeLong *r0 = t0->is_long(); // Handy access
   const TypeLong *r1 = t1->is_long();
-  jlong lo = r0->_lo + r1->_lo;
-  jlong hi = r0->_hi + r1->_hi;
+  jlong lo = java_add(r0->_lo, r1->_lo);
+  jlong hi = java_add(r0->_hi, r1->_hi);
   if( !(r0->is_con() && r1->is_con()) ) {
     // Not both constants, compute approximate result
     if( (r0->_lo & r1->_lo) < 0 && lo >= 0 ) {
@@ -844,6 +844,14 @@ const Type *MaxINode::add_ring( const Type *t0, const Type *t1 ) const {
   return TypeInt::make( MAX2(r0->_lo,r1->_lo), MAX2(r0->_hi,r1->_hi), MAX2(r0->_widen,r1->_widen) );
 }
 
+// Check if addition of an integer with type 't' and a constant 'c' can overflow
+static bool can_overflow(const TypeInt* t, jint c) {
+  jint t_lo = t->_lo;
+  jint t_hi = t->_hi;
+  return ((c < 0 && (java_add(t_lo, c) > t_lo)) ||
+          (c > 0 && (java_add(t_hi, c) < t_hi)));
+}
+
 //=============================================================================
 //------------------------------Idealize---------------------------------------
 // MINs show up in range-check loop limit calculations.  Look for
@@ -866,7 +874,7 @@ Node *MinINode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   // Get left input & constant
   Node *x = l;
-  int x_off = 0;
+  jint x_off = 0;
   if( x->Opcode() == Op_AddI && // Check for "x+c0" and collect constant
       x->in(2)->is_Con() ) {
     const Type *t = x->in(2)->bottom_type();
@@ -877,7 +885,7 @@ Node *MinINode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   // Scan a right-spline-tree for MINs
   Node *y = r;
-  int y_off = 0;
+  jint y_off = 0;
   // Check final part of MIN tree
   if( y->Opcode() == Op_AddI && // Check for "y+c1" and collect constant
       y->in(2)->is_Con() ) {
@@ -891,6 +899,7 @@ Node *MinINode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return this;
   }
 
+  const TypeInt* tx = phase->type(x)->isa_int();
 
   if( r->Opcode() == Op_MinI ) {
     assert( r != r->in(2), "dead loop in MinINode::Ideal" );
@@ -907,18 +916,23 @@ Node *MinINode::Ideal(PhaseGVN *phase, bool can_reshape) {
     if( x->_idx > y->_idx )
       return new (phase->C) MinINode(r->in(1),phase->transform(new (phase->C) MinINode(l,r->in(2))));
 
-    // See if covers: MIN2(x+c0,MIN2(y+c1,z))
-    if( !phase->eqv(x,y) ) return NULL;
-    // If (y == x) transform MIN2(x+c0, MIN2(x+c1,z)) into
-    // MIN2(x+c0 or x+c1 which less, z).
-    return new (phase->C) MinINode(phase->transform(new (phase->C) AddINode(x,phase->intcon(MIN2(x_off,y_off)))),r->in(2));
+    // Transform MIN2(x + c0, MIN2(x + c1, z)) into MIN2(x + MIN2(c0, c1), z)
+    // if x == y and the additions can't overflow.
+    if (phase->eqv(x,y) &&
+        !can_overflow(tx, x_off) &&
+        !can_overflow(tx, y_off)) {
+      return new (phase->C) MinINode(phase->transform(new (phase->C) AddINode(x, phase->intcon(MIN2(x_off, y_off)))), r->in(2));
+    }
   } else {
-    // See if covers: MIN2(x+c0,y+c1)
-    if( !phase->eqv(x,y) ) return NULL;
-    // If (y == x) transform MIN2(x+c0,x+c1) into x+c0 or x+c1 which less.
-    return new (phase->C) AddINode(x,phase->intcon(MIN2(x_off,y_off)));
+    // Transform MIN2(x + c0, y + c1) into x + MIN2(c0, c1)
+    // if x == y and the additions can't overflow.
+    if (phase->eqv(x,y) &&
+        !can_overflow(tx, x_off) &&
+        !can_overflow(tx, y_off)) {
+      return new (phase->C) AddINode(x,phase->intcon(MIN2(x_off,y_off)));
+    }
   }
-
+  return NULL;
 }
 
 //------------------------------add_ring---------------------------------------
