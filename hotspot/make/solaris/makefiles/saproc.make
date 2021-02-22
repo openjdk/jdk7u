@@ -63,6 +63,11 @@ else
 SA_LFLAGS += -mt -xnolib -norunpath
 endif
 
+ifdef USE_GNULD
+# Create a RELRO section for memory segments that should be read-only after relocation
+SA_LFLAGS += -Xlinker -z -Xlinker relro
+endif
+
 # The libproc Pstack_iter() interface changed in Nevada-B159.
 # Use 'uname -r -v' to determine the Solaris version as per
 # Solaris Nevada team request. This logic needs to match:
