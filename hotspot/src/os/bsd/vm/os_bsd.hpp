@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,9 @@
 #define OS_BSD_VM_OS_BSD_HPP
 
 // Bsd_OS defines the interface to Bsd operating systems
+
+// Information about the protection of the page at address '0' on this os.
+static bool zero_page_read_protected() { return true; }
 
 /* pthread_getattr_np comes with BsdThreads-0.9-7 on RedHat 7.1 */
 typedef int (*pthread_getattr_func_type) (pthread_t, pthread_attr_t *);

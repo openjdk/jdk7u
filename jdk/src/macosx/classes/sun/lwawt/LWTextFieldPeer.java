@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,11 +37,13 @@ import java.awt.peer.TextFieldPeer;
 import javax.swing.*;
 import javax.swing.text.JTextComponent;
 
+/**
+ * Lightweight implementation of {@link TextFieldPeer}. Delegates most of the
+ * work to the {@link JPasswordField}.
+ */
 final class LWTextFieldPeer
         extends LWTextComponentPeer<TextField, JPasswordField>
         implements TextFieldPeer, ActionListener {
-
-    private static final int DEFAULT_COLUMNS = 1;
 
     LWTextFieldPeer(final TextField target,
                     final PlatformComponent platformComponent) {
@@ -49,7 +51,7 @@ final class LWTextFieldPeer
     }
 
     @Override
-    protected JPasswordField createDelegate() {
+    JPasswordField createDelegate() {
         return new JPasswordFieldDelegate();
     }
 
@@ -88,17 +90,12 @@ final class LWTextFieldPeer
 
     @Override
     public Dimension getPreferredSize(final int columns) {
-        return getPreferredSize(1, columns);
+        return getMinimumSize(columns);
     }
 
     @Override
     public Dimension getMinimumSize(final int columns) {
-        return getPreferredSize(columns);
-    }
-
-    @Override
-    public Dimension getMinimumSize() {
-        return getMinimumSize(DEFAULT_COLUMNS);
+        return getMinimumSize(1, columns);
     }
 
     @Override
@@ -114,7 +111,7 @@ final class LWTextFieldPeer
      * @param e the focus event
      */
     @Override
-    protected void handleJavaFocusEvent(final FocusEvent e) {
+    void handleJavaFocusEvent(final FocusEvent e) {
         if (e.getID() == FocusEvent.FOCUS_LOST) {
             // In order to de-select the selection
             setCaretPosition(0);
@@ -122,6 +119,7 @@ final class LWTextFieldPeer
         super.handleJavaFocusEvent(e);
     }
 
+    @SuppressWarnings("serial")// Safe: outer class is non-serializable.
     private final class JPasswordFieldDelegate extends JPasswordField {
 
         // Empty non private constructor was added because access to this

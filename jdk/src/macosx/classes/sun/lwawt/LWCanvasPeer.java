@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,94 +26,38 @@
 
 package sun.lwawt;
 
-import sun.awt.CGraphicsConfig;
-
-import java.awt.BufferCapabilities;
-import java.awt.BufferCapabilities.FlipContents;
-import java.awt.Canvas;
 import java.awt.Component;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
+import java.awt.Dimension;
 import java.awt.GraphicsConfiguration;
-import java.awt.Image;
-import java.awt.image.VolatileImage;
 import java.awt.peer.CanvasPeer;
 
 import javax.swing.JComponent;
 
-final class LWCanvasPeer extends LWComponentPeer<Component, JComponent>
-        implements CanvasPeer {
+/**
+ * Lightweight implementation of {@link CanvasPeer}. This peer is empty, because
+ * all the components in lwawt use graphic object from the top level window.
+ */
+class LWCanvasPeer<T extends Component, D extends JComponent>
+        extends LWComponentPeer<T, D> implements CanvasPeer {
 
-    /**
-     * The back buffer provide user with a BufferStrategy.
-     */
-    private VolatileImage backBuffer;
-
-    LWCanvasPeer(final Canvas target,
-                 final PlatformComponent platformComponent) {
+    LWCanvasPeer(final T target, final PlatformComponent platformComponent) {
         super(target, platformComponent);
     }
 
     @Override
-    public void createBuffers(final int numBuffers,
-                              final BufferCapabilities caps) {
-        //TODO parameters should be used.
-        final CGraphicsConfig gc = (CGraphicsConfig) getGraphicsConfiguration();
-        final VolatileImage buffer = gc.createBackBufferImage(getTarget(), 0);
-        synchronized (getStateLock()) {
-            backBuffer = buffer;
-        }
-    }
-
-    @Override
-    public Image getBackBuffer() {
-        synchronized (getStateLock()) {
-            return backBuffer;
-        }
-    }
-
-    @Override
-    public void flip(final int x1, final int y1, final int x2, final int y2,
-                     final FlipContents flipAction) {
-        final VolatileImage buffer = (VolatileImage) getBackBuffer();
-        if (buffer == null) {
-            throw new IllegalStateException("Buffers have not been created");
-        }
-        final Graphics g = getGraphics();
-        try {
-            g.drawImage(buffer, x1, y1, x2, y2, x1, y1, x2, y2, null);
-        } finally {
-            g.dispose();
-        }
-        if (flipAction == FlipContents.BACKGROUND) {
-            final Graphics2D bg = (Graphics2D) buffer.getGraphics();
-            try {
-                bg.setBackground(getBackground());
-                bg.clearRect(0, 0, buffer.getWidth(), buffer.getHeight());
-            } finally {
-                bg.dispose();
-            }
-        }
-    }
-
-    @Override
-    public void destroyBuffers() {
-        final Image buffer = getBackBuffer();
-        if (buffer != null) {
-            synchronized (getStateLock()) {
-                if (buffer == backBuffer) {
-                    backBuffer = null;
-                }
-            }
-            buffer.flush();
-        }
-    }
-
-    @Override
-    public GraphicsConfiguration getAppropriateGraphicsConfiguration(
-            GraphicsConfiguration gc)
-    {
+    public final GraphicsConfiguration getAppropriateGraphicsConfiguration(
+            final GraphicsConfiguration gc) {
         // TODO
         return gc;
+    }
+
+    @Override
+    public final Dimension getPreferredSize() {
+        return getMinimumSize();
+    }
+
+    @Override
+    public final Dimension getMinimumSize() {
+        return getBounds().getSize();
     }
 }

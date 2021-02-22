@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+#import "jni_util.h"
 
 #import <Cocoa/Cocoa.h>
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
@@ -52,36 +53,29 @@ static void CImage_CopyArrayIntoNSImageRep
 }
 
 static void CImage_CopyNSImageIntoArray
-(NSImage *srcImage, jint *dstPixels, int width, int height)
+(NSImage *srcImage, jint *dstPixels, NSRect fromRect, NSRect toRect)
 {
+    int width = toRect.size.width;
+    int height = toRect.size.height;
     CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
-    CGContextRef cgRef = CGBitmapContextCreate(dstPixels, width, height, 8, width * 4, colorspace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
+    CGContextRef cgRef = CGBitmapContextCreate(dstPixels, width, height,
+                                8, width * 4, colorspace,
+                                kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
     CGColorSpaceRelease(colorspace);
     NSGraphicsContext *context = [NSGraphicsContext graphicsContextWithGraphicsPort:cgRef flipped:NO];
     CGContextRelease(cgRef);
     NSGraphicsContext *oldContext = [[NSGraphicsContext currentContext] retain];
     [NSGraphicsContext setCurrentContext:context];
-    NSRect rect = NSMakeRect(0, 0, width, height);
-    [srcImage drawInRect:rect
-                fromRect:rect
+    [srcImage drawInRect:toRect
+                fromRect:fromRect
                operation:NSCompositeSourceOver
                 fraction:1.0];
     [NSGraphicsContext setCurrentContext:oldContext];
     [oldContext release];
 }
 
-/*
- * Class:     sun_lwawt_macosx_CImage
- * Method:    nativeCreateNSImageFromArray
- * Signature: ([III)J
- */
-JNIEXPORT jlong JNICALL Java_sun_lwawt_macosx_CImage_nativeCreateNSImageFromArray
-(JNIEnv *env, jclass klass, jintArray buffer, jint width, jint height)
+static NSBitmapImageRep* CImage_CreateImageRep(JNIEnv *env, jintArray buffer, jint width, jint height)
 {
-    jlong result = 0L;
-
-JNF_COCOA_ENTER(env);
-
     NSBitmapImageRep* imageRep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
                                                                          pixelsWide:width
                                                                          pixelsHigh:height
@@ -104,10 +98,70 @@ JNF_COCOA_ENTER(env);
 
     (*env)->ReleasePrimitiveArrayCritical(env, buffer, src, JNI_ABORT);
 
-    NSImage *nsImage = [[[NSImage alloc] initWithSize:NSMakeSize(width, height)] retain];
-    [nsImage addRepresentation:imageRep];
-    [imageRep release];
-    result = ptr_to_jlong(nsImage);
+    return imageRep;
+}
+
+/*
+ * Class:     sun_lwawt_macosx_CImage
+ * Method:    nativeCreateNSImageFromArray
+ * Signature: ([III)J
+ */
+JNIEXPORT jlong JNICALL Java_sun_lwawt_macosx_CImage_nativeCreateNSImageFromArray
+(JNIEnv *env, jclass klass, jintArray buffer, jint width, jint height)
+{
+    jlong result = 0L;
+
+JNF_COCOA_ENTER(env);
+    
+    NSBitmapImageRep* imageRep = CImage_CreateImageRep(env, buffer, width, height);
+    if (imageRep) {
+        NSImage *nsImage = [[[NSImage alloc] initWithSize:NSMakeSize(width, height)] retain];
+        [nsImage addRepresentation:imageRep];
+        [imageRep release];
+        result = ptr_to_jlong(nsImage);
+    }
+
+JNF_COCOA_EXIT(env);
+
+    return result;
+}
+
+/*
+ * Class:     sun_lwawt_macosx_CImage
+ * Method:    nativeCreateNSImageFromArrays
+ * Signature: ([[I[I[I)J
+ */
+JNIEXPORT jlong JNICALL Java_sun_lwawt_macosx_CImage_nativeCreateNSImageFromArrays
+(JNIEnv *env, jclass klass, jobjectArray buffers, jintArray widths, jintArray heights)
+{
+    jlong result = 0L;
+
+JNF_COCOA_ENTER(env);
+
+    jsize num = (*env)->GetArrayLength(env, buffers);
+    NSMutableArray * reps = [NSMutableArray arrayWithCapacity: num];
+
+    jint * ws = (*env)->GetIntArrayElements(env, widths, NULL);
+    jint * hs = (*env)->GetIntArrayElements(env, heights, NULL);
+
+    jsize i;
+    for (i = 0; i < num; i++) {
+        jintArray buffer = (*env)->GetObjectArrayElement(env, buffers, i);
+
+        NSBitmapImageRep* imageRep = CImage_CreateImageRep(env, buffer, ws[i], hs[i]);
+        if (imageRep) {
+            [reps addObject: imageRep];
+        }
+    }
+
+    (*env)->ReleaseIntArrayElements(env, heights, hs, JNI_ABORT);
+    (*env)->ReleaseIntArrayElements(env, widths, ws, JNI_ABORT);
+
+    if ([reps count]) {
+        NSImage *nsImage = [[[NSImage alloc] initWithSize:NSMakeSize(0, 0)] retain];
+        [nsImage addRepresentations: reps];
+        result = ptr_to_jlong(nsImage);
+    }
 
 JNF_COCOA_EXIT(env);
 
@@ -202,17 +256,20 @@ JNF_COCOA_EXIT(env);
 /*
  * Class:     sun_lwawt_macosx_CImage
  * Method:    nativeCopyNSImageIntoArray
- * Signature: (J[III)V
+ * Signature: (J[IIIII)V
  */
 JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CImage_nativeCopyNSImageIntoArray
-(JNIEnv *env, jclass klass, jlong nsImgPtr, jintArray buffer, jint w, jint h)
+(JNIEnv *env, jclass klass, jlong nsImgPtr, jintArray buffer, jint sw, jint sh,
+                 jint dw, jint dh)
 {
 JNF_COCOA_ENTER(env);
 
     NSImage *img = (NSImage *)jlong_to_ptr(nsImgPtr);
     jint *dst = (*env)->GetPrimitiveArrayCritical(env, buffer, NULL);
     if (dst) {
-        CImage_CopyNSImageIntoArray(img, dst, w, h);
+        NSRect fromRect = NSMakeRect(0, 0, sw, sh);
+        NSRect toRect = NSMakeRect(0, 0, dw, dh);
+        CImage_CopyNSImageIntoArray(img, dst, fromRect, toRect);
         (*env)->ReleasePrimitiveArrayCritical(env, buffer, dst, JNI_ABORT);
     }
 
@@ -255,4 +312,111 @@ JNF_COCOA_ENTER(env);
     [i setSize:NSMakeSize(w, h)];
 
 JNF_COCOA_EXIT(env);
+}
+
+/*
+ * Class:     sun_lwawt_macosx_CImage
+ * Method:    nativeResizeNSImageRepresentations
+ * Signature: (JDD)V
+ */
+JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CImage_nativeResizeNSImageRepresentations
+(JNIEnv *env, jclass clazz, jlong image, jdouble w, jdouble h)
+{
+    if (!image) return;
+    NSImage *i = (NSImage *)jlong_to_ptr(image);
+    
+JNF_COCOA_ENTER(env);
+    
+    NSImageRep *imageRep = nil;
+    NSArray *imageRepresentations = [i representations];
+    NSEnumerator *imageEnumerator = [imageRepresentations objectEnumerator];
+    while ((imageRep = [imageEnumerator nextObject]) != nil) {
+        [imageRep setSize:NSMakeSize(w, h)];
+    }
+    
+JNF_COCOA_EXIT(env);
+}
+
+NSComparisonResult getOrder(BOOL order){
+    return (NSComparisonResult) (order ? NSOrderedAscending : NSOrderedDescending);
+}
+
+/*
+ * Class:     sun_lwawt_macosx_CImage
+ * Method:    nativeGetNSImageRepresentationsCount
+ * Signature: (JDD)[Ljava/awt/geom/Dimension2D;
+ */
+JNIEXPORT jobjectArray JNICALL
+                  Java_sun_lwawt_macosx_CImage_nativeGetNSImageRepresentationSizes
+(JNIEnv *env, jclass clazz, jlong image, jdouble w, jdouble h)
+{
+    if (!image) return NULL;
+    jobjectArray jreturnArray = NULL;
+    NSImage *img = (NSImage *)jlong_to_ptr(image);
+
+JNF_COCOA_ENTER(env);
+        
+    NSArray *imageRepresentations = [img representations];
+    if([imageRepresentations count] == 0){
+        return NULL;
+    }
+    
+    NSArray *sortedImageRepresentations = [imageRepresentations
+                    sortedArrayUsingComparator: ^(id obj1, id obj2) {
+        
+        NSImageRep *imageRep1 = (NSImageRep *) obj1;
+        NSImageRep *imageRep2 = (NSImageRep *) obj2;
+        NSSize size1 = [imageRep1 size];
+        NSSize size2 = [imageRep2 size];
+        
+        if (NSEqualSizes(size1, size2)) {
+            return getOrder([imageRep1 pixelsWide] <= [imageRep2 pixelsWide] &&
+                            [imageRep1 pixelsHigh] <= [imageRep2 pixelsHigh]);
+        }
+
+        return getOrder(size1.width <= size2.width && size1.height <= size2.height);
+    }];
+
+    NSMutableArray *sortedPixelSizes = [[NSMutableArray alloc] init];
+    NSSize lastSize = [[sortedImageRepresentations lastObject] size];
+    
+    NSUInteger i = [sortedImageRepresentations indexOfObjectPassingTest:
+               ^BOOL(id obj, NSUInteger idx, BOOL *stop) {
+        NSSize imageRepSize = [obj size];
+        return (w <= imageRepSize.width && h <= imageRepSize.height)
+                   || NSEqualSizes(imageRepSize, lastSize);
+    }];
+
+    NSUInteger count = [sortedImageRepresentations count];
+    i = (i == NSNotFound) ? count - 1 : i;
+    NSSize bestFitSize = [[sortedImageRepresentations objectAtIndex: i] size];
+
+    for(; i < count; i++){
+        NSImageRep *imageRep = [sortedImageRepresentations objectAtIndex: i];
+
+        if (!NSEqualSizes([imageRep size], bestFitSize)) {
+            break;
+        }
+
+        NSSize pixelSize = NSMakeSize(
+                                [imageRep pixelsWide], [imageRep pixelsHigh]);
+        [sortedPixelSizes addObject: [NSValue valueWithSize: pixelSize]];
+    }
+
+    count = [sortedPixelSizes count];
+    static JNF_CLASS_CACHE(jc_Dimension, "java/awt/Dimension");
+    jreturnArray = JNFNewObjectArray(env, &jc_Dimension, count);
+    CHECK_NULL_RETURN(jreturnArray, NULL);
+
+    for(i = 0; i < count; i++){
+        NSSize pixelSize = [[sortedPixelSizes objectAtIndex: i] sizeValue];
+
+        (*env)->SetObjectArrayElement(env, jreturnArray, i,
+                                      NSToJavaSize(env, pixelSize));
+        JNU_CHECK_EXCEPTION_RETURN(env, NULL);
+    }
+
+JNF_COCOA_EXIT(env);
+
+    return jreturnArray;
 }

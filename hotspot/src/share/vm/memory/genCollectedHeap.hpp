@@ -151,6 +151,11 @@ public:
     return gen_policy()->size_policy();
   }
 
+  // Return the (conservative) maximum heap alignment
+  static size_t conservative_max_heap_alignment() {
+    return Generation::GenGrain;
+  }
+
   size_t capacity() const;
   size_t used() const;
 
