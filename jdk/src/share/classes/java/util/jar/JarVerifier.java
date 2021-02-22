@@ -339,6 +339,7 @@ class JarVerifier {
      * the given file in the jar.
      * @deprecated
      */
+    @Deprecated
     public java.security.cert.Certificate[] getCerts(String name)
     {
         return mapSignersToCertArray(getCodeSigners(name));
