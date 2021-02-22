@@ -442,6 +442,8 @@ POST_MCS_PROCESS=$(MCS) -d -a "JDK $(FULL_VERSION)"
 #
 ifeq ($(CC_VERSION),gcc)
 LD_MAPFILE_FLAG = -Xlinker -M -Xlinker
+LDFLAGS_RELRO_OPTION = -Xlinker -z -Xlinker relro
+LDFLAGS_COMMON  += $(LDFLAGS_RELRO_OPTION)
 else
 LD_MAPFILE_FLAG = -M
 endif
@@ -531,6 +533,11 @@ ifeq ($(CC_VERSION),gcc)
   #   (See Rules.gmk) May need to wait for gcc 5?
   AUTOMATIC_PCH_OPTION = 
 
+  # Add buffer overflow protection, if available
+  _HAS_STACK_PROTECTOR:=$(shell $(CC) -dumpspecs | $(GREP) -- 'fstack-protector')
+  ifneq ($(_HAS_STACK_PROTECTOR),)
+    CFLAGS_COMMON += -fstack-protector
+  endif
 else
   
   # Highest could be -xO5, but indications are that -xO5 should be reserved
