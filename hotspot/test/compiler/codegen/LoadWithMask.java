@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,24 @@
  * questions.
  */
 
-interface InterprocessMessages {
-    final static int EXECUTION_IS_SUCCESSFULL = 0;
-    final static int DATA_IS_CORRUPTED = 212;
-    final static int NO_DROP_HAPPENED = 112;
-}
+/*
+ * @test
+ * @bug 8032207
+ * @summary Invalid node sizing for loadUS2L_immI16 and loadI2L_immI
+ * @run main/othervm -server -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,LoadWithMask.foo LoadWithMask
+ *
+ */
+public class LoadWithMask {
+  static int x[] = new int[1];
+  static long foo() {
+    return x[0] & 0xfff0ffff;
+  }
 
+  public static void main(String[] args) {
+    x[0] = -1;
+    long l = 0;
+    for (int i = 0; i < 100000; ++i) {
+      l = foo();
+    }
+  }
+}
