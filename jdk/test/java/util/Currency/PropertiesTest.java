@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,15 @@ import java.util.*;
 import java.util.regex.*;
 
 public class PropertiesTest {
-    public static void main(String[] s) {
-        for (int i = 0; i < s.length; i ++) {
-            if ("-d".equals(s[i])) {
-                i++;
-                if (i == s.length) {
-                    throw new RuntimeException("-d needs output file name");
-                } else {
-                    dump(s[i]);
-                }
-            } else if ("-c".equals(s[i])) {
-                if (i+2 == s.length) {
-                    throw new RuntimeException("-d needs two file name arguments, before and after respectively");
-                } else {
-                    compare(s[++i], s[++i]);
-                }
-            }
+    public static void main(String[] args) throws Exception {
+        if (args.length == 2 && args[0].equals("-d")) {
+            dump(args[1]);
+        } else if (args.length == 4 && args[0].equals("-c")) {
+            compare(args[1], args[2], args[3]);
+        } else {
+            System.err.println("Usage:  java PropertiesTest -d <dumpfile>");
+            System.err.println("        java PropertiesTest -c <beforedump> <afterdump> <propsfile>");
+            System.exit(-1);
         }
     }
 
@@ -76,15 +69,17 @@ public class PropertiesTest {
         pw.close();
     }
 
-    private static void compare(String beforeFile, String afterFile) {
+    private static void compare(String beforeFile, String afterFile, String propsFile)
+        throws IOException
+    {
         // load file contents
         Properties before = new Properties();
+        try (Reader reader = new FileReader(beforeFile)) {
+            before.load(reader);
+        }
         Properties after = new Properties();
-        try {
-            before.load(new FileReader(beforeFile));
-            after.load(new FileReader(afterFile));
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
+        try (Reader reader = new FileReader(afterFile)) {
+            after.load(reader);
         }
 
         // remove the same contents from the 'after' properties
@@ -102,19 +97,15 @@ public class PropertiesTest {
         }
 
         // now look at the currency.properties
-        String propFileName = System.getProperty("java.home") + File.separator +
-                              "lib" + File.separator + "currency.properties";
         Properties p = new Properties();
-        try {
-            p.load(new FileReader(propFileName));
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
+        try (Reader reader = new FileReader(propsFile)) {
+            p.load(reader);
         }
 
         // test each replacements
         keys = p.stringPropertyNames();
         Pattern propertiesPattern =
-            Pattern.compile("([A-Z]{3})\\s*,\\s*(\\d{3})\\s*,\\s*([0-3])");
+            Pattern.compile("([A-Z]{3})\\s*,\\s*(\\d{3})\\s*,\\s*(\\d+)");
         for (String key: keys) {
             String val = p.getProperty(key);
             String afterVal = after.getProperty(key);
@@ -132,14 +123,19 @@ public class PropertiesTest {
                 continue;
             }
 
+            String code = m.group(1);
+            int numeric = Integer.parseInt(m.group(2));
+            int fraction = Integer.parseInt(m.group(3));
+            if (fraction > 9) {
+                System.out.println("Skipping since the fraction is greater than 9");
+                continue;
+            }
+
             Matcher mAfter = propertiesPattern.matcher(afterVal);
             mAfter.find();
 
-            String code = m.group(1);
             String codeAfter = mAfter.group(1);
-            int numeric = Integer.parseInt(m.group(2));
             int numericAfter = Integer.parseInt(mAfter.group(2));
-            int fraction = Integer.parseInt(m.group(3));
             int fractionAfter = Integer.parseInt(mAfter.group(3));
             if (code.equals(codeAfter) &&
                 (numeric == numericAfter)&&
