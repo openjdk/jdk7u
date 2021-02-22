@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. and/or its affiliates.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. and/or its affiliates.
  *
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -28,35 +28,30 @@
 #include "memory/oopFactory.hpp"
 #include "utilities/debug.hpp"
 
-void ClassLoaderDependencies::record_dependency(KlassHandle from_klass,
-                                                KlassHandle to_klass,
+void ClassLoaderDependencies::record_dependency(oop from_class_loader,
+                                                oop to_class_loader,
                                                 TRAPS) {
-
-  oop to_class_loader_oop = to_klass->class_loader();
-
   // Dependency to the Null Class Loader doesn't
   // need to be recorded because it never goes away.
-  if (to_class_loader_oop == NULL) {
+  if (to_class_loader == NULL) {
     return;
   }
-
-  oop from_class_loader_oop = from_klass->class_loader();
 
   // The Null Class Loader does not generate dependencies to record.
-  if (from_class_loader_oop == NULL) {
+  if (from_class_loader == NULL) {
     return;
   }
 
-  oop current_class_loader_oop = from_class_loader_oop;
+  oop current_class_loader_oop = from_class_loader;
   do {
-    if (current_class_loader_oop == to_class_loader_oop) {
+    if (current_class_loader_oop == to_class_loader) {
       return; // This class loader is in the parent list, no need to add it.
     }
     current_class_loader_oop = java_lang_ClassLoader::parent(current_class_loader_oop);
   } while (current_class_loader_oop != NULL);
 
-  ClassLoaderDependencies::add(Handle(THREAD, from_class_loader_oop),
-                               Handle(THREAD, to_class_loader_oop),
+  ClassLoaderDependencies::add(Handle(THREAD, from_class_loader),
+                               Handle(THREAD, to_class_loader),
                                CHECK);
 }
 

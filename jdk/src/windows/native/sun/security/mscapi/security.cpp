@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,12 @@
 
 #include <jni.h>
 #include <stdlib.h>
+#include <string.h>
 #include <windows.h>
 #include <BaseTsd.h>
 #include <wincrypt.h>
 #include <stdio.h>
+#include <memory>
 
 
 #define OID_EKU_ANY         "2.5.29.37.0"
@@ -46,25 +48,53 @@
 #define KEYSTORE_EXCEPTION  "java/security/KeyStoreException"
 #define PROVIDER_EXCEPTION  "java/security/ProviderException"
 #define SIGNATURE_EXCEPTION "java/security/SignatureException"
+#define OUT_OF_MEMORY_ERROR "java/lang/OutOfMemoryError"
 
 extern "C" {
+
+/*
+ * Throws an arbitrary Java exception with the given message.
+ */
+void ThrowExceptionWithMessage(JNIEnv *env, const char *exceptionName,
+                               const char *szMessage)
+{
+    jclass exceptionClazz = env->FindClass(exceptionName);
+    if (exceptionClazz != NULL) {
+        env->ThrowNew(exceptionClazz, szMessage);
+    }
+}
 
 /*
  * Throws an arbitrary Java exception.
  * The exception message is a Windows system error message.
  */
-void ThrowException(JNIEnv *env, char *exceptionName, DWORD dwError)
+void ThrowException(JNIEnv *env, const char *exceptionName, DWORD dwError)
 {
     char szMessage[1024];
     szMessage[0] = '\0';
 
-    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, dwError, NULL, szMessage,
-        1024, NULL);
+    DWORD res = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, NULL, dwError,
+        NULL, szMessage, sizeof(szMessage), NULL);
+    if (res == 0) {
+        strcpy(szMessage, "Unknown error");
+    }
 
-    jclass exceptionClazz = env->FindClass(exceptionName);
-    env->ThrowNew(exceptionClazz, szMessage);
+    ThrowExceptionWithMessage(env, exceptionName, szMessage);
 }
 
+/*
+ * Overloaded 'operator new[]' variant, which will raise Java's
+ * OutOfMemoryError in the case of a failure.
+ */
+static void* operator new[](std::size_t size, JNIEnv *env)
+{
+    void* buf = ::operator new[](size, std::nothrow);
+    if (buf == NULL) {
+        ThrowExceptionWithMessage(env, OUT_OF_MEMORY_ERROR,
+                "Native memory allocation failed");
+    }
+    return buf;
+}
 
 /*
  * Maps the name of a hash algorithm to an algorithm identifier.
@@ -248,7 +278,7 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_PRNG_generateSeed
  * Signature: (Ljava/lang/String;Ljava/util/Collection;)V
  */
 JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_loadKeysOrCertificateChains
-  (JNIEnv *env, jobject obj, jstring jCertStoreName, jobject jCollections)
+  (JNIEnv *env, jobject obj, jstring jCertStoreName)
 {
     /**
      * Certificate in cert store has enhanced key usage extension
@@ -283,22 +313,42 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_loadKeysOrCertificateCh
 
         // Determine clazz and method ID to generate certificate
         jclass clazzArrayList = env->FindClass("java/util/ArrayList");
+        if (clazzArrayList == NULL) {
+            __leave;
+        }
 
         jmethodID mNewArrayList = env->GetMethodID(clazzArrayList, "<init>", "()V");
+        if (mNewArrayList == NULL) {
+            __leave;
+        }
 
-        jmethodID mGenCert = env->GetMethodID(env->GetObjectClass(obj),
+        jclass clazzOfThis = env->GetObjectClass(obj);
+        if (clazzOfThis == NULL) {
+            __leave;
+        }
+
+        jmethodID mGenCert = env->GetMethodID(clazzOfThis,
                                               "generateCertificate",
                                               "([BLjava/util/Collection;)V");
+        if (mGenCert == NULL) {
+            __leave;
+        }
 
         // Determine method ID to generate certificate chain
-        jmethodID mGenCertChain = env->GetMethodID(env->GetObjectClass(obj),
+        jmethodID mGenCertChain = env->GetMethodID(clazzOfThis,
                                                    "generateCertificateChain",
-                                                   "(Ljava/lang/String;Ljava/util/Collection;Ljava/util/Collection;)V");
+                                                   "(Ljava/lang/String;Ljava/util/Collection;)V");
+        if (mGenCertChain == NULL) {
+            __leave;
+        }
 
         // Determine method ID to generate RSA certificate chain
-        jmethodID mGenRSAKeyAndCertChain = env->GetMethodID(env->GetObjectClass(obj),
+        jmethodID mGenRSAKeyAndCertChain = env->GetMethodID(clazzOfThis,
                                                    "generateRSAKeyAndCertificateChain",
-                                                   "(Ljava/lang/String;JJILjava/util/Collection;Ljava/util/Collection;)V");
+                                                   "(Ljava/lang/String;JJILjava/util/Collection;)V");
+        if (mGenRSAKeyAndCertChain == NULL) {
+            __leave;
+        }
 
         // Use CertEnumCertificatesInStore to get the certificates
         // from the open store. pCertContext must be reset to
@@ -322,38 +372,37 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_loadKeysOrCertificateCh
             } else {
                 // Private key is available
 
-            BOOL bGetUserKey = ::CryptGetUserKey(hCryptProv, dwKeySpec, &hUserKey);
+                BOOL bGetUserKey = ::CryptGetUserKey(hCryptProv, dwKeySpec, &hUserKey);
 
-            // Skip certificate if cannot find private key
-            if (bGetUserKey == FALSE)
-            {
-                if (bCallerFreeProv)
-                    ::CryptReleaseContext(hCryptProv, NULL);
+                // Skip certificate if cannot find private key
+                if (bGetUserKey == FALSE)
+                {
+                    if (bCallerFreeProv)
+                        ::CryptReleaseContext(hCryptProv, NULL);
 
-                continue;
+                    continue;
+                }
+
+                // Set cipher mode to ECB
+                DWORD dwCipherMode = CRYPT_MODE_ECB;
+                ::CryptSetKeyParam(hUserKey, KP_MODE, (BYTE*)&dwCipherMode, NULL);
+
+
+                // If the private key is present in smart card, we may not be able to
+                // determine the key length by using the private key handle. However,
+                // since public/private key pairs must have the same length, we could
+                // determine the key length of the private key by using the public key
+                // in the certificate.
+                dwPublicKeyLength = ::CertGetPublicKeyLength(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+                        &(pCertContext->pCertInfo->SubjectPublicKeyInfo));
+
             }
-
-            // Set cipher mode to ECB
-            DWORD dwCipherMode = CRYPT_MODE_ECB;
-            ::CryptSetKeyParam(hUserKey, KP_MODE, (BYTE*)&dwCipherMode, NULL);
-
-
-            // If the private key is present in smart card, we may not be able to
-            // determine the key length by using the private key handle. However,
-            // since public/private key pairs must have the same length, we could
-            // determine the key length of the private key by using the public key
-            // in the certificate.
-            dwPublicKeyLength = ::CertGetPublicKeyLength(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-                                                               &(pCertContext->pCertInfo->SubjectPublicKeyInfo));
-
-}
             PCCERT_CHAIN_CONTEXT pCertChainContext = NULL;
 
             // Build certificate chain by using system certificate store.
             // Add cert chain into collection for any key usage.
             //
-            if (GetCertificateChain(OID_EKU_ANY, pCertContext,
-                &pCertChainContext))
+            if (GetCertificateChain(OID_EKU_ANY, pCertContext, &pCertChainContext))
             {
 
                 for (unsigned int i=0; i < pCertChainContext->cChain; i++)
@@ -365,6 +414,15 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_loadKeysOrCertificateCh
                     // Create ArrayList to store certs in each chain
                     jobject jArrayList =
                         env->NewObject(clazzArrayList, mNewArrayList);
+                    if (jArrayList == NULL) {
+                        __leave;
+                    }
+
+                    // Cleanup the previous allocated name
+                    if (pszNameString) {
+                        delete [] pszNameString;
+                        pszNameString = NULL;
+                    }
 
                     for (unsigned int j=0; j < rgpChain->cElement; j++)
                     {
@@ -387,7 +445,11 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_loadKeysOrCertificateCh
                                 NULL, 0)) > 1) {
 
                                 // Found friendly name
-                                pszNameString = new char[cchNameString];
+                                pszNameString = new (env) char[cchNameString];
+                                if (pszNameString == NULL) {
+                                    __leave;
+                                }
+
                                 CertGetNameString(pc,
                                     CERT_NAME_FRIENDLY_DISPLAY_TYPE, 0, NULL,
                                     pszNameString, cchNameString);
@@ -399,6 +461,9 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_loadKeysOrCertificateCh
 
                         // Allocate and populate byte array
                         jbyteArray byteArray = env->NewByteArray(cbCertEncoded);
+                        if (byteArray == NULL) {
+                            __leave;
+                        }
                         env->SetByteArrayRegion(byteArray, 0, cbCertEncoded,
                             (jbyte*) pbCertEncoded);
 
@@ -406,32 +471,46 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_loadKeysOrCertificateCh
                         // cert collection
                         env->CallVoidMethod(obj, mGenCert, byteArray, jArrayList);
                     }
-                    if (bHasNoPrivateKey)
+                    // Usually pszNameString should be non-NULL. It's either
+                    // the friendly name or an element from the subject name
+                    // or SAN.
+                    if (pszNameString)
                     {
-                        // Generate certificate chain and store into cert chain
-                        // collection
-                        env->CallVoidMethod(obj, mGenCertChain,
-                            env->NewStringUTF(pszNameString),
-                            jArrayList, jCollections);
-                    }
-                    else
-                    {
-                    // Determine key type: RSA or DSA
-                    DWORD dwData = CALG_RSA_KEYX;
-                    DWORD dwSize = sizeof(DWORD);
-                    ::CryptGetKeyParam(hUserKey, KP_ALGID, (BYTE*)&dwData,
-                        &dwSize, NULL);
+                        if (bHasNoPrivateKey)
+                        {
+                            // Generate certificate chain and store into cert chain
+                            // collection
+                            jstring name = env->NewStringUTF(pszNameString);
+                            if (name == NULL) {
+                                __leave;
+                            }
+                            env->CallVoidMethod(obj, mGenCertChain,
+                                name,
+                                jArrayList);
+                        }
+                        else
+                        {
+                            // Determine key type: RSA or DSA
+                            DWORD dwData = CALG_RSA_KEYX;
+                            DWORD dwSize = sizeof(DWORD);
+                            ::CryptGetKeyParam(hUserKey, KP_ALGID, (BYTE*)&dwData,
+                                    &dwSize, NULL);
 
-                    if ((dwData & ALG_TYPE_RSA) == ALG_TYPE_RSA)
-                    {
-                        // Generate RSA certificate chain and store into cert
-                        // chain collection
-                        env->CallVoidMethod(obj, mGenRSAKeyAndCertChain,
-                            env->NewStringUTF(pszNameString),
-                            (jlong) hCryptProv, (jlong) hUserKey,
-                            dwPublicKeyLength, jArrayList, jCollections);
+                            if ((dwData & ALG_TYPE_RSA) == ALG_TYPE_RSA)
+                            {
+                                // Generate RSA certificate chain and store into cert
+                                // chain collection
+                                jstring name = env->NewStringUTF(pszNameString);
+                                if (name == NULL) {
+                                    __leave;
+                                }
+                                env->CallVoidMethod(obj, mGenRSAKeyAndCertChain,
+                                        name,
+                                        (jlong) hCryptProv, (jlong) hUserKey,
+                                        dwPublicKeyLength, jArrayList);
+                            }
+                        }
                     }
-}
                 }
 
                 // Free cert chain
@@ -523,7 +602,10 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSASignature_signHash
         }
 
         // Copy hash from Java to native buffer
-        pHashBuffer = new jbyte[jHashSize];
+        pHashBuffer = new (env) jbyte[jHashSize];
+        if (pHashBuffer == NULL) {
+            __leave;
+        }
         env->GetByteArrayRegion(jHash, 0, jHashSize, pHashBuffer);
 
         // Set hash value in the hash object
@@ -561,7 +643,10 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSASignature_signHash
             __leave;
         }
 
-        pSignedHashBuffer = new jbyte[dwBufLen];
+        pSignedHashBuffer = new (env) jbyte[dwBufLen];
+        if (pSignedHashBuffer == NULL) {
+            __leave;
+        }
         if (::CryptSignHash(hHash, dwKeySpec, NULL, dwFlags, (BYTE*)pSignedHashBuffer, &dwBufLen) == FALSE)
         {
             ThrowException(env, SIGNATURE_EXCEPTION, GetLastError());
@@ -570,6 +655,9 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSASignature_signHash
 
         // Create new byte array
         jbyteArray temp = env->NewByteArray(dwBufLen);
+        if (temp == NULL) {
+            __leave;
+        }
 
         // Copy data from native buffer
         env->SetByteArrayRegion(temp, 0, dwBufLen, pSignedHashBuffer);
@@ -578,9 +666,6 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSASignature_signHash
     }
     __finally
     {
-        if (hCryptProvAlt)
-            ::CryptReleaseContext(hCryptProvAlt, 0);
-
         if (pSignedHashBuffer)
             delete [] pSignedHashBuffer;
 
@@ -589,6 +674,9 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSASignature_signHash
 
         if (hHash)
             ::CryptDestroyHash(hHash);
+
+        if (hCryptProvAlt)
+            ::CryptReleaseContext(hCryptProvAlt, 0);
     }
 
     return jSignedHash;
@@ -649,9 +737,16 @@ JNIEXPORT jboolean JNICALL Java_sun_security_mscapi_RSASignature_verifySignedHas
         }
 
         // Copy hash and signedHash from Java to native buffer
-        pHashBuffer = new jbyte[jHashSize];
+        pHashBuffer = new (env) jbyte[jHashSize];
+        if (pHashBuffer == NULL) {
+            __leave;
+        }
         env->GetByteArrayRegion(jHash, 0, jHashSize, pHashBuffer);
-        pSignedHashBuffer = new jbyte[jSignedHashSize];
+
+        pSignedHashBuffer = new (env) jbyte[jSignedHashSize];
+        if (pSignedHashBuffer == NULL) {
+            __leave;
+        }
         env->GetByteArrayRegion(jSignedHash, 0, jSignedHashSize,
             pSignedHashBuffer);
 
@@ -676,9 +771,6 @@ JNIEXPORT jboolean JNICALL Java_sun_security_mscapi_RSASignature_verifySignedHas
 
     __finally
     {
-        if (hCryptProvAlt)
-            ::CryptReleaseContext(hCryptProvAlt, 0);
-
         if (pSignedHashBuffer)
             delete [] pSignedHashBuffer;
 
@@ -687,6 +779,9 @@ JNIEXPORT jboolean JNICALL Java_sun_security_mscapi_RSASignature_verifySignedHas
 
         if (hHash)
             ::CryptDestroyHash(hHash);
+
+        if (hCryptProvAlt)
+            ::CryptReleaseContext(hCryptProvAlt, 0);
     }
 
     return result;
@@ -751,9 +846,15 @@ JNIEXPORT jobject JNICALL Java_sun_security_mscapi_RSAKeyPairGenerator_generateR
         // Get the method ID for the RSAKeyPair constructor
         jclass clazzRSAKeyPair =
             env->FindClass("sun/security/mscapi/RSAKeyPair");
+        if (clazzRSAKeyPair == NULL) {
+            __leave;
+        }
 
         jmethodID mNewRSAKeyPair =
             env->GetMethodID(clazzRSAKeyPair, "<init>", "(JJI)V");
+        if (mNewRSAKeyPair == NULL) {
+            __leave;
+        }
 
         // Create a new RSA keypair
         keypair = env->NewObject(clazzRSAKeyPair, mNewRSAKeyPair,
@@ -858,7 +959,10 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_storeCertificate
         }
 
         // Copy encoding from Java to native buffer
-        pbCertEncoding = new jbyte[jCertEncodingSize];
+        pbCertEncoding = new (env) jbyte[jCertEncodingSize];
+        if (pbCertEncoding == NULL) {
+            __leave;
+        }
         env->GetByteArrayRegion(jCertEncoding, 0, jCertEncodingSize, pbCertEncoding);
 
         // Create a certificate context from the encoded cert
@@ -871,9 +975,15 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_storeCertificate
 
         // Set the certificate's friendly name
         int size = env->GetStringLength(jCertAliasName);
-        pszCertAliasName = new WCHAR[size + 1];
+        pszCertAliasName = new (env) WCHAR[size + 1];
+        if (pszCertAliasName == NULL) {
+            __leave;
+        }
 
         jCertAliasChars = env->GetStringChars(jCertAliasName, NULL);
+        if (jCertAliasChars == NULL) {
+            __leave;
+        }
         memcpy(pszCertAliasName, jCertAliasChars, size * sizeof(WCHAR));
         pszCertAliasName[size] = 0; // append the string terminator
 
@@ -909,7 +1019,10 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_storeCertificate
                 __leave;
             }
 
-            pszContainerName = new char[dwDataLen];
+            pszContainerName = new (env) char[dwDataLen];
+            if (pszContainerName == NULL) {
+                __leave;
+            }
 
             if (! ::CryptGetProvParam(
                 (HCRYPTPROV) hCryptProv,
@@ -923,7 +1036,10 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_storeCertificate
             }
 
             // Convert to a wide char string
-            pwszContainerName = new WCHAR[dwDataLen];
+            pwszContainerName = new (env) WCHAR[dwDataLen];
+            if (pwszContainerName == NULL) {
+                __leave;
+            }
 
             if (mbstowcs(pwszContainerName, pszContainerName, dwDataLen) == 0) {
                 ThrowException(env, KEYSTORE_EXCEPTION, GetLastError());
@@ -946,7 +1062,10 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_storeCertificate
                 __leave;
             }
 
-            pszProviderName = new char[dwDataLen];
+            pszProviderName = new (env) char[dwDataLen];
+            if (pszProviderName == NULL) {
+                __leave;
+            }
 
             if (! ::CryptGetProvParam(
                 (HCRYPTPROV) hCryptProv,
@@ -960,7 +1079,10 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_storeCertificate
             }
 
             // Convert to a wide char string
-            pwszProviderName = new WCHAR[dwDataLen];
+            pwszProviderName = new (env) WCHAR[dwDataLen];
+            if (pwszProviderName == NULL) {
+                __leave;
+            }
 
             if (mbstowcs(pwszProviderName, pszProviderName, dwDataLen) == 0) {
                 ThrowException(env, KEYSTORE_EXCEPTION, GetLastError());
@@ -1100,7 +1222,10 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_removeCertificate
         }
 
         // Copy encoding from Java to native buffer
-        pbCertEncoding = new jbyte[jCertEncodingSize];
+        pbCertEncoding = new (env) jbyte[jCertEncodingSize];
+        if (pbCertEncoding == NULL) {
+            __leave;
+        }
         env->GetByteArrayRegion(jCertEncoding, 0, jCertEncodingSize, pbCertEncoding);
 
         // Create a certificate context from the encoded cert
@@ -1123,7 +1248,10 @@ JNIEXPORT void JNICALL Java_sun_security_mscapi_KeyStore_removeCertificate
         if ((cchNameString = ::CertGetNameString(pTBDCertContext,
                 CERT_NAME_FRIENDLY_DISPLAY_TYPE, 0, NULL, NULL, 0)) > 1) {
 
-            pszNameString = new char[cchNameString];
+            pszNameString = new (env) char[cchNameString];
+            if (pszNameString == NULL) {
+                __leave;
+            }
 
             ::CertGetNameString(pTBDCertContext,
                 CERT_NAME_FRIENDLY_DISPLAY_TYPE, 0, NULL, pszNameString,
@@ -1273,7 +1401,10 @@ JNIEXPORT jlong JNICALL Java_sun_security_mscapi_RSACipher_findCertificateUsingA
                 continue; // not found
             }
 
-            pszNameString = new char[cchNameString];
+            pszNameString = new (env) char[cchNameString];
+            if (pszNameString == NULL) {
+                __leave;
+            }
 
             if (::CertGetNameString(pCertContext,
                 CERT_NAME_FRIENDLY_DISPLAY_TYPE, 0, NULL, pszNameString,
@@ -1435,7 +1566,10 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSACipher_encryptDecrypt
     __try
     {
         // Copy data from Java buffer to native buffer
-        pData = new jbyte[dwBufLen];
+        pData = new (env) jbyte[dwBufLen];
+        if (pData == NULL) {
+            __leave;
+        }
         env->GetByteArrayRegion(jData, 0, dwBufLen, pData);
 
         if (doEncrypt == JNI_TRUE) {
@@ -1472,7 +1606,9 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSACipher_encryptDecrypt
         }
 
         // Create new byte array
-        result = env->NewByteArray(dwBufLen);
+        if ((result = env->NewByteArray(dwBufLen)) == NULL) {
+            __leave;
+        }
 
         // Copy data from native buffer to Java buffer
         env->SetByteArrayRegion(result, 0, dwBufLen, (jbyte*) pData);
@@ -1509,7 +1645,10 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSAPublicKey_getPublicKeyB
             __leave;
         }
 
-        pbKeyBlob = new BYTE[dwBlobLen];
+        pbKeyBlob = new (env) BYTE[dwBlobLen];
+        if (pbKeyBlob == NULL) {
+            __leave;
+        }
 
         // Generate key blob
         if (! ::CryptExportKey((HCRYPTKEY) hCryptKey, 0, PUBLICKEYBLOB, 0,
@@ -1520,7 +1659,9 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSAPublicKey_getPublicKeyB
         }
 
         // Create new byte array
-        blob = env->NewByteArray(dwBlobLen);
+        if ((blob = env->NewByteArray(dwBlobLen)) == NULL) {
+            __leave;
+        }
 
         // Copy data from native buffer to Java buffer
         env->SetByteArrayRegion(blob, 0, dwBlobLen, (jbyte*) pbKeyBlob);
@@ -1549,6 +1690,13 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSAPublicKey_getExponent
     __try {
 
         jsize length = env->GetArrayLength(jKeyBlob);
+        jsize headerLength = sizeof(PUBLICKEYSTRUC) + sizeof(RSAPUBKEY);
+
+        if (length < headerLength) {
+            ThrowExceptionWithMessage(env, KEY_EXCEPTION, "Invalid BLOB");
+            __leave;
+        }
+
         if ((keyBlob = env->GetByteArrayElements(jKeyBlob, 0)) == NULL) {
             __leave;
         }
@@ -1563,15 +1711,21 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSAPublicKey_getExponent
 
         RSAPUBKEY* pRsaPubKey =
             (RSAPUBKEY *) (keyBlob + sizeof(PUBLICKEYSTRUC));
+
         int len = sizeof(pRsaPubKey->pubexp);
-        exponentBytes = new jbyte[len];
+        exponentBytes = new (env) jbyte[len];
+        if (exponentBytes == NULL) {
+            __leave;
+        }
 
         // convert from little-endian while copying from blob
         for (int i = 0, j = len - 1; i < len; i++, j--) {
             exponentBytes[i] = ((BYTE*) &pRsaPubKey->pubexp)[j];
         }
 
-        exponent = env->NewByteArray(len);
+        if ((exponent = env->NewByteArray(len)) == NULL) {
+            __leave;
+        }
         env->SetByteArrayRegion(exponent, 0, len, exponentBytes);
     }
     __finally
@@ -1601,6 +1755,13 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSAPublicKey_getModulus
     __try {
 
         jsize length = env->GetArrayLength(jKeyBlob);
+        jsize headerLength = sizeof(PUBLICKEYSTRUC) + sizeof(RSAPUBKEY);
+
+        if (length < headerLength) {
+            ThrowExceptionWithMessage(env, KEY_EXCEPTION, "Invalid BLOB");
+            __leave;
+        }
+
         if ((keyBlob = env->GetByteArrayElements(jKeyBlob, 0)) == NULL) {
             __leave;
         }
@@ -1615,18 +1776,27 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_RSAPublicKey_getModulus
 
         RSAPUBKEY* pRsaPubKey =
             (RSAPUBKEY *) (keyBlob + sizeof(PUBLICKEYSTRUC));
-        int len = pRsaPubKey->bitlen / 8;
 
-        modulusBytes = new jbyte[len];
-        BYTE * pbModulus =
-            (BYTE *) (keyBlob + sizeof(PUBLICKEYSTRUC) + sizeof(RSAPUBKEY));
+        int len = pRsaPubKey->bitlen / 8;
+        if (len < 0 || len > length - headerLength) {
+            ThrowExceptionWithMessage(env, KEY_EXCEPTION, "Invalid key length");
+            __leave;
+        }
+
+        modulusBytes = new (env) jbyte[len];
+        if (modulusBytes == NULL) {
+            __leave;
+        }
+        BYTE * pbModulus = (BYTE *) (keyBlob + headerLength);
 
         // convert from little-endian while copying from blob
         for (int i = 0, j = len - 1; i < len; i++, j--) {
             modulusBytes[i] = pbModulus[j];
         }
 
-        modulus = env->NewByteArray(len);
+        if ((modulus = env->NewByteArray(len)) == NULL) {
+            __leave;
+        }
         env->SetByteArrayRegion(modulus, 0, len, modulusBytes);
     }
     __finally
@@ -1738,12 +1908,16 @@ jbyteArray generateKeyBlob(
                         (jKeyBitLength / 8);
     }
 
-    jbyte* jBlobBytes = new jbyte[jBlobLength];
+    jbyte* jBlobBytes = NULL;
     jbyte* jBlobElement;
     jbyteArray jBlob = NULL;
     jsize  jElementLength;
 
     __try {
+        jBlobBytes = new (env) jbyte[jBlobLength];
+        if (jBlobBytes == NULL) {
+            __leave;
+        }
 
         BLOBHEADER *pBlobHeader = (BLOBHEADER *) jBlobBytes;
         if (bGeneratePrivateKeyBlob) {
@@ -1830,7 +2004,9 @@ jbyteArray generateKeyBlob(
             }
         }
 
-        jBlob = env->NewByteArray(jBlobLength);
+        if ((jBlob = env->NewByteArray(jBlobLength)) == NULL) {
+            __leave;
+        }
         env->SetByteArrayRegion(jBlob, 0, jBlobLength, jBlobBytes);
 
     }
@@ -1936,9 +2112,15 @@ JNIEXPORT jobject JNICALL Java_sun_security_mscapi_KeyStore_storePrivateKey
         // Get the method ID for the RSAPrivateKey constructor
         jclass clazzRSAPrivateKey =
             env->FindClass("sun/security/mscapi/RSAPrivateKey");
+        if (clazzRSAPrivateKey == NULL) {
+            __leave;
+        }
 
         jmethodID mNewRSAPrivateKey =
             env->GetMethodID(clazzRSAPrivateKey, "<init>", "(JJI)V");
+        if (mNewRSAPrivateKey == NULL) {
+            __leave;
+        }
 
         // Create a new RSA private key
         privateKey = env->NewObject(clazzRSAPrivateKey, mNewRSAPrivateKey,
@@ -2023,9 +2205,15 @@ JNIEXPORT jobject JNICALL Java_sun_security_mscapi_RSASignature_importPublicKey
         // Get the method ID for the RSAPublicKey constructor
         jclass clazzRSAPublicKey =
             env->FindClass("sun/security/mscapi/RSAPublicKey");
+        if (clazzRSAPublicKey == NULL) {
+            __leave;
+        }
 
         jmethodID mNewRSAPublicKey =
             env->GetMethodID(clazzRSAPublicKey, "<init>", "(JJI)V");
+        if (mNewRSAPublicKey == NULL) {
+            __leave;
+        }
 
         // Create a new RSA public key
         publicKey = env->NewObject(clazzRSAPublicKey, mNewRSAPublicKey,
