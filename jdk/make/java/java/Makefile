@@ -457,6 +457,9 @@ clean::
 
 HELPER_EXE = $(LIBDIR)/$(LIBARCH)/jspawnhelper
 BUILDHELPER =
+ifeq ($(PLATFORM), aix)
+    BUILDHELPER = 1
+endif
 ifeq ($(PLATFORM), solaris)
     BUILDHELPER = 1
 endif
@@ -467,7 +470,11 @@ endif
 
 ARCHFLAG = 
 ifeq ($(ARCH_DATA_MODEL), 64)
+ifeq ($(PLATFORM), aix)
+ARCHFLAG = -q64
+else
 ARCHFLAG = -m64
+endif
 endif
 
 ifdef BUILDHELPER

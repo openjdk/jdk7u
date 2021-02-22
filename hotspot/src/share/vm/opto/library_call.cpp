@@ -1872,7 +1872,7 @@ bool LibraryCallKit::inline_math_native(vmIntrinsics::ID id) {
     runtime_math(OptoRuntime::Math_D_D_Type(), FN_PTR(SharedRuntime::dlog10), "LOG10");
 
     // These intrinsics are supported on all hardware
-  case vmIntrinsics::_dsqrt:  return Matcher::has_match_rule(Op_SqrtD)  ? inline_math(id) : false;
+  case vmIntrinsics::_dsqrt:  return Matcher::match_rule_supported(Op_SqrtD) ? inline_math(id) : false;
   case vmIntrinsics::_dabs:   return Matcher::has_match_rule(Op_AbsD)   ? inline_math(id) : false;
 
   case vmIntrinsics::_dexp:   return Matcher::has_match_rule(Op_ExpD)   ? inline_exp()    :
@@ -2432,6 +2432,12 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
     // For Stores, place a memory ordering barrier now.
     if (is_store)
       insert_mem_bar(Op_MemBarRelease);
+#ifdef PPC64
+    // Support ordering of "Independent Reads of Independent Writes" (see Parse::do_get_xxx).
+    // Solution: implement volatile read as fence-load-acquire
+    else
+      insert_mem_bar(Op_MemBarVolatile);
+#endif
   }
 
   // Memory barrier to prevent normal and 'unsafe' accesses from
@@ -2487,13 +2493,14 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
       break;
     }
 
+    StoreNode::Sem sem = is_volatile ? StoreNode::release : StoreNode::unordered;
     if (type != T_OBJECT ) {
-      (void) store_to_memory(control(), adr, val, type, adr_type, is_volatile);
+      (void) store_to_memory(control(), adr, val, type, adr_type, is_volatile, sem);
     } else {
       // Possibly an oop being stored to Java heap or native memory
       if (!TypePtr::NULL_PTR->higher_equal(_gvn.type(heap_base_oop))) {
         // oop to Java heap.
-        (void) store_oop_to_unknown(control(), heap_base_oop, adr, adr_type, val, type);
+        (void) store_oop_to_unknown(control(), heap_base_oop, adr, adr_type, val, type, sem);
       } else {
         // We can't tell at compile time if we are storing in the Java heap or outside
         // of it. So we need to emit code to conditionally do the proper type of
@@ -2505,11 +2512,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
         __ if_then(heap_base_oop, BoolTest::ne, null(), PROB_UNLIKELY(0.999)); {
           // Sync IdealKit and graphKit.
           sync_kit(ideal);
-          Node* st = store_oop_to_unknown(control(), heap_base_oop, adr, adr_type, val, type);
+          Node* st = store_oop_to_unknown(control(), heap_base_oop, adr, adr_type, val, type, sem);
           // Update IdealKit memory.
           __ sync_kit(this);
         } __ else_(); {
-          __ store(__ ctrl(), adr, val, type, alias_type->index(), is_volatile);
+          __ store(__ ctrl(), adr, val, type, alias_type->index(), is_volatile, sem);
         } __ end_if();
         // Final sync IdealKit and GraphKit.
         final_sync(ideal);
@@ -2521,8 +2528,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_native_ptr, bool is_store, Bas
   if (is_volatile) {
     if (!is_store)
       insert_mem_bar(Op_MemBarAcquire);
+#ifndef PPC64
+    // Changed volatiles/Unsafe: lwsync-store, fence-load-acquire.
     else
       insert_mem_bar(Op_MemBarVolatile);
+#endif
   }
 
   if (need_mem_bar) insert_mem_bar(Op_MemBarCPUOrder);
@@ -2796,7 +2806,13 @@ bool LibraryCallKit::inline_unsafe_load_store(BasicType type, LoadStoreKind kind
 
   // Add the trailing membar surrounding the access
   insert_mem_bar(Op_MemBarCPUOrder);
+  // On power we need a fence to prevent succeeding loads from floating
+  // above the store of the compare-exchange.
+#ifdef PPC64
+  insert_mem_bar(Op_MemBarVolatile);
+#else
   insert_mem_bar(Op_MemBarAcquire);
+#endif
 
 #ifdef _LP64
   if (type == T_OBJECT && adr->bottom_type()->is_ptr_to_narrowoop() && kind == LS_xchg) {
@@ -5183,7 +5199,7 @@ LibraryCallKit::generate_clear_array(const TypePtr* adr_type,
         // Store a zero to the immediately preceding jint:
         Node* x1 = _gvn.transform( new(C) AddXNode(start, MakeConX(-bump_bit)) );
         Node* p1 = basic_plus_adr(dest, x1);
-        mem = StoreNode::make(_gvn, control(), mem, p1, adr_type, intcon(0), T_INT);
+        mem = StoreNode::make(_gvn, control(), mem, p1, adr_type, intcon(0), T_INT, StoreNode::unordered);
         mem = _gvn.transform(mem);
       }
     }

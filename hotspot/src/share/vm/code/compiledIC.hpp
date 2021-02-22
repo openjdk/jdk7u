@@ -244,6 +244,10 @@ class CompiledStaticCall: public NativeCall {
   // Misc.
   void print()  PRODUCT_RETURN;
   void verify() PRODUCT_RETURN;
+
+  // Offset of start of compiled java to interpreter stub to the load
+  // constant that loads the inline cache (IC). See ad file.
+  static const int comp_to_int_load_offset;
 };
 
 

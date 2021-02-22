@@ -404,7 +404,7 @@ double SharedRuntime::dabs(double f)  {
 
 #endif
 
-#if defined(__SOFTFP__) || defined(PPC)
+#if defined(__SOFTFP__) || defined(PPC32)
 double SharedRuntime::dsqrt(double f) {
   return sqrt(f);
 }
@@ -2712,6 +2712,69 @@ void SharedRuntime::get_utf(oopDesc* src, address dst) {
 }
 #endif // ndef HAVE_DTRACE_H
 
+int SharedRuntime::convert_ints_to_longints_argcnt(int in_args_count, BasicType* in_sig_bt) {
+  assert(SharedRuntime::c_calling_convention_requires_ints_as_longs(), "");
+
+  int argcnt = in_args_count;
+  for (int in = 0; in < in_args_count; in++) {
+    BasicType bt = in_sig_bt[in];
+    switch (bt) {
+      case T_BOOLEAN:
+      case T_CHAR:
+      case T_BYTE:
+      case T_SHORT:
+      case T_INT:
+        argcnt++;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return argcnt;
+}
+
+void SharedRuntime::convert_ints_to_longints(int i2l_argcnt, int& in_args_count,
+                                             BasicType*& in_sig_bt,
+                                             VMRegPair*& in_regs) {
+  assert(SharedRuntime::c_calling_convention_requires_ints_as_longs(), "");
+
+  VMRegPair *new_in_regs   = NEW_RESOURCE_ARRAY(VMRegPair, i2l_argcnt);
+  BasicType *new_in_sig_bt = NEW_RESOURCE_ARRAY(BasicType, i2l_argcnt);
+
+  int argcnt = 0;
+  for (int in = 0; in < in_args_count; in++, argcnt++) {
+    BasicType bt  = in_sig_bt[in];
+    VMRegPair reg = in_regs[in];
+    switch (bt) {
+      case T_BOOLEAN:
+      case T_CHAR:
+      case T_BYTE:
+      case T_SHORT:
+      case T_INT:
+        // convert (bt) to (T_LONG,bt)
+        new_in_sig_bt[argcnt  ] = T_LONG;
+        new_in_sig_bt[argcnt+1] = bt;
+        assert(reg.first()->is_valid() && !reg.second()->is_valid(), "");
+        new_in_regs[argcnt  ].set2(reg.first());
+        new_in_regs[argcnt+1].set_bad();
+        argcnt++;
+        break;
+      default:
+        // no conversion needed
+        new_in_sig_bt[argcnt]   = bt;
+        new_in_regs[argcnt]     = reg;
+        break;
+    }
+  }
+  assert(argcnt == i2l_argcnt, "must match");
+
+  in_regs = new_in_regs;
+  in_sig_bt = new_in_sig_bt;
+  in_args_count = i2l_argcnt;
+}
+
+
 // -------------------------------------------------------------------------
 // Java-Java calling convention
 // (what you use when Java calls Java)
@@ -2732,9 +2795,7 @@ VMRegPair *SharedRuntime::find_callee_arguments(Symbol* sig, bool has_receiver, 
   // ResourceObject, so do not put any ResourceMarks in here.
   char *s = sig->as_C_string();
   int len = (int)strlen(s);
-  *s++; len--;                  // Skip opening paren
-  char *t = s+len;
-  while( *(--t) != ')' ) ;      // Find close paren
+  s++; len--;                   // Skip opening paren
 
   BasicType *sig_bt = NEW_RESOURCE_ARRAY( BasicType, 256 );
   VMRegPair *regs = NEW_RESOURCE_ARRAY( VMRegPair, 256 );
@@ -2743,7 +2804,7 @@ VMRegPair *SharedRuntime::find_callee_arguments(Symbol* sig, bool has_receiver, 
     sig_bt[cnt++] = T_OBJECT; // Receiver is argument 0; not in signature
   }
 
-  while( s < t ) {
+  while( *s != ')' ) {          // Find closing right paren
     switch( *s++ ) {            // Switch on signature character
     case 'B': sig_bt[cnt++] = T_BYTE;    break;
     case 'C': sig_bt[cnt++] = T_CHAR;    break;
@@ -2816,9 +2877,9 @@ VMRegPair *SharedRuntime::find_callee_arguments(Symbol* sig, bool has_receiver, 
 
 JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *thread) )
 
-#ifdef IA64
+#if defined(IA64) && !defined(AIX)
   ShouldNotReachHere(); // NYI
-#endif /* IA64 */
+#endif
 
   //
   // This code is dependent on the memory layout of the interpreter local

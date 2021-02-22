@@ -115,7 +115,8 @@ public:
          more_monitors,             // need a new monitor
          throwing_exception,        // unwind stack and rethrow
          popping_frame,             // unwind call and retry call
-         do_osr                     // request this invocation be OSR's
+         do_osr,                    // request this invocation be OSR's
+         early_return               // early return as commanded by jvmti
     };
 
 private:

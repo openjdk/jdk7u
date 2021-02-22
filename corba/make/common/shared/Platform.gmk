@@ -166,6 +166,9 @@ ifeq ($(SYSTEM_UNAME), Linux)
                 sparc*) \
                     echo sparc \
                     ;; \
+                ppc64*) \
+                    echo ppc64 \
+                    ;; \
                 arm*) \
                     echo arm \
                     ;; \

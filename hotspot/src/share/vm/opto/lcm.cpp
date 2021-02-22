@@ -45,11 +45,36 @@
 #ifdef TARGET_ARCH_MODEL_arm
 # include "adfiles/ad_arm.hpp"
 #endif
-#ifdef TARGET_ARCH_MODEL_ppc
-# include "adfiles/ad_ppc.hpp"
+#ifdef TARGET_ARCH_MODEL_ppc_32
+# include "adfiles/ad_ppc_32.hpp"
+#endif
+#ifdef TARGET_ARCH_MODEL_ppc_64
+# include "adfiles/ad_ppc_64.hpp"
 #endif
 
 // Optimization - Graph Style
+
+// Check whether val is not-null-decoded compressed oop,
+// i.e. will grab into the base of the heap if it represents NULL.
+static bool accesses_heap_base_zone(Node *val) {
+  if (UseCompressedOops && Universe::narrow_oop_base() > 0) {
+    if (val && val->is_Mach()) {
+        if (val->as_Mach()->ideal_Opcode() == Op_DecodeN) {
+          // This assumes all Decodes with TypePtr::NotNull are matched to nodes that
+          // decode NULL to point to the heap base (Decode_NN).
+          if (val->bottom_type()->is_oopptr()->ptr() == TypePtr::NotNull) {
+            return true;
+          }
+        }
+        // Must recognize load operation with Decode matched in memory operand.
+        // We should not reach here, as os::zero_page_read_protected()
+        // returns true everywhere exept for AIX. On AIX, no such memory operands
+        // exist.
+        NOT_AIX(Unimplemented());
+      }
+  }
+  return false;
+}
 
 //------------------------------implicit_null_check----------------------------
 // Detect implicit-null-check opportunities.  Basically, find NULL checks
@@ -204,6 +229,20 @@ void Block::implicit_null_check(PhaseCFG *cfg, Node *proj, Node *val, int allowe
       }
       break;
     }
+
+    // On some OSes (AIX) the page at address 0 is only write protected.
+    // If so, only Store operations will trap.
+    // But a read accessing the base of a heap-based compressed heap will trap.
+    if (!was_store && !os::zero_page_read_protected()) {
+      if (!(accesses_heap_base_zone(val) &&                    // Hits the base zone page.
+            Universe::narrow_oop_use_implicit_null_checks())) { // Page is protected.
+        continue;
+      } else {
+        tty->print("Found load accessing heap base on AIX\n");
+        Unimplemented();
+      }
+    }
+
     // check if the offset is not too high for implicit exception
     {
       intptr_t offset = 0;

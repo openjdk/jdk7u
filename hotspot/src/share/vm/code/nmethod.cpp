@@ -1331,7 +1331,12 @@ bool nmethod::make_not_entrant_or_zombie(unsigned int state) {
     }
 
     // Change state
-    _state = state;
+    // We must ensure that state transition normal -> not_entrant is
+    // visible before VEP patch becomes visible. We must complete
+    // previous memory accesses before the state change.
+    OrderAccess::release_store(&_state, state);
+    // The state change must happen before patching the entry point.
+    OrderAccess::storestore();
 
     // Log the transition once
     log_state_change();
@@ -2506,7 +2511,8 @@ void nmethod::print_relocations() {
                       relocation_begin()-1+ip[1]);
       for (; ip < index_end; ip++)
         tty->print_cr("  (%d ?)", ip[0]);
-      tty->print_cr("          @" INTPTR_FORMAT ": index_size=%d", ip, *ip++);
+      tty->print_cr("          @" INTPTR_FORMAT ": index_size=%d", ip, *ip);
+      ip++;
       tty->print_cr("reloc_end @" INTPTR_FORMAT ":", ip);
     }
   }

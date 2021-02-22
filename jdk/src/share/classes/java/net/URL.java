@@ -1126,7 +1126,7 @@ public final class URL implements java.io.Serializable {
     /**
      * A table of protocol handlers.
      */
-    static Hashtable handlers = new Hashtable();
+    static Hashtable<String,URLStreamHandler> handlers = new Hashtable<>();
     private static Object streamHandlerLock = new Object();
 
     // special case the gopher protocol, disabled by default
@@ -1151,7 +1151,7 @@ public final class URL implements java.io.Serializable {
      */
     static URLStreamHandler getURLStreamHandler(String protocol) {
 
-        URLStreamHandler handler = (URLStreamHandler)handlers.get(protocol);
+        URLStreamHandler handler = handlers.get(protocol);
         if (handler == null) {
 
             boolean checkedWithFactory = false;
@@ -1197,7 +1197,7 @@ public final class URL implements java.io.Serializable {
                     try {
                         String clsName = packagePrefix + "." + protocol +
                           ".Handler";
-                        Class cls = null;
+                        Class<?> cls = null;
                         try {
                             cls = Class.forName(clsName);
                         } catch (ClassNotFoundException e) {
@@ -1222,7 +1222,7 @@ public final class URL implements java.io.Serializable {
 
                 // Check again with hashtable just in case another
                 // thread created a handler since we last checked
-                handler2 = (URLStreamHandler)handlers.get(protocol);
+                handler2 = handlers.get(protocol);
 
                 if (handler2 != null) {
                     return handler2;

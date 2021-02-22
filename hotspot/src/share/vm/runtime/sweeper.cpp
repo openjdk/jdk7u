@@ -252,7 +252,8 @@ void NMethodSweeper::possibly_sweep() {
       sweep_code_cache();
       _invocations--;
     }
-    _sweep_started = 0;
+    // Release work, because another compiler thread could continue.
+    OrderAccess::release_store((int*)&_sweep_started, 0);
   }
 }
 
