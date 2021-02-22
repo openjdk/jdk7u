@@ -44,6 +44,10 @@ ifeq ($(PLATFORM), macosx)
   CPPFLAGS += -DX_PLATFORM=X_MACOSX
 endif # PLATFORM macosx
 
+ifeq ($(PLATFORM), aix)
+  CPPFLAGS += -DX_PLATFORM=X_AIX
+endif # PLATFORM aix
+
 ifeq ($(PLATFORM), solaris)
   CPPFLAGS += -DX_PLATFORM=X_SOLARIS
 
@@ -85,6 +89,10 @@ else
   ifeq ($(ARCH), ppc)
     CPPFLAGS += -DX_ARCH=X_PPC
   endif # ARCH ppc
+
+  ifeq ($(ARCH), ppc64)
+    CPPFLAGS += -DX_ARCH=X_PPC
+  endif # ARCH ppc64
 
 endif
 

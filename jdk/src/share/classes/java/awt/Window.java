@@ -3142,7 +3142,7 @@ public class Window extends Container implements Accessible {
         }
         synchronized (getTreeLock()) {
             super.setGraphicsConfiguration(gc);
-            if (log.isLoggable(PlatformLogger.FINER)) {
+            if (log.isLoggable(PlatformLogger.Level.FINER)) {
                 log.finer("+ Window.setGraphicsConfiguration(): new GC is \n+ " + getGraphicsConfiguration_NoClientCode() + "\n+ this is " + this);
             }
         }

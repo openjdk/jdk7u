@@ -61,6 +61,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "thread_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "thread_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "thread_bsd.inline.hpp"
 #endif
@@ -824,7 +827,11 @@ void instanceKlass::mask_for(methodHandle method, int bci,
     MutexLocker x(OopMapCacheAlloc_lock);
     // First time use. Allocate a cache in C heap
     if (_oop_map_cache == NULL) {
-      _oop_map_cache = new OopMapCache();
+      // Release stores from OopMapCache constructor before assignment
+      // to _oop_map_cache. C++ compilers on ppc do not emit the
+      // required memory barrier only because of the volatile
+      // qualifier of _oop_map_cache.
+      OrderAccess::release_store_ptr(&_oop_map_cache, new OopMapCache());
     }
   }
   // _oop_map_cache is constant after init; lookup below does is own locking.
@@ -1441,6 +1448,8 @@ void instanceKlass::set_cached_itable_index(size_t idnum, int index) {
 
 // Retrieve a cached itable index
 int instanceKlass::cached_itable_index(size_t idnum) {
+  // First, acquire.
+  OrderAccess::acquire();
   int* indices = methods_cached_itable_indices_acquire();
   if (indices != NULL && ((size_t)indices[0]) > idnum) {
      // indices exist and are long enough, retrieve possible cached

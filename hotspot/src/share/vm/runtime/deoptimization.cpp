@@ -81,10 +81,13 @@
 #ifdef TARGET_ARCH_MODEL_arm
 # include "adfiles/ad_arm.hpp"
 #endif
-#ifdef TARGET_ARCH_MODEL_ppc
-# include "adfiles/ad_ppc.hpp"
+#ifdef TARGET_ARCH_MODEL_ppc_32
+# include "adfiles/ad_ppc_32.hpp"
 #endif
+#ifdef TARGET_ARCH_MODEL_ppc_64
+# include "adfiles/ad_ppc_64.hpp"
 #endif
+#endif // COMPILER2
 
 bool DeoptimizationMarker::_is_active = false;
 
@@ -1793,8 +1796,6 @@ const char* Deoptimization::format_trap_state(char* buf, size_t buflen,
                        trap_reason_name(reason),
                        recomp_flag ? " recompiled" : "");
   }
-  if (len >= buflen)
-    buf[buflen-1] = '\0';
   return buf;
 }
 
@@ -1862,8 +1863,6 @@ const char* Deoptimization::format_trap_request(char* buf, size_t buflen,
     len = jio_snprintf(buf, buflen, "reason='%s' action='%s' index='%d'",
                        reason, action, unloaded_class_index);
   }
-  if (len >= buflen)
-    buf[buflen-1] = '\0';
   return buf;
 }
 

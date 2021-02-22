@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -246,7 +246,7 @@ final class HttpsClient extends HttpClient
                 int connectTimeout)
         throws IOException {
         PlatformLogger logger = HttpURLConnection.getHttpLogger();
-        if (logger.isLoggable(PlatformLogger.FINEST)) {
+        if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
              logger.finest("Creating new HttpsClient with url:" + url + " and proxy:" + proxy +
              " with connect timeout:" + connectTimeout);
         }
@@ -319,7 +319,7 @@ final class HttpsClient extends HttpClient
             p = Proxy.NO_PROXY;
         }
         PlatformLogger logger = HttpURLConnection.getHttpLogger();
-        if (logger.isLoggable(PlatformLogger.FINEST)) {
+        if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
             logger.finest("Looking for HttpClient for URL " + url +
                 " and proxy value of " + p);
         }
@@ -343,7 +343,7 @@ final class HttpsClient extends HttpClient
                         ret.inCache = false;
                         if (httpuc != null && ret.needsTunneling())
                             httpuc.setTunnelState(TUNNELING);
-                        if (logger.isLoggable(PlatformLogger.FINEST)) {
+                        if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
                             logger.finest("KeepAlive stream retrieved from the cache, " + ret);
                         }
                     }
@@ -353,7 +353,7 @@ final class HttpsClient extends HttpClient
                     // This should be fine as it is very rare that a connection
                     // to the same host will not use the same proxy.
                     synchronized(ret) {
-                        if (logger.isLoggable(PlatformLogger.FINEST)) {
+                        if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
                             logger.finest("Not returning this connection to cache: " + ret);
                         }
                         ret.inCache = false;
@@ -664,7 +664,7 @@ final class HttpsClient extends HttpClient
      */
     @Override
     public void closeIdleConnection() {
-        HttpClient http = (HttpClient) kac.get(url, sslSocketFactory);
+        HttpClient http = kac.get(url, sslSocketFactory);
         if (http != null) {
             http.closeServer();
         }
@@ -722,8 +722,7 @@ final class HttpsClient extends HttpClient
             // return the X500Principal of the end-entity cert.
             java.security.cert.Certificate[] certs =
                         session.getPeerCertificates();
-            principal = (X500Principal)
-                ((X509Certificate)certs[0]).getSubjectX500Principal();
+            principal = ((X509Certificate)certs[0]).getSubjectX500Principal();
         }
         return principal;
     }
@@ -744,8 +743,7 @@ final class HttpsClient extends HttpClient
             java.security.cert.Certificate[] certs =
                         session.getLocalCertificates();
             if (certs != null) {
-                principal = (X500Principal)
-                    ((X509Certificate)certs[0]).getSubjectX500Principal();
+                principal = ((X509Certificate)certs[0]).getSubjectX500Principal();
             }
         }
         return principal;

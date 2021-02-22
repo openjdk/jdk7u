@@ -55,7 +55,12 @@ private:
   // then _alloc_region is NULL and this object should not be used to
   // satisfy allocation requests (it was done this way to force the
   // correct use of init() and release()).
-  HeapRegion* _alloc_region;
+  // _alloc_region must be volatile. We saw the following problem:
+  // Thread A reads _alloc_region and compares against null.
+  // Thread B changes _alloc_region concurrently. Thread A
+  // reads _alloc_region again and calls a member function on
+  // it without another null check.
+  HeapRegion* volatile _alloc_region;
 
   // It keeps track of the distinct number of regions that are used
   // for allocation in the active interval of this object, i.e.,

@@ -388,6 +388,17 @@ int MachNode::operand_index( uint operand ) const {
   return skipped;
 }
 
+int MachNode::operand_index( const MachOper *oper ) const {
+  uint skipped = oper_input_base(); // Sum of leaves skipped so far
+  uint opcnt;
+  for (opcnt = 1; opcnt < num_opnds(); opcnt++) {
+    if (_opnds[opcnt] == oper) break;
+    uint num_edges = _opnds[opcnt]->num_edges(); // leaves for operand
+    skipped += num_edges;
+  }
+  if (_opnds[opcnt] != oper) return -1;
+  return skipped;
+}
 
 //------------------------------peephole---------------------------------------
 // Apply peephole rule(s) to this instruction
@@ -496,6 +507,9 @@ int MachConstantNode::constant_offset() {
   return _constant.offset();
 }
 
+int MachConstantNode::constant_offset_unchecked() {
+  return _constant.offset();
+}
 
 //=============================================================================
 #ifndef PRODUCT

@@ -380,7 +380,7 @@ class LoadVectorNode : public LoadNode {
 class StoreVectorNode : public StoreNode {
  public:
   StoreVectorNode(Node* c, Node* mem, Node* adr, const TypePtr* at, Node* val)
-    : StoreNode(c, mem, adr, at, val) {
+    : StoreNode(c, mem, adr, at, val, StoreNode::unordered) {
     assert(val->is_Vector() || val->is_LoadVector(), "sanity");
     init_class_id(Class_StoreVector);
   }

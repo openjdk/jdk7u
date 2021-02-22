@@ -29,8 +29,12 @@
 
 BUILDDIR = ../../..
 include $(BUILDDIR)/common/Defs.gmk
+
+# MMM: disable for now
+ifeq (, $(findstring $(PLATFORM), macosx aix))
 include $(BUILDDIR)/common/Subdirs.gmk
 SUBDIRS = sctp
+endif
 
 all build clean clobber::
 	$(SUBDIRS-loop)
