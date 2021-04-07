@@ -1200,7 +1200,7 @@ final class AbstractTrustManagerWrapper extends X509ExtendedTrustManager
             // A forward checker, need to check from trust to target
             if (checkedLength >= 0) {
                 AlgorithmChecker checker =
-                        new AlgorithmChecker(constraints, null,
+                        new AlgorithmChecker(constraints,
                                 (isClient ? Validator.VAR_TLS_CLIENT : Validator.VAR_TLS_SERVER));
                 checker.init(false);
                 for (int i = checkedLength; i >= 0; i--) {

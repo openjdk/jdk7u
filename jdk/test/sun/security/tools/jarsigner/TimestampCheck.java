@@ -428,12 +428,11 @@ public class TimestampCheck {
                 sign("tsweak", "-digestalg", "MD5",
                                 "-sigalg", "MD5withRSA", "-tsadigestalg", "MD5")
                         .shouldHaveExitValue(68)
-                        .shouldContain("The timestamp is invalid. Without a valid timestamp");
+                        .shouldContain("TSA certificate chain is invalid");
                 checkWeak("tsweak.jar");
 
                 signVerbose("tsweak", "unsigned.jar", "tsweak2.jar", "signer")
                         .shouldHaveExitValue(64)
-                        .shouldContain("The timestamp is invalid. Without a valid timestamp")
                         .shouldContain("TSA certificate chain is invalid");
 
                 // Weak timestamp is an error and jar treated unsigned
@@ -710,7 +709,7 @@ public class TimestampCheck {
                 .shouldMatch("Timestamp signature algorithm: .*key.*weak");
         verify(file, "-J-Djava.security.debug=jar")
                 .shouldHaveExitValue(16)
-                .shouldMatch("SignatureException:.*disabled");
+                .shouldMatch("SignatureException:.*keysize");
     }
 
     static void checkHalfWeak(String file) throws Exception {

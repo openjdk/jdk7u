@@ -238,7 +238,7 @@ public final class PKIXValidator extends Validator {
         // add a new algorithm constraints checker
         if (constraints != null) {
             pkixParameters.addCertPathChecker(
-                    new AlgorithmChecker(constraints, null, variant));
+                    new AlgorithmChecker(constraints, variant));
         }
 
         if (TRY_VALIDATOR) {
