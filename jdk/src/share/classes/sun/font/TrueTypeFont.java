@@ -547,6 +547,10 @@ public class TrueTypeFont extends FileFont {
                     throw new FontFormatException("bad table, tag="+table.tag);
                 }
             }
+            ByteBuffer maxpTable = getTableBuffer(maxpTag);
+            if (maxpTable.getChar(4) == 0) {
+                throw new FontFormatException("zero glyphs");
+            }
             initNames();
         } catch (Exception e) {
             if (FontUtilities.isLogging()) {
