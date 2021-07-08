@@ -495,14 +495,17 @@ class instanceKlass: public Klass {
   static methodOop find_method(objArrayOop methods, Symbol* name, Symbol* signature);
 
   // find a local method, but skip static methods
-  methodOop find_instance_method(Symbol* name, Symbol* signature);
-  static methodOop find_instance_method(objArrayOop methods, Symbol* name, Symbol* signature);
+  methodOop find_instance_method(Symbol* name, Symbol* signature,
+                                 PrivateLookupMode private_mode = Klass::find_private);
+  static methodOop find_instance_method(objArrayOop methods, Symbol* name, Symbol* signature,
+                                        PrivateLookupMode private_mode = Klass::find_private);
 
   // true if method matches signature and conforms to skipping_X conditions.
-  static bool method_matches(methodOop m, Symbol* signature, bool skipping_static);
+  static bool method_matches(methodOop m, Symbol* signature, bool skipping_static, bool skipping_private);
 
   // find a local method index in default_methods (returns -1 if not found)
-  static int find_method_index(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static);
+
+  static int find_method_index(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static, bool skipping_private);
 
   // lookup operation (returns NULL if not found)
   methodOop uncached_lookup_method(Symbol* name, Symbol* signature) const;
@@ -986,7 +989,7 @@ private:
   klassOop array_klass_impl(bool or_null, TRAPS);
 
   // find a local method (returns NULL if not found)
-  static methodOop find_method_impl(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static);
+  static methodOop find_method_impl(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static, bool skipping_private);
 
 public:
   // sharing support

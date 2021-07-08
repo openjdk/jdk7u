@@ -1074,60 +1074,66 @@ methodOop instanceKlass::find_method(Symbol* name, Symbol* signature) const {
 
 // find_instance_method looks up the name/signature in the local methods array
 // and skips over static methods
-methodOop instanceKlass::find_instance_method(Symbol* name, Symbol* signature) {
-  return instanceKlass::find_instance_method(methods(), name, signature);
+methodOop instanceKlass::find_instance_method(Symbol* name, Symbol* signature,
+                                              PrivateLookupMode private_mode)
+{
+  return instanceKlass::find_instance_method(methods(), name, signature, private_mode);
 }
 
 // find_instance_method looks up the name/signature in the local methods array
 // and skips over static methods
-methodOop instanceKlass::find_instance_method(objArrayOop methods, Symbol* name, Symbol* signature) {
-  methodOop meth = instanceKlass::find_method_impl(methods, name, signature, true);
+methodOop instanceKlass::find_instance_method(objArrayOop methods, Symbol* name, Symbol* signature,
+                                              PrivateLookupMode private_mode)
+{
+  methodOop meth = instanceKlass::find_method_impl(methods, name, signature, true, private_mode == skip_private);
   return meth;
 }
 
 // find_method looks up the name/signature in the local methods array
 methodOop instanceKlass::find_method(objArrayOop methods, Symbol* name, Symbol* signature) {
-  return instanceKlass::find_method_impl(methods, name, signature, false);
+  return instanceKlass::find_method_impl(methods, name, signature, false, false);
 }
 
-methodOop instanceKlass::find_method_impl(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static) {
-  int hit = find_method_index(methods, name, signature, skipping_static);
+methodOop instanceKlass::find_method_impl(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static, bool skipping_private) {
+  int hit = find_method_index(methods, name, signature, skipping_static, skipping_private);
   return hit >= 0 ? (methodOop) methods->obj_at(hit): NULL;
 }
 
-bool instanceKlass::method_matches(methodOop m, Symbol* signature, bool skipping_static) {
-    return (m->signature() == signature) && (!skipping_static || !m->is_static());
+bool instanceKlass::method_matches(methodOop m, Symbol* signature, bool skipping_static, bool skipping_private) {
+    return  ((m->signature() == signature) &&
+            (!skipping_static || !m->is_static()) &&
+            (!skipping_private || !m->is_private()));
 }
 
 // Used indirectly by find_method
 // find_method_index looks in the local methods array to return the index
 // of the matching name/signature
-int instanceKlass::find_method_index(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static) {
+int instanceKlass::find_method_index(objArrayOop methods, Symbol* name, Symbol* signature, bool skipping_static, bool skipping_private) {
   int hit = binary_search(methods, name);
   if (hit != -1) {
     methodOop m = (methodOop) methods->obj_at(hit);
 
     // Do linear search to find matching signature.  First, quick check
     // for common case
-    if (method_matches(m, signature, skipping_static)) return hit;
+    if (method_matches(m, signature, skipping_static, skipping_private)) return hit;
     // search downwards through overloaded methods
     int i;
     for (i = hit - 1; i >= 0; --i) {
         methodOop m = (methodOop) methods->obj_at(i);
         assert(m->is_method(), "must be method");
         if (m->name() != name) break;
-        if (method_matches(m, signature, skipping_static)) return i;
+        if (method_matches(m, signature, skipping_static, skipping_private)) return i;
     }
     // search upwards
     for (i = hit + 1; i < methods->length(); ++i) {
         methodOop m = (methodOop) methods->obj_at(i);
         assert(m->is_method(), "must be method");
         if (m->name() != name) break;
-        if (method_matches(m, signature, skipping_static)) return i;
+        if (method_matches(m, signature, skipping_static, skipping_private)) return i;
     }
     // not found
 #ifdef ASSERT
-    int index = skipping_static ? -1 : linear_search(methods, name, signature);
+    int index = (skipping_static || skipping_private) ? -1 : linear_search(methods, name, signature);
     assert(index == -1, err_msg("binary search should have found entry %d", index));
 #endif
   }
