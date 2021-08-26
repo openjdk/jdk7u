@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1153,15 +1153,18 @@ public class HashMap<K,V>
      * Reconstitute the {@code HashMap} instance from a stream (i.e.,
      * deserialize it).
      */
-    private void readObject(java.io.ObjectInputStream s)
-         throws IOException, ClassNotFoundException
-    {
-        // Read in the threshold (ignored), loadfactor, and any hidden stuff
-        s.defaultReadObject();
-        if (loadFactor <= 0 || Float.isNaN(loadFactor)) {
-            throw new InvalidObjectException("Illegal load factor: " +
-                                               loadFactor);
-        }
+    private void readObject(ObjectInputStream s)
+        throws IOException, ClassNotFoundException {
+
+        ObjectInputStream.GetField fields = s.readFields();
+
+        // Read loadFactor (ignore threshold)
+        float lf = fields.get("loadFactor", 0.75f);
+        if (lf <= 0 || Float.isNaN(lf))
+            throw new InvalidObjectException("Illegal load factor: " + lf);
+
+        lf = Math.min(Math.max(0.25f, lf), 4.0f);
+        HashMap.UnsafeHolder.putLoadFactor(this, lf);
 
         // set other fields that need values
         table = EMPTY_TABLE;
@@ -1172,8 +1175,7 @@ public class HashMap<K,V>
         // Read number of mappings
         int mappings = s.readInt();
         if (mappings < 0)
-            throw new InvalidObjectException("Illegal mappings count: " +
-                                               mappings);
+            throw new InvalidObjectException("Illegal mappings count: " + mappings);
 
         // capacity chosen by number of mappings and desired load (if >= 0.25)
         int capacity = (int) Math.min(
@@ -1202,6 +1204,24 @@ public class HashMap<K,V>
             @SuppressWarnings("unchecked")
                 V value = (V) s.readObject();
             putForCreate(key, value);
+        }
+    }
+
+    // Support for resetting final field during deserializing
+    private static final class UnsafeHolder {
+        private UnsafeHolder() { throw new InternalError(); }
+        private static final sun.misc.Unsafe unsafe
+                = sun.misc.Unsafe.getUnsafe();
+        private static final long LF_OFFSET;
+        static {
+            try {
+                LF_OFFSET = unsafe.objectFieldOffset(HashMap.class.getDeclaredField("loadFactor"));
+            } catch (NoSuchFieldException nfe) {
+                throw new InternalError();
+            }
+        }
+        static void putLoadFactor(HashMap<?, ?> map, float lf) {
+            unsafe.putFloat(map, LF_OFFSET, lf);
         }
     }
 
