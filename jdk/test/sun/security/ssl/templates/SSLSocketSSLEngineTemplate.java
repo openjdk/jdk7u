@@ -29,6 +29,7 @@
  *     SunJSSE does not support dynamic system properties, no way to re-use
  *     system properties in samevm/agentvm mode.
  *
+ * @library /lib/security
  * @run main/othervm SSLSocketSSLEngineTemplate
  */
 
@@ -138,6 +139,9 @@ public class SSLSocketSSLEngineTemplate {
      * Main entry point for this test.
      */
     public static void main(String args[]) throws Exception {
+        // Re-enable TLSv1 since test depends on it.
+        SecurityUtils.removeFromDisabledTlsAlgs("TLSv1");
+
         if (debug) {
             System.setProperty("javax.net.debug", "all");
         }
