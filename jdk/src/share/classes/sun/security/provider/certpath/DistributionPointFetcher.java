@@ -86,7 +86,7 @@ public class DistributionPointFetcher {
             throws CertStoreException
     {
         return getCRLs(selector, signFlag, prevKey, null, provider, certStores,
-                reasonsMask, trustAnchors, validity, variant);
+                reasonsMask, trustAnchors, validity, variant, null);
     }
     /**
      * Return the X509CRLs matching this selector. The selector must be
@@ -103,8 +103,14 @@ public class DistributionPointFetcher {
                                               Date validity)
         throws CertStoreException
     {
+        if (trustAnchors.isEmpty()) {
+            throw new CertStoreException(
+                "at least one TrustAnchor must be specified");
+        }
+        TrustAnchor anchor = trustAnchors.iterator().next();
         return getCRLs(selector, signFlag, prevKey, null, provider, certStores,
-                reasonsMask, trustAnchors, validity, Validator.VAR_GENERIC);
+                reasonsMask, trustAnchors, validity,
+                Validator.VAR_PLUGIN_CODE_SIGNING, anchor);
     }
 
     /**
@@ -120,7 +126,8 @@ public class DistributionPointFetcher {
                                               boolean[] reasonsMask,
                                               Set<TrustAnchor> trustAnchors,
                                               Date validity,
-                                              String variant)
+                                              String variant,
+                                              TrustAnchor anchor)
         throws CertStoreException
     {
         if (USE_CRLDP == false) {
@@ -152,7 +159,7 @@ public class DistributionPointFetcher {
                 DistributionPoint point = t.next();
                 Collection<X509CRL> crls = getCRLs(selector, certImpl,
                     point, reasonsMask, signFlag, prevKey, prevCert, provider,
-                    certStores, trustAnchors, validity, variant);
+                    certStores, trustAnchors, validity, variant, anchor);
                 results.addAll(crls);
             }
             if (debug != null) {
@@ -177,7 +184,8 @@ public class DistributionPointFetcher {
         X509CertImpl certImpl, DistributionPoint point, boolean[] reasonsMask,
         boolean signFlag, PublicKey prevKey, X509Certificate prevCert,
         String provider, List<CertStore> certStores,
-        Set<TrustAnchor> trustAnchors, Date validity, String variant)
+        Set<TrustAnchor> trustAnchors, Date validity, String variant,
+        TrustAnchor anchor)
             throws CertStoreException {
 
         // check for full name
@@ -240,7 +248,7 @@ public class DistributionPointFetcher {
                 selector.setIssuerNames(null);
                 if (selector.match(crl) && verifyCRL(certImpl, point, crl,
                         reasonsMask, signFlag, prevKey, prevCert, provider,
-                        trustAnchors, certStores, validity, variant)) {
+                        trustAnchors, certStores, validity, variant, anchor)) {
                     crls.add(crl);
                 }
             } catch (IOException | CRLException e) {
@@ -349,7 +357,8 @@ public class DistributionPointFetcher {
         X509CRL crl, boolean[] reasonsMask, boolean signFlag,
         PublicKey prevKey, X509Certificate prevCert, String provider,
         Set<TrustAnchor> trustAnchors, List<CertStore> certStores,
-        Date validity, String variant) throws CRLException, IOException {
+        Date validity, String variant, TrustAnchor anchor)
+        throws CRLException, IOException {
 
         if (debug != null) {
             debug.println("DistributionPointFetcher.verifyCRL: " +
@@ -699,7 +708,7 @@ public class DistributionPointFetcher {
 
         // check the crl signature algorithm
         try {
-            AlgorithmChecker.check(prevKey, crl, variant);
+            AlgorithmChecker.check(prevKey, crl, variant, anchor);
         } catch (CertPathValidatorException cpve) {
             if (debug != null) {
                 debug.println("CRL signature algorithm check failed: " + cpve);
