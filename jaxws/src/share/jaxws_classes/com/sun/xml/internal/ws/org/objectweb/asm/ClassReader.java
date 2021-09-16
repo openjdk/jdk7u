@@ -561,6 +561,9 @@ public class ClassReader {
                 access |= Opcodes.ACC_SYNTHETIC;
             } else if ("SourceDebugExtension".equals(attrName)) {
                 int len = readInt(v + 2);
+                if (len > b.length - (v + 6)) {
+                    throw new IllegalArgumentException();
+                }
                 sourceDebug = readUTF(v + 6, len, new char[len]);
             } else if (ANNOTATIONS && "RuntimeInvisibleAnnotations".equals(attrName)) {
                 ianns = v + 6;
@@ -896,6 +899,9 @@ public class ClassReader {
                 int maxLocals = readUnsignedShort(v + 2);
                 int codeLength = readInt(v + 4);
                 v += 8;
+                if (codeLength > b.length - v) {
+                    throw new IllegalArgumentException();
+                }
 
                 int codeStart = v;
                 int codeEnd = v + codeLength;
