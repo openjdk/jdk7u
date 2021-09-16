@@ -276,6 +276,8 @@ class Klass : public Klass_vtbl {
   }
 
  public:
+  enum PrivateLookupMode  { find_private,  skip_private };
+
   // Allocation
   const Klass_vtbl& vtbl_value() const { return *this; }  // used only on "example instances"
   static KlassHandle base_create_klass(KlassHandle& klass, int size, const Klass_vtbl& vtbl, TRAPS);
