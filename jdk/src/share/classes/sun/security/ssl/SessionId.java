@@ -102,13 +102,23 @@ class SessionId
         SessionId s = (SessionId) obj;
         byte b [] = s.getId ();
 
+        if (sessionId == b) {
+            return true;
+        }
+
+        if (sessionId == null || b == null) {
+            return false;
+        }
+
         if (b.length != sessionId.length)
             return false;
+
+        int result = 0;
+
         for (int i = 0; i < sessionId.length; i++) {
-            if (b [i] != sessionId [i])
-                return false;
+            result |= sessionId [i] ^ b [i];
         }
-        return true;
+        return result == 0;
     }
 
     /**
