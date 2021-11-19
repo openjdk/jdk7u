@@ -1682,6 +1682,18 @@ klassOop instanceKlass::compute_enclosing_class_impl(instanceKlassHandle k,
         found = (k() == inner_klass);
         if (found && ooff != 0) {
           ok = i_cp->klass_at(ooff, CHECK_NULL);
+          if (!Klass::cast(ok)->oop_is_instance()) {
+            // If the outer class is not an instance klass then it cannot have
+            // declared any inner classes.
+            ResourceMark rm(THREAD);
+            Exceptions::fthrow(
+              THREAD_AND_LOCATION,
+              vmSymbols::java_lang_IncompatibleClassChangeError(),
+              "%s and %s disagree on InnerClasses attribute",
+              Klass::cast(ok)->external_name(),
+              k->external_name());
+            return NULL;
+          }
           outer_klass = instanceKlassHandle(thread, ok);
           *inner_is_member = true;
         }
