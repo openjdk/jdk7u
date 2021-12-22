@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -271,7 +271,7 @@ public final class TimeZoneNames_es extends TimeZoneNamesBundle {
             {"Africa/Gaborone", CAT},
             {"Africa/Harare", CAT},
             {"Africa/Johannesburg", SAST},
-            {"Africa/Juba", EAT},
+            {"Africa/Juba", CAT},
             {"Africa/Kampala", EAT},
             {"Africa/Khartoum", CAT},
             {"Africa/Kigali", CAT},
@@ -298,7 +298,9 @@ public final class TimeZoneNames_es extends TimeZoneNamesBundle {
             {"Africa/Timbuktu", GMT},
             {"Africa/Tripoli", EET},
             {"Africa/Tunis", CET},
-            {"Africa/Windhoek", CAT},
+            {"Africa/Windhoek", new String[] {"Central African Time", "CAT",
+                                              "Western African Time", "WAT",
+                                              "Central African Time", "CAT"}},
             {"America/Adak", HST},
             {"America/Anguilla", AST},
             {"America/Antigua", AST},
@@ -471,8 +473,8 @@ public final class TimeZoneNames_es extends TimeZoneNamesBundle {
                                                "Hora de verano de Davis", "DAVST"}},
             {"Antarctica/DumontDUrville", new String[] {"Hora de Dumont-d'Urville", "DDUT",
                                                         "Hora de verano de Dumont-d'Urville", "DDUST"}},
-            {"Antarctica/Macquarie", new String[] {"Hora de Isla Macquarie", "MIST",
-                                                   "Hora de verano de Isla Macquarie", "MIDT"}},
+            {"Antarctica/Macquarie", new String[] {"Australian Eastern Standard Time (Macquarie)", "AEST",
+                                                   "Australian Eastern Daylight Time (Macquarie)", "AEDT"}},
             {"Antarctica/Mawson", new String[] {"Hora de Mawson", "MAWT",
                                                 "Hora de verano de Mawson", "MAWST"}},
             {"Antarctica/McMurdo", NZST},
