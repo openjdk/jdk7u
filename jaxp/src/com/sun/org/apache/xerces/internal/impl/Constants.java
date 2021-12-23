@@ -204,7 +204,7 @@ public final class Constants {
     /**
      * Check if we're in jdk8 or above
      */
-    public static final boolean IS_JDK8_OR_ABOVE = isJavaVersionAtLeast(8);
+    public static final boolean IS_JDK8_OR_ABOVE = isJavaVersionAtLeast(7);
 
     //
     // Implementation limits: corresponding System Properties of the above
