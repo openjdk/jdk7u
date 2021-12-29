@@ -194,6 +194,10 @@ public class PKCS9Attribute implements DerEncoder {
             PKCS9_OIDS[i] =
                 ObjectIdentifier.newInternal(new int[]{1,2,840,113549,1,9,i});
         }
+        // Remove the unused/unsupported PKCS9_OID entries.
+        PKCS9_OIDS[0] = PKCS9_OIDS[11] = PKCS9_OIDS[12] = PKCS9_OIDS[13] =
+        PKCS9_OIDS[15] = null;
+
         // Initialize SigningCertificate and SignatureTimestampToken
         // separately (because their values are out of sequence)
         PKCS9_OIDS[PKCS9_OIDS.length - 2] =
@@ -223,7 +227,6 @@ public class PKCS9Attribute implements DerEncoder {
     // [11], [12] are RSA DSI proprietary
     // [13] ==> signingDescription, S/MIME, not used anymore
     public static final ObjectIdentifier EXTENSION_REQUEST_OID = PKCS9_OIDS[14];
-    public static final ObjectIdentifier SMIME_CAPABILITY_OID = PKCS9_OIDS[15];
     public static final ObjectIdentifier SIGNING_CERTIFICATE_OID = PKCS9_OIDS[16];
     public static final ObjectIdentifier SIGNATURE_TIMESTAMP_TOKEN_OID =
                                 PKCS9_OIDS[17];
@@ -267,11 +270,11 @@ public class PKCS9Attribute implements DerEncoder {
         NAME_OID_TABLE.put("unstructuredaddress", PKCS9_OIDS[8]);
         NAME_OID_TABLE.put("extendedcertificateattributes", PKCS9_OIDS[9]);
         NAME_OID_TABLE.put("issuerandserialnumber", PKCS9_OIDS[10]);
-        NAME_OID_TABLE.put("rsaproprietary", PKCS9_OIDS[11]);
-        NAME_OID_TABLE.put("rsaproprietary", PKCS9_OIDS[12]);
-        NAME_OID_TABLE.put("signingdescription", PKCS9_OIDS[13]);
+        // NAME_OID_TABLE.put("rsaproprietary", PKCS9_OIDS[11]);
+        // NAME_OID_TABLE.put("rsaproprietary", PKCS9_OIDS[12]);
+        // NAME_OID_TABLE.put("signingdescription", PKCS9_OIDS[13]);
         NAME_OID_TABLE.put("extensionrequest", PKCS9_OIDS[14]);
-        NAME_OID_TABLE.put("smimecapability", PKCS9_OIDS[15]);
+        // NAME_OID_TABLE.put("smimecapability", PKCS9_OIDS[15]);
         NAME_OID_TABLE.put("signingcertificate", PKCS9_OIDS[16]);
         NAME_OID_TABLE.put("signaturetimestamptoken", PKCS9_OIDS[17]);
     };
@@ -293,11 +296,11 @@ public class PKCS9Attribute implements DerEncoder {
         OID_NAME_TABLE.put(PKCS9_OIDS[8], UNSTRUCTURED_ADDRESS_STR);
         OID_NAME_TABLE.put(PKCS9_OIDS[9], EXTENDED_CERTIFICATE_ATTRIBUTES_STR);
         OID_NAME_TABLE.put(PKCS9_OIDS[10], ISSUER_SERIALNUMBER_STR);
-        OID_NAME_TABLE.put(PKCS9_OIDS[11], RSA_PROPRIETARY_STR);
-        OID_NAME_TABLE.put(PKCS9_OIDS[12], RSA_PROPRIETARY_STR);
-        OID_NAME_TABLE.put(PKCS9_OIDS[13], SMIME_SIGNING_DESC_STR);
+        // OID_NAME_TABLE.put(PKCS9_OIDS[11], RSA_PROPRIETARY_STR);
+        // OID_NAME_TABLE.put(PKCS9_OIDS[12], RSA_PROPRIETARY_STR);
+        // OID_NAME_TABLE.put(PKCS9_OIDS[13], SMIME_SIGNING_DESC_STR);
         OID_NAME_TABLE.put(PKCS9_OIDS[14], EXTENSION_REQUEST_STR);
-        OID_NAME_TABLE.put(PKCS9_OIDS[15], SMIME_CAPABILITY_STR);
+        // OID_NAME_TABLE.put(PKCS9_OIDS[15], SMIME_CAPABILITY_STR);
         OID_NAME_TABLE.put(PKCS9_OIDS[16], SIGNING_CERTIFICATE_STR);
         OID_NAME_TABLE.put(PKCS9_OIDS[17], SIGNATURE_TIMESTAMP_TOKEN_STR);
     }
