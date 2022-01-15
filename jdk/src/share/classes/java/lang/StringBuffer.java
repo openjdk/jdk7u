@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,12 @@
 
 package java.lang;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
+import java.io.Serializable;
+import java.io.StreamCorruptedException;
 
 /**
  * A thread-safe, mutable sequence of characters.
@@ -82,7 +88,7 @@ package java.lang;
  */
  public final class StringBuffer
     extends AbstractStringBuilder
-    implements java.io.Serializable, CharSequence
+    implements Serializable, CharSequence
 {
 
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
@@ -572,20 +578,20 @@ package java.lang;
      *              A flag indicating whether the backing array is shared.
      *              The value is ignored upon deserialization.
      */
-    private static final java.io.ObjectStreamField[] serialPersistentFields =
+    private static final ObjectStreamField[] serialPersistentFields =
     {
-        new java.io.ObjectStreamField("value", char[].class),
-        new java.io.ObjectStreamField("count", Integer.TYPE),
-        new java.io.ObjectStreamField("shared", Boolean.TYPE),
+        new ObjectStreamField("value", char[].class),
+        new ObjectStreamField("count", Integer.TYPE),
+        new ObjectStreamField("shared", Boolean.TYPE),
     };
 
     /**
-     * readObject is called to restore the state of the StringBuffer from
-     * a stream.
+     * The {@code writeObject} method is called to write the state of the
+     * {@code StringBuffer} to a stream.
      */
-    private synchronized void writeObject(java.io.ObjectOutputStream s)
+    private synchronized void writeObject(ObjectOutputStream s)
         throws java.io.IOException {
-        java.io.ObjectOutputStream.PutField fields = s.putFields();
+        ObjectOutputStream.PutField fields = s.putFields();
         fields.put("value", value);
         fields.put("count", count);
         fields.put("shared", false);
@@ -593,13 +599,17 @@ package java.lang;
     }
 
     /**
-     * readObject is called to restore the state of the StringBuffer from
-     * a stream.
+     * The {@code readObject} method is called to restore the state of the
+     * {@code StringBuffer} from a stream.
      */
-    private void readObject(java.io.ObjectInputStream s)
-        throws java.io.IOException, ClassNotFoundException {
-        java.io.ObjectInputStream.GetField fields = s.readFields();
+    private void readObject(ObjectInputStream s)
+        throws IOException, ClassNotFoundException {
+        ObjectInputStream.GetField fields = s.readFields();
         value = (char[])fields.get("value", null);
-        count = fields.get("count", 0);
+        int c = fields.get("count", 0);
+        if (c < 0 || c > value.length) {
+            throw new StreamCorruptedException("count value invalid");
+        }
+        count = c;
     }
 }
