@@ -31,6 +31,7 @@ import javax.xml.transform.Result;
 
 import com.sun.org.apache.xml.internal.serializer.utils.MsgKey;
 import com.sun.org.apache.xml.internal.serializer.utils.Utils;
+import jdk.xml.internal.JdkXmlUtils;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 
@@ -678,28 +679,10 @@ public final class ToHTMLStream extends ToStream
                 final java.io.Writer writer = m_writer;
                 try
                 {
-                writer.write("<!DOCTYPE html");
-
-                if (null != doctypePublic)
-                {
-                    writer.write(" PUBLIC \"");
-                    writer.write(doctypePublic);
-                    writer.write('"');
-                }
-
-                if (null != doctypeSystem)
-                {
-                    if (null == doctypePublic)
-                        writer.write(" SYSTEM \"");
-                    else
-                        writer.write(" \"");
-
-                    writer.write(doctypeSystem);
-                    writer.write('"');
-                }
-
-                writer.write('>');
-                outputLineSep();
+                    writer.write("<!DOCTYPE html");
+                    writer.write(JdkXmlUtils.getDTDExternalDecl(doctypePublic, doctypeSystem));
+                    writer.write('>');
+                    outputLineSep();
                 }
                 catch(IOException e)
                 {
