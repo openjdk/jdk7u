@@ -9,6 +9,10 @@ package com.sun.org.apache.xalan.internal.xsltc.compiler;
 import java.util.Stack;
 import java.util.Vector;
 import java.io.StringReader;
+import com.sun.org.apache.xalan.internal.XalanConstants;
+import jdk.xml.internal.XMLLimitAnalyzer;
+import jdk.xml.internal.XMLSecurityManager;
+import jdk.xml.internal.XMLSecurityManager.Limit;
 import com.sun.java_cup.internal.runtime.*;
 import com.sun.org.apache.xml.internal.dtm.DTM;
 import com.sun.org.apache.xalan.internal.xsltc.DOM;
@@ -19,6 +23,9 @@ import com.sun.org.apache.xalan.internal.xsltc.compiler.util.ErrorMsg;
 /** CUP v0.10j generated parser.
   */
 public class XPathParser extends com.sun.java_cup.internal.runtime.lr_parser {
+  private int grpLimit = 0;
+  private int opLimit = 0;
+  private int totalOpLimit = 0;
 
   /** Default constructor. */
   public XPathParser() {super();}
@@ -885,10 +892,19 @@ public class XPathParser extends com.sun.java_cup.internal.runtime.lr_parser {
      */
     public SymbolTable _symbolTable;
 
+    private XMLSecurityManager _xmlSM;
+    private XMLLimitAnalyzer _limitAnalyzer = null;
+
     public XPathParser(Parser parser) {
         _parser = parser;
         _xsltc = parser.getXSLTC();
         _symbolTable = parser.getSymbolTable();
+        _xmlSM = (XMLSecurityManager)_xsltc.getProperty(XalanConstants.SECURITY_MANAGER);
+        _limitAnalyzer = new XMLLimitAnalyzer();
+        // no limits if _xmlSM is null
+        grpLimit = (_xmlSM != null) ? _xmlSM.getLimit(Limit.XPATH_GROUP_LIMIT) : 0;
+        opLimit = (_xmlSM != null) ? _xmlSM.getLimit(Limit.XPATH_OP_LIMIT) : 0;
+        totalOpLimit = (_xmlSM != null) ? _xmlSM.getLimit(Limit.XPATH_TOTALOP_LIMIT) : 0;
     }
 
     public int getLineNumber() {
@@ -1043,7 +1059,32 @@ public class XPathParser extends com.sun.java_cup.internal.runtime.lr_parser {
         try {
             _expression = expression;
             _lineNumber = lineNumber;
-            return super.parse();
+            Symbol s = super.parse();
+            int grpCount = getCount(ID_GROUP);
+            int opCount = getCount(ID_OPERATOR);
+            int totalOpCount = getCount(ID_TOTAL_OPERATOR);
+
+            String errCode = null;
+            Object[] params = null;
+            if (grpLimit > 0 && grpCount > grpLimit) {
+                errCode = ErrorMsg.XPATH_GROUP_LIMIT;
+                params = new Object[]{grpCount, grpLimit,
+                    _xmlSM.getStateLiteral(Limit.XPATH_GROUP_LIMIT)};
+            } else if (opLimit > 0 && opCount > opLimit) {
+                errCode = ErrorMsg.XPATH_OPERATOR_LIMIT;
+                params = new Object[]{opCount, opLimit,
+                    _xmlSM.getStateLiteral(Limit.XPATH_OP_LIMIT)};
+            } else if (totalOpLimit > 0 && totalOpCount > totalOpLimit) {
+                errCode = ErrorMsg.XPATH_TOTAL_OPERATOR_LIMIT;
+                params = new Object[]{totalOpCount, totalOpLimit,
+                    _xmlSM.getStateLiteral(Limit.XPATH_TOTALOP_LIMIT)};
+            }
+            if (errCode != null) {
+                _parser.reportError(Constants.FATAL,
+                        new ErrorMsg(errCode, lineNumber, params));
+                throw new RuntimeException(ErrorMsg.XPATH_LIMIT);
+            }
+            return s;
         }
         catch (IllegalCharException e) {
             ErrorMsg err = new ErrorMsg(ErrorMsg.ILLEGAL_CHAR_ERR,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -26,7 +26,6 @@ package com.sun.org.apache.xalan.internal.xsltc.compiler;
 import com.sun.org.apache.bcel.internal.classfile.JavaClass;
 import com.sun.org.apache.xalan.internal.XalanConstants;
 import com.sun.org.apache.xalan.internal.utils.SecuritySupport;
-import com.sun.org.apache.xalan.internal.utils.XMLSecurityManager;
 import com.sun.org.apache.xalan.internal.xsltc.compiler.util.ErrorMsg;
 import com.sun.org.apache.xalan.internal.xsltc.compiler.util.Util;
 import com.sun.org.apache.xml.internal.dtm.DTM;
@@ -49,6 +48,7 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import javax.xml.XMLConstants;
 import jdk.xml.internal.JdkXmlFeatures;
+import jdk.xml.internal.XMLSecurityManager;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
 
@@ -483,7 +483,10 @@ public final class XSLTC {
             }
         }
         catch (Exception e) {
-            /*if (_debug)*/ e.printStackTrace();
+            if (_debug) e.printStackTrace();
+            if (ErrorMsg.XPATH_LIMIT.equals(e.getMessage())) {
+                return !_parser.errorsFound();
+            }
             _parser.reportError(Constants.FATAL, new ErrorMsg(ErrorMsg.JAXP_COMPILE_ERR, e));
         }
         catch (Error e) {
