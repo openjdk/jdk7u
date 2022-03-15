@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,6 +71,9 @@ import java.security.cert.X509CRLSelector;
 import javax.security.auth.x500.X500Principal;
 
 import sun.misc.BASE64Encoder;
+import sun.misc.JavaSecurityKeyStoreAccess;
+import sun.misc.SharedSecrets;
+import sun.security.pkcs12.PKCS12Attribute;
 import sun.security.util.DisabledAlgorithmConstraints;
 import sun.security.util.KeyUtil;
 import sun.security.util.NamedCurve;
@@ -1856,6 +1859,13 @@ public final class Main {
                 out.println(mf);
                 dumpCert(cert, out);
             } else if (debug) {
+                Entry entry = keyStore.getEntry(alias, null);
+                JavaSecurityKeyStoreAccess jsksa = SharedSecrets.getJavaSecurityKeyStoreAccess();
+                Set<PKCS12Attribute> attrs =
+                    jsksa.getTrustedCertificateEntryAttributes((TrustedCertificateEntry)entry);
+                for (PKCS12Attribute attr : attrs) {
+                    System.out.println("Attribute " + attr.getName() + ": " + attr.getValue());
+                }
                 out.println(cert.toString());
             } else {
                 out.println("trustedCertEntry, ");
