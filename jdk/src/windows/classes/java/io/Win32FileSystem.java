@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,44 @@
 
 package java.io;
 
+import java.net.URI;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.security.AccessController;
 import java.util.Locale;
+
+import sun.nio.fs.DefaultFileSystemProvider;
 import sun.security.action.GetPropertyAction;
 
 
 class Win32FileSystem extends FileSystem {
 
+    /**
+     * Always use the internal default file system, in case it was modified
+     * with java.nio.file.spi.DefaultFileSystemProvider.
+     */
+    private static final java.nio.file.FileSystem builtInFS =
+            DefaultFileSystemProvider.create()
+                    .getFileSystem(URI.create("file:///"));
+
     private final char slash;
     private final char altSlash;
     private final char semicolon;
+
+    // Whether to enable alternative data streams (ADS) by suppressing
+    // checking the path for invalid characters, in particular ":".
+    // ADS support will be enabled if and only if the property is set and
+    // is the empty string or is equal, ignoring case, to the string "true".
+    // By default ADS support is disabled.
+    private static final boolean ENABLE_ADS;
+    static {
+        String enableADS = GetPropertyAction.privilegedGetProperty("jdk.io.File.enableADS");
+        if (enableADS != null) {
+            ENABLE_ADS = "".equals(enableADS) || Boolean.parseBoolean(enableADS);
+        } else {
+            ENABLE_ADS = false;
+        }
+    }
 
     public Win32FileSystem() {
         slash = AccessController.doPrivileged(
@@ -317,6 +345,33 @@ class Win32FileSystem extends FileSystem {
     private String getDrive(String path) {
         int pl = prefixLength(path);
         return (pl == 3) ? path.substring(0, 2) : null;
+    }
+
+    @Override
+    public boolean isInvalid(File f) {
+        if (f.getPath().indexOf('\u0000') >= 0)
+            return true;
+
+        if (ENABLE_ADS)
+            return false;
+
+        // Invalid if there is a ":" at a position greater than 1, or if there
+        // is a ":" at position 1 and the first character is not a letter
+        String pathname = f.getPath();
+        int lastColon = pathname.lastIndexOf(":");
+        if (lastColon > 1 ||
+            (lastColon == 1 && !isLetter(pathname.charAt(0))))
+            return true;
+
+        // Invalid if path creation fails
+        Path path = null;
+        try {
+            path = builtInFS.getPath(pathname);
+            return false;
+        } catch (InvalidPathException ignored) {
+        }
+
+        return true;
     }
 
     public String resolve(File f) {
