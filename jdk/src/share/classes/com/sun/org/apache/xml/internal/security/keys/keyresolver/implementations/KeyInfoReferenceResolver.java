@@ -187,6 +187,7 @@ public class KeyInfoReferenceResolver extends KeyResolverSpi {
         validateReference(referentElement);
 
         KeyInfo referent = new KeyInfo(referentElement, baseURI);
+        referent.setSecureValidation(secureValidation);
         referent.addStorageResolver(storage);
         return referent;
     }
@@ -205,7 +206,7 @@ public class KeyInfoReferenceResolver extends KeyResolverSpi {
         }
 
         KeyInfo referent = new KeyInfo(referentElement, "");
-        if (referent.containsKeyInfoReference()) {
+        if (referent.containsKeyInfoReference() || referent.containsRetrievalMethod()) {
             if (secureValidation) {
                 throw new XMLSecurityException("KeyInfoReferenceResolver.InvalidReferentElement.ReferenceWithSecure");
             } else {

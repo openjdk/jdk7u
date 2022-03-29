@@ -22,9 +22,11 @@
  */
 package com.sun.org.apache.xml.internal.security.utils.resolver.implementations;
 
-import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import com.sun.org.apache.xml.internal.security.signature.XMLSignatureInput;
 import com.sun.org.apache.xml.internal.security.utils.resolver.ResourceResolverContext;
@@ -35,8 +37,6 @@ import com.sun.org.apache.xml.internal.security.utils.resolver.ResourceResolverS
  * A simple ResourceResolver for requests into the local filesystem.
  */
 public class ResolverLocalFilesystem extends ResourceResolverSpi {
-
-    private static final int FILE_URI_LENGTH = "file:/".length();
 
     /** {@link org.apache.commons.logging} logging facility */
     private static java.util.logging.Logger log =
@@ -56,10 +56,7 @@ public class ResolverLocalFilesystem extends ResourceResolverSpi {
         try {
             // calculate new URI
             URI uriNew = getNewURI(context.uriToResolve, context.baseUri);
-
-            String fileName =
-                ResolverLocalFilesystem.translateUriToFilename(uriNew.toString());
-            FileInputStream inputStream = new FileInputStream(fileName);
+            InputStream inputStream = Files.newInputStream(Paths.get(uriNew));
             XMLSignatureInput result = new XMLSignatureInput(inputStream);
 
             result.setSourceURI(uriNew.toString());
@@ -68,41 +65,6 @@ public class ResolverLocalFilesystem extends ResourceResolverSpi {
         } catch (Exception e) {
             throw new ResourceResolverException("generic.EmptyMessage", e, context.attr, context.baseUri);
         }
-    }
-
-    /**
-     * Method translateUriToFilename
-     *
-     * @param uri
-     * @return the string of the filename
-     */
-    private static String translateUriToFilename(String uri) {
-
-        String subStr = uri.substring(FILE_URI_LENGTH);
-
-        if (subStr.indexOf("%20") > -1) {
-            int offset = 0;
-            int index = 0;
-            StringBuilder temp = new StringBuilder(subStr.length());
-            do {
-                index = subStr.indexOf("%20",offset);
-                if (index == -1) {
-                    temp.append(subStr.substring(offset));
-                } else {
-                    temp.append(subStr.substring(offset, index));
-                    temp.append(' ');
-                    offset = index + 3;
-                }
-            } while(index != -1);
-            subStr = temp.toString();
-        }
-
-        if (subStr.charAt(1) == ':') {
-            // we're running M$ Windows, so this works fine
-            return subStr;
-        }
-        // we're running some UNIX, so we have to prepend a slash
-        return "/" + subStr;
     }
 
     /**
