@@ -27,7 +27,6 @@ import java.util.Vector;
 import com.sun.org.apache.xalan.internal.res.XSLMessages;
 import com.sun.org.apache.xml.internal.utils.PrefixResolver;
 import com.sun.org.apache.xpath.internal.res.XPATHErrorResources;
-import java.util.Objects;
 import javax.xml.transform.TransformerException;
 import jdk.xml.internal.XMLSecurityManager;
 import jdk.xml.internal.XMLSecurityManager.Limit;
@@ -450,7 +449,7 @@ class Lexer
    * @return the next char
    */
   private char peekNext(String s, int index) {
-      if (index >= 0 && s.length() > index) {
+      if (index >= 0 && index < s.length() - 1) {
           return s.charAt(index + 1);
       }
       return 0;
