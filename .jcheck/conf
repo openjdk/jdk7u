@@ -1,7 +1,7 @@
 [general]
 project=jdk7u
 jbs=JDK
-version=openjdk7u341
+version=openjdk7u351
 
 [checks]
 error=author,committer,reviewers,merge,issues,executable,symlink,message,hg-tag,whitespace
