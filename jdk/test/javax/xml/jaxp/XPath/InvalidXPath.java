@@ -36,18 +36,26 @@ public class InvalidXPath {
 
     public static void main(String... args) {
         // define an invalid XPath expression
-        final String invalidXPath = ">>";
+        final String[] invalidXPath = {
+            // @bug JDK-8284548: expressions ending with relational operators
+            // throw StringIndexOutOfBoundsException instead of XPathExpressionException
+            "/a/b/c[@d >",
+            "/a/b/c[@d <",
+            "/a/b/c[@d >=",
+            ">>"
+        };
 
-        // expect XPathExpressionException when the invalid XPath expression is compiled
-        try {
-            XPathFactory.newInstance().newXPath().compile(invalidXPath);
-        } catch (XPathExpressionException e) {
-            System.out.println("Caught expected exception: " + e.getClass().getName() +
-                    "(" + e.getMessage() + ").");
-        } catch (Exception e) {
-            System.out.println("Caught unexpected exception: " + e.getClass().getName() +
-                    "(" + e.getMessage() + ")!");
-            throw e;
+        for(String s: invalidXPath) {
+            try {
+                XPathFactory.newInstance().newXPath().compile(s);
+            } catch (XPathExpressionException e) {
+                System.out.println("Caught expected exception: " + e.getClass().getName() +
+                        "(" + e.getMessage() + ").");
+            } catch (Exception e) {
+                System.out.println("Caught unexpected exception: " + e.getClass().getName() +
+                        "(" + e.getMessage() + ")!");
+                throw e;
+            }
         }
     }
 }
