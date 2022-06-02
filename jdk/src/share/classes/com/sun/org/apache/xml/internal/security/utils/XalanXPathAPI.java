@@ -174,7 +174,7 @@ public class XalanXPathAPI implements XPathAPI {
             installed = true;
             return;
         }
-        
+
         if (log.isLoggable(java.util.logging.Level.FINE)) {
             log.log(java.util.logging.Level.FINE, "Registering Here function");
         }
